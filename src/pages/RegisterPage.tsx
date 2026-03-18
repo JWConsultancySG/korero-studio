@@ -28,8 +28,8 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen gradient-purple-subtle">
       {/* Header */}
-      <div className="px-5 pt-4 pb-2">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-muted-foreground text-sm font-medium btn-press">
+      <div className="px-6 pt-5 pb-2">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-muted-foreground text-sm font-medium btn-press min-h-[44px]">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
       </div>
@@ -38,10 +38,10 @@ export default function RegisterPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="px-6 pt-4 pb-28 max-w-sm mx-auto"
+        className="px-6 pt-6 pb-28 max-w-sm mx-auto"
       >
         {/* Progress dots */}
-        <div className="flex items-center gap-1.5 mb-6">
+        <div className="flex items-center gap-2 mb-8">
           {[0, 1, 2].map(i => (
             <motion.div
               key={i}
@@ -49,7 +49,7 @@ export default function RegisterPage() {
               animate={{ scale: 1 }}
               transition={{ delay: 0.1 + i * 0.1 }}
               className={`h-1.5 rounded-full transition-all duration-500 ${
-                i < filledCount ? 'w-8 gradient-purple' : 'w-1.5 bg-border'
+                i < filledCount ? 'w-10 gradient-purple' : 'w-1.5 bg-border'
               }`}
             />
           ))}
@@ -60,15 +60,15 @@ export default function RegisterPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <h1 className="text-3xl font-black mb-1.5 text-foreground tracking-tight">
+          <h1 className="text-3xl font-black mb-2 text-foreground tracking-tight leading-tight">
             Join the crew 💜
           </h1>
-          <p className="text-muted-foreground text-sm mb-8">
+          <p className="text-muted-foreground text-sm mb-10 leading-relaxed">
             Quick sign up — takes 10 seconds, no cap
           </p>
         </motion.div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {[
             { id: 'name', label: 'Name', icon: User, value: name, setter: setName, placeholder: 'Your name', type: 'text' },
             { id: 'whatsapp', label: 'WhatsApp', icon: Phone, value: whatsapp, setter: setWhatsapp, placeholder: '+65 9123 4567', type: 'tel' },
@@ -79,9 +79,9 @@ export default function RegisterPage() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 + i * 0.1 }}
-              className="space-y-2"
+              className="space-y-2.5"
             >
-              <Label htmlFor={field.id} className="font-bold text-sm flex items-center gap-1.5">
+              <Label htmlFor={field.id} className="font-bold text-sm flex items-center gap-2">
                 <field.icon className="w-3.5 h-3.5 text-primary" />
                 {field.label}
               </Label>
@@ -96,13 +96,13 @@ export default function RegisterPage() {
                   onChange={e => field.setter(e.target.value)}
                   onFocus={() => setFocusedField(field.id)}
                   onBlur={() => setFocusedField(null)}
-                  className="h-13 rounded-2xl text-base border-2 border-border focus:border-primary transition-colors bg-card px-4"
+                  className="h-14 rounded-2xl text-base border-2 border-border focus:border-primary transition-colors bg-card px-4"
                 />
                 {field.value.trim() && (
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-success flex items-center justify-center"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-success flex items-center justify-center"
                   >
                     <span className="text-success-foreground text-xs">✓</span>
                   </motion.div>
@@ -115,7 +115,7 @@ export default function RegisterPage() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.65 }}
-            className="pt-3"
+            className="pt-4"
           >
             <Button
               type="submit"
@@ -129,7 +129,7 @@ export default function RegisterPage() {
               </span>
               {isValid && <div className="absolute inset-0 shimmer" />}
             </Button>
-            <p className="text-center text-[11px] text-muted-foreground mt-3">
+            <p className="text-center text-[11px] text-muted-foreground mt-4 leading-relaxed">
               No spam, ever. We only use WhatsApp for class updates.
             </p>
           </motion.div>
