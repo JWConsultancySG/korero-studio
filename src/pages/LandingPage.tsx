@@ -20,7 +20,7 @@ const stats = [
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const { student } = useApp();
+  const { student, groups } = useApp();
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0]);
@@ -30,20 +30,29 @@ export default function LandingPage() {
     navigate(student ? '/groups' : '/register');
   };
 
+  // Get top 3 forming groups for trending section
+  const trendingGroups = groups
+    .filter(g => g.status === 'forming')
+    .sort((a, b) => (b.interestCount / b.maxMembers) - (a.interestCount / a.maxMembers))
+    .slice(0, 3);
+
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden">
       {/* Hero Section with Video Background */}
       <section ref={heroRef} className="relative min-h-[100svh] flex flex-col items-center justify-center overflow-hidden">
         {/* Video Background */}
         <motion.div style={{ scale: heroScale }} className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-background z-10" />
+          {/* Stronger overlay for readability */}
+          <div className="absolute inset-0 z-10" style={{
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.75) 70%, rgba(0,0,0,0.95) 100%)'
+          }} />
           <video
             autoPlay
             muted
             loop
             playsInline
             className="w-full h-full object-cover"
-            style={{ filter: 'brightness(0.75) saturate(1.2)' }}
+            style={{ filter: 'brightness(0.6) saturate(1.1)' }}
           >
             <source src="/videos/hero.mp4" type="video/mp4" />
           </video>
@@ -55,16 +64,17 @@ export default function LandingPage() {
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
-            className="w-20 h-20 rounded-3xl gradient-purple-deep flex items-center justify-center mx-auto mb-8 glow-purple-intense float-subtle"
+            className="w-16 h-16 rounded-2xl gradient-purple-deep flex items-center justify-center mx-auto mb-6 glow-purple-intense"
           >
-            <span className="text-3xl font-black text-primary-foreground tracking-tight">K</span>
+            <span className="text-2xl font-black text-primary-foreground tracking-tight">K</span>
           </motion.div>
 
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.6 }}
-            className="text-5xl font-black tracking-tight mb-3 text-white"
+            className="text-5xl font-black tracking-tight mb-3"
+            style={{ color: 'white', textShadow: '0 2px 20px rgba(0,0,0,0.5)' }}
           >
             Korero
           </motion.h1>
@@ -74,10 +84,12 @@ export default function LandingPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.55, duration: 0.5 }}
           >
-            <p className="text-lg font-medium text-white/90 mb-1 leading-relaxed">
+            <p className="text-lg font-semibold mb-1 leading-relaxed"
+               style={{ color: 'rgba(255,255,255,0.95)', textShadow: '0 1px 10px rgba(0,0,0,0.4)' }}>
               K-pop Dance & Singing Studio
             </p>
-            <p className="text-sm text-white/50 mb-4">
+            <p className="text-sm mb-5"
+               style={{ color: 'rgba(255,255,255,0.65)', textShadow: '0 1px 8px rgba(0,0,0,0.3)' }}>
               Singapore's #1 place to learn, perform & slay
             </p>
           </motion.div>
@@ -87,7 +99,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.65 }}
-            className="flex items-center justify-center gap-6 mb-10"
+            className="flex items-center justify-center gap-0 mb-10 mx-auto"
           >
             {stats.map((s, i) => (
               <motion.div
@@ -95,10 +107,10 @@ export default function LandingPage() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.7 + i * 0.1 }}
-                className="text-center"
+                className={`text-center flex-1 ${i > 0 ? 'border-l border-white/15' : ''} px-5 py-1`}
               >
-                <p className="text-xl font-black text-white">{s.value}</p>
-                <p className="text-[10px] uppercase tracking-widest text-white/40 font-bold">{s.label}</p>
+                <p className="text-xl font-black" style={{ color: 'white', textShadow: '0 1px 8px rgba(0,0,0,0.3)' }}>{s.value}</p>
+                <p className="text-[10px] uppercase tracking-[0.15em] font-bold" style={{ color: 'rgba(255,255,255,0.5)' }}>{s.label}</p>
               </motion.div>
             ))}
           </motion.div>
@@ -121,7 +133,7 @@ export default function LandingPage() {
               <div className="absolute inset-0 shimmer" />
             </Button>
 
-            <p className="text-[11px] text-white/35 font-medium">
+            <p className="text-[11px] font-medium" style={{ color: 'rgba(255,255,255,0.4)' }}>
               Free to browse · No commitment needed
             </p>
           </motion.div>
@@ -138,7 +150,7 @@ export default function LandingPage() {
             animate={{ y: [0, 8, 0] }}
             transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
           >
-            <ChevronDown className="w-5 h-5 text-white/30" />
+            <ChevronDown className="w-5 h-5" style={{ color: 'rgba(255,255,255,0.3)' }} />
           </motion.div>
         </motion.div>
       </section>
@@ -201,32 +213,34 @@ export default function LandingPage() {
           </motion.div>
 
           <div className="space-y-3">
-            {[
-              { song: 'Super Shy', artist: 'NewJeans', count: 4, hot: true },
-              { song: 'SPOT!', artist: 'ZICO ft. JENNIE', count: 6, hot: true },
-              { song: 'Supernova', artist: 'aespa', count: 7, hot: false },
-            ].map((item, i) => (
-              <motion.div
-                key={item.song}
-                initial={{ opacity: 0, y: 15 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="card-premium p-5 flex items-center gap-4"
-              >
-                <div className="w-11 h-11 rounded-2xl gradient-purple flex items-center justify-center flex-shrink-0">
-                  <Play className="w-4 h-4 text-primary-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm text-foreground truncate">{item.song}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{item.artist}</p>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <Users className="w-3 h-3 text-muted-foreground" />
-                  <span className="text-xs font-bold text-muted-foreground">{item.count}</span>
-                </div>
-              </motion.div>
-            ))}
+            {trendingGroups.map((group, i) => {
+              const fillPercent = (group.interestCount / group.maxMembers) * 100;
+              return (
+                <motion.div
+                  key={group.id}
+                  initial={{ opacity: 0, y: 15 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.1 }}
+                  className="card-premium p-5 flex items-center gap-4"
+                >
+                  <div className="w-11 h-11 rounded-2xl gradient-purple flex items-center justify-center flex-shrink-0">
+                    <Play className="w-4 h-4 text-primary-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-foreground truncate">{group.songTitle}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{group.artist}</p>
+                    <div className="h-1 bg-muted rounded-full mt-2 overflow-hidden">
+                      <div className="h-full gradient-purple rounded-full transition-all" style={{ width: `${fillPercent}%` }} />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Users className="w-3 h-3 text-muted-foreground" />
+                    <span className="text-xs font-bold text-muted-foreground">{group.interestCount}/{group.maxMembers}</span>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
 
           <motion.div

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { Plus, Users, Music, Search, TrendingUp, Sparkles } from 'lucide-react';
+import { Plus, Users, Music, Search, Flame, Sparkles, TrendingUp, Zap } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -33,30 +33,48 @@ export default function GroupsPage() {
     toast.success('Song submitted for approval! ⏳');
   };
 
-  const allGroups = [...groups, ...pendingGroups];
-  const filteredGroups = search
-    ? allGroups.filter(g => g.songTitle.toLowerCase().includes(search.toLowerCase()) || g.artist.toLowerCase().includes(search.toLowerCase()))
-    : allGroups;
+  // Separate joinable (forming) vs full/confirmed groups
+  const joinableGroups = groups.filter(g => g.status === 'forming' && g.interestCount < g.maxMembers);
+  const confirmedGroups = groups.filter(g => g.status === 'confirmed' || g.interestCount >= g.maxMembers);
+  
+  // Include pending groups from student
+  const allDisplayGroups = [...joinableGroups, ...pendingGroups];
+  
+  const filteredJoinable = search
+    ? allDisplayGroups.filter(g => g.songTitle.toLowerCase().includes(search.toLowerCase()) || g.artist.toLowerCase().includes(search.toLowerCase()))
+    : allDisplayGroups;
 
-  const confirmedCount = groups.filter(g => g.status === 'confirmed').length;
+  const filteredConfirmed = search
+    ? confirmedGroups.filter(g => g.songTitle.toLowerCase().includes(search.toLowerCase()) || g.artist.toLowerCase().includes(search.toLowerCase()))
+    : confirmedGroups;
+
+  const getBadge = (group: typeof groups[0]) => {
+    const fillPercent = (group.interestCount / group.maxMembers) * 100;
+    const spotsLeft = group.maxMembers - group.interestCount;
+    
+    if (group.status === 'pending') return { text: '⏳ Pending', className: 'bg-muted text-muted-foreground' };
+    if (fillPercent >= 80) return { text: `🔥 ${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left!`, className: 'bg-destructive/10 text-destructive font-black' };
+    if (fillPercent >= 50) return { text: '💜 Filling fast', className: 'bg-accent text-accent-foreground' };
+    return { text: '🟢 Open', className: 'bg-muted text-muted-foreground' };
+  };
 
   return (
     <div className="min-h-screen pb-28">
-      {/* Hero header */}
+      {/* Header */}
       <div className="gradient-purple-subtle px-6 pt-7 pb-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-md mx-auto">
-          <h1 className="text-2xl font-black mb-1 text-foreground tracking-tight">Song Groups 🎵</h1>
-          <p className="text-sm text-muted-foreground leading-relaxed">Pick a song, join the crew, start slaying</p>
+          <h1 className="text-2xl font-black mb-1 text-foreground tracking-tight">Find Your Song 🎤</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">Claim your spot before it's gone</p>
 
-          {/* Stats pills */}
+          {/* Stats */}
           <div className="flex items-center gap-2.5 mt-5">
             <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-card border border-border text-xs font-bold text-foreground min-h-[36px]">
               <TrendingUp className="w-3 h-3 text-primary" />
-              {allGroups.length} groups
+              {joinableGroups.length} open
             </div>
             <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-card border border-border text-xs font-bold text-foreground min-h-[36px]">
-              <Sparkles className="w-3 h-3 text-primary" />
-              {confirmedCount} confirmed
+              <Flame className="w-3 h-3 text-destructive" />
+              {joinableGroups.filter(g => (g.interestCount / g.maxMembers) >= 0.8).length} almost full
             </div>
           </div>
 
@@ -73,83 +91,160 @@ export default function GroupsPage() {
         </motion.div>
       </div>
 
-      {/* Groups list */}
+      {/* Joinable Groups */}
       <div className="px-5 pt-5 max-w-md mx-auto">
-        <div className="space-y-3">
-          <AnimatePresence>
-            {filteredGroups.map((group, i) => {
-              const fillPercent = (group.interestCount / group.maxMembers) * 100;
-              const isAlmostFull = fillPercent >= 80;
+        {filteredJoinable.length > 0 && (
+          <div className="space-y-3.5">
+            <AnimatePresence>
+              {filteredJoinable
+                .sort((a, b) => (b.interestCount / b.maxMembers) - (a.interestCount / a.maxMembers))
+                .map((group, i) => {
+                  const fillPercent = (group.interestCount / group.maxMembers) * 100;
+                  const isAlmostFull = fillPercent >= 80;
+                  const isHot = fillPercent >= 50;
+                  const badge = getBadge(group);
+                  const spotsLeft = group.maxMembers - group.interestCount;
 
-              return (
+                  return (
+                    <motion.div
+                      key={group.id}
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ delay: i * 0.04 }}
+                      className={`card-premium p-5 relative overflow-hidden group ${
+                        isAlmostFull ? 'border-destructive/30' : ''
+                      }`}
+                    >
+                      {/* Urgency top bar for almost-full groups */}
+                      {isAlmostFull && group.status !== 'pending' && (
+                        <div className="absolute top-0 left-0 right-0 h-0.5 bg-destructive" />
+                      )}
+
+                      <div className="flex items-start gap-4">
+                        {/* Icon */}
+                        <div className="relative flex-shrink-0">
+                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
+                            isAlmostFull ? 'bg-destructive/10' : 'gradient-purple'
+                          } ${isAlmostFull ? 'pulse-ring' : ''}`}>
+                            {isAlmostFull ? (
+                              <Flame className="w-6 h-6 text-destructive" />
+                            ) : (
+                              <Music className="w-5 h-5 text-primary-foreground" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-black text-base text-foreground truncate leading-tight">{group.songTitle}</p>
+                          </div>
+                          <p className="text-xs text-muted-foreground mb-3">{group.artist}</p>
+
+                          {/* Progress bar */}
+                          <div className="mb-3">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <Users className="w-3 h-3 text-muted-foreground" />
+                                <span className="text-[11px] font-bold text-muted-foreground">
+                                  {group.interestCount} / {group.maxMembers} members
+                                </span>
+                              </div>
+                              <Badge className={`text-[10px] px-2 py-0 h-5 font-bold border-0 ${badge.className}`}>
+                                {badge.text}
+                              </Badge>
+                            </div>
+                            <div className="h-2 bg-muted rounded-full overflow-hidden">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${fillPercent}%` }}
+                                transition={{ delay: 0.3 + i * 0.05, duration: 0.6, ease: 'easeOut' }}
+                                className={`h-full rounded-full ${
+                                  isAlmostFull ? 'bg-destructive' : isHot ? 'gradient-purple' : 'bg-primary/40'
+                                }`}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Scarcity copy */}
+                          {isAlmostFull && group.status !== 'pending' && (
+                            <motion.p
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              className="text-[11px] font-bold text-destructive"
+                            >
+                              Last {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} — claim it before it's gone 🔥
+                            </motion.p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Join CTA */}
+                      {group.status !== 'pending' && (
+                        <motion.div className="mt-4">
+                          <Button
+                            onClick={() => handleJoin(group.id)}
+                            className={`w-full rounded-2xl font-black text-sm btn-press h-12 relative overflow-hidden ${
+                              isAlmostFull
+                                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                                : 'gradient-purple text-primary-foreground'
+                            }`}
+                          >
+                            <span className="relative z-10 flex items-center gap-2">
+                              {isAlmostFull ? (
+                                <>Grab Last Spot <Zap className="w-4 h-4" /></>
+                              ) : (
+                                <>Join This Group <Sparkles className="w-4 h-4" /></>
+                              )}
+                            </span>
+                            {!isAlmostFull && <div className="absolute inset-0 shimmer" />}
+                          </Button>
+                        </motion.div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {filteredJoinable.length === 0 && filteredConfirmed.length === 0 && (
+          <div className="text-center py-16">
+            <p className="text-muted-foreground text-sm">No groups found 😅</p>
+          </div>
+        )}
+
+        {/* Confirmed / Full Groups */}
+        {filteredConfirmed.length > 0 && (
+          <div className="mt-10">
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-muted-foreground mb-4">Confirmed / Full</p>
+            <div className="space-y-3">
+              {filteredConfirmed.map((group, i) => (
                 <motion.div
                   key={group.id}
-                  initial={{ opacity: 0, y: 15 }}
+                  initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
                   transition={{ delay: i * 0.04 }}
-                  className="card-premium p-5 group"
+                  className="card-premium p-5 opacity-60"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <div className="w-14 h-14 rounded-2xl gradient-purple flex items-center justify-center flex-shrink-0 group-hover:glow-purple transition-shadow">
-                        <Music className="w-5 h-5 text-primary-foreground" />
-                      </div>
-                      {isAlmostFull && group.status !== 'pending' && (
-                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive flex items-center justify-center">
-                          <span className="text-[8px] text-destructive-foreground font-black">🔥</span>
-                        </span>
-                      )}
+                    <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center flex-shrink-0">
+                      <Music className="w-5 h-5 text-muted-foreground" />
                     </div>
-
                     <div className="flex-1 min-w-0">
-                      <p className="font-black text-[15px] text-foreground truncate leading-tight">{group.songTitle}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{group.artist}</p>
-                      <div className="flex items-center gap-2.5 mt-3">
-                        {/* Progress bar */}
-                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${fillPercent}%` }}
-                            transition={{ delay: 0.3 + i * 0.05, duration: 0.6 }}
-                            className={`h-full rounded-full ${isAlmostFull ? 'gradient-purple' : 'bg-primary/40'}`}
-                          />
-                        </div>
-                        <span className="text-[11px] font-bold text-muted-foreground whitespace-nowrap">
-                          {group.interestCount}/{group.maxMembers}
-                        </span>
-                        <Badge
-                          variant={group.status === 'confirmed' ? 'default' : 'secondary'}
-                          className={`text-[10px] px-2 py-0 h-5 font-bold ${
-                            group.status === 'confirmed' ? 'gradient-purple text-primary-foreground' : ''
-                          } ${group.status === 'pending' ? 'bg-muted text-muted-foreground' : ''}`}
-                        >
-                          {group.status === 'confirmed' ? '✅ Confirmed' : group.status === 'pending' ? '⏳ Pending' : '🎤 Open'}
-                        </Badge>
-                      </div>
+                      <p className="font-bold text-sm text-foreground truncate">{group.songTitle}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{group.artist}</p>
                     </div>
-
-                    {group.status !== 'pending' && (
-                      <Button
-                        size="sm"
-                        onClick={() => handleJoin(group.id)}
-                        className="rounded-2xl font-black text-xs gradient-purple text-primary-foreground btn-press flex-shrink-0 h-10 px-5"
-                      >
-                        Join
-                      </Button>
-                    )}
+                    <Badge className="text-[10px] px-2.5 py-0.5 h-5 font-bold bg-muted text-muted-foreground border-0">
+                      FULL 🔒
+                    </Badge>
                   </div>
                 </motion.div>
-              );
-            })}
-          </AnimatePresence>
-
-          {filteredGroups.length === 0 && (
-            <div className="text-center py-16">
-              <p className="text-muted-foreground text-sm">No groups found 😅</p>
+              ))}
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* FAB */}

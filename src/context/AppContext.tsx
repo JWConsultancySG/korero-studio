@@ -2,11 +2,14 @@ import React, { createContext, useContext, useState, useCallback, type ReactNode
 import type { Student, SongGroup, Booking, ClassSession, TimeSlot, RoleName, Role } from '@/types';
 
 const MOCK_GROUPS: SongGroup[] = [
-  { id: '1', songTitle: 'Super Shy', artist: 'NewJeans', interestCount: 4, status: 'forming', members: [], maxMembers: 6 },
-  { id: '2', songTitle: 'SPOT!', artist: 'ZICO ft. JENNIE', interestCount: 6, status: 'confirmed', members: [], maxMembers: 6 },
-  { id: '3', songTitle: 'Magnetic', artist: 'ILLIT', interestCount: 3, status: 'forming', members: [], maxMembers: 6 },
-  { id: '4', songTitle: 'HEYA', artist: 'IVE', interestCount: 5, status: 'forming', members: [], maxMembers: 6 },
-  { id: '5', songTitle: 'Supernova', artist: 'aespa', interestCount: 7, status: 'confirmed', members: [], maxMembers: 8 },
+  { id: '1', songTitle: 'Super Shy', artist: 'NewJeans', interestCount: 3, status: 'forming', members: [], maxMembers: 5 },
+  { id: '3', songTitle: 'Magnetic', artist: 'ILLIT', interestCount: 4, status: 'forming', members: [], maxMembers: 5 },
+  { id: '5', songTitle: 'Supernova', artist: 'aespa', interestCount: 4, status: 'confirmed', members: [], maxMembers: 4 },
+  { id: '6', songTitle: 'RUDE!', artist: 'Hearts2Hearts', interestCount: 5, status: 'forming', members: [], maxMembers: 8 },
+  { id: '7', songTitle: 'Perfect Night', artist: 'LE SSERAFIM', interestCount: 3, status: 'forming', members: [], maxMembers: 5 },
+  { id: '8', songTitle: 'No Doubt', artist: 'ENHYPEN', interestCount: 6, status: 'forming', members: [], maxMembers: 7 },
+  { id: '9', songTitle: 'BLACKHOLE', artist: 'IVE', interestCount: 4, status: 'forming', members: [], maxMembers: 6 },
+  { id: '10', songTitle: 'This Is For', artist: 'TWICE', interestCount: 7, status: 'forming', members: [], maxMembers: 9 },
 ];
 
 const MOCK_TIME_SLOTS: TimeSlot[] = [
@@ -31,8 +34,7 @@ const DEFAULT_ROLES: Role[] = [
 ];
 
 const MOCK_SESSIONS: ClassSession[] = [
-  { id: 's1', groupId: '2', room: 'Room A', day: 'Monday', time: '6:00 PM', confirmed: true },
-  { id: 's2', groupId: '5', room: 'Room B', day: 'Wednesday', time: '7:00 PM', confirmed: true },
+  { id: 's1', groupId: '5', room: 'Room A', day: 'Wednesday', time: '7:00 PM', confirmed: true },
 ];
 
 interface AppState {
