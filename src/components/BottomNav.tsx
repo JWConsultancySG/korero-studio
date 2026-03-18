@@ -12,12 +12,11 @@ const tabs = [
 export default function BottomNav() {
   const location = useLocation();
 
-  // Hide nav on booking flow
-  if (location.pathname.startsWith('/booking')) return null;
+  if (location.pathname.startsWith('/booking') || location.pathname === '/register' || location.pathname === '/feedback') return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card/95 backdrop-blur-lg border-t border-border">
-      <div className="flex items-center justify-around max-w-md mx-auto h-16 px-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-border/50">
+      <div className="flex items-center justify-around max-w-md mx-auto h-[4.5rem] px-2 pb-safe">
         {tabs.map(tab => {
           const isActive = location.pathname === tab.to ||
             (tab.to !== '/' && location.pathname.startsWith(tab.to));
@@ -26,16 +25,18 @@ export default function BottomNav() {
             <NavLink
               key={tab.to}
               to={tab.to}
-              className="flex flex-col items-center gap-0.5 py-1 px-3 relative"
+              className="flex flex-col items-center gap-0.5 py-1.5 px-4 relative"
             >
               {isActive && (
                 <motion.div
                   layoutId="nav-indicator"
-                  className="absolute -top-px left-1/2 -translate-x-1/2 w-8 h-0.5 rounded-full gradient-purple"
-                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  className="absolute -top-[1px] left-1/2 -translate-x-1/2 w-10 h-[3px] rounded-full gradient-purple"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
-              <tab.icon className={`w-5 h-5 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+              <div className={`p-1.5 rounded-xl transition-colors ${isActive ? 'bg-accent' : ''}`}>
+                <tab.icon className={`w-5 h-5 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+              </div>
               <span className={`text-[10px] font-bold transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
                 {tab.label}
               </span>
