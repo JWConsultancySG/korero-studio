@@ -43,39 +43,39 @@ export default function GroupsPage() {
   return (
     <div className="min-h-screen pb-28">
       {/* Hero header */}
-      <div className="gradient-purple-subtle px-5 pt-6 pb-5">
+      <div className="gradient-purple-subtle px-6 pt-7 pb-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-md mx-auto">
-          <h1 className="text-2xl font-black mb-0.5 text-foreground tracking-tight">Song Groups 🎵</h1>
-          <p className="text-sm text-muted-foreground">Pick a song, join the crew, start slaying</p>
+          <h1 className="text-2xl font-black mb-1 text-foreground tracking-tight">Song Groups 🎵</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">Pick a song, join the crew, start slaying</p>
 
           {/* Stats pills */}
-          <div className="flex items-center gap-2 mt-4">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border text-xs font-bold text-foreground">
+          <div className="flex items-center gap-2.5 mt-5">
+            <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-card border border-border text-xs font-bold text-foreground min-h-[36px]">
               <TrendingUp className="w-3 h-3 text-primary" />
               {allGroups.length} groups
             </div>
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border text-xs font-bold text-foreground">
+            <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-card border border-border text-xs font-bold text-foreground min-h-[36px]">
               <Sparkles className="w-3 h-3 text-primary" />
               {confirmedCount} confirmed
             </div>
           </div>
 
           {/* Search */}
-          <div className="relative mt-4">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="relative mt-5">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Search songs or artists..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="pl-10 h-11 rounded-2xl bg-card border-border text-sm"
+              className="pl-11 h-12 rounded-2xl bg-card border-border text-sm"
             />
           </div>
         </motion.div>
       </div>
 
       {/* Groups list */}
-      <div className="px-4 pt-4 max-w-md mx-auto">
-        <div className="space-y-2.5">
+      <div className="px-5 pt-5 max-w-md mx-auto">
+        <div className="space-y-3">
           <AnimatePresence>
             {filteredGroups.map((group, i) => {
               const fillPercent = (group.interestCount / group.maxMembers) * 100;
@@ -88,11 +88,11 @@ export default function GroupsPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ delay: i * 0.04 }}
-                  className="card-premium p-4 group"
+                  className="card-premium p-5 group"
                 >
-                  <div className="flex items-center gap-3.5">
+                  <div className="flex items-center gap-4">
                     <div className="relative">
-                      <div className="w-13 h-13 rounded-2xl gradient-purple flex items-center justify-center flex-shrink-0 group-hover:glow-purple transition-shadow">
+                      <div className="w-14 h-14 rounded-2xl gradient-purple flex items-center justify-center flex-shrink-0 group-hover:glow-purple transition-shadow">
                         <Music className="w-5 h-5 text-primary-foreground" />
                       </div>
                       {isAlmostFull && group.status !== 'pending' && (
@@ -104,8 +104,8 @@ export default function GroupsPage() {
 
                     <div className="flex-1 min-w-0">
                       <p className="font-black text-[15px] text-foreground truncate leading-tight">{group.songTitle}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{group.artist}</p>
-                      <div className="flex items-center gap-2 mt-2">
+                      <p className="text-xs text-muted-foreground mt-1">{group.artist}</p>
+                      <div className="flex items-center gap-2.5 mt-3">
                         {/* Progress bar */}
                         <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
                           <motion.div
@@ -133,7 +133,7 @@ export default function GroupsPage() {
                       <Button
                         size="sm"
                         onClick={() => handleJoin(group.id)}
-                        className="rounded-xl font-black text-xs gradient-purple text-primary-foreground btn-press flex-shrink-0 h-9 px-4"
+                        className="rounded-2xl font-black text-xs gradient-purple text-primary-foreground btn-press flex-shrink-0 h-10 px-5"
                       >
                         Join
                       </Button>
@@ -145,7 +145,7 @@ export default function GroupsPage() {
           </AnimatePresence>
 
           {filteredGroups.length === 0 && (
-            <div className="text-center py-12">
+            <div className="text-center py-16">
               <p className="text-muted-foreground text-sm">No groups found 😅</p>
             </div>
           )}
@@ -172,19 +172,19 @@ export default function GroupsPage() {
             <DialogTitle className="font-black text-xl">Request a Song 🎤</DialogTitle>
             <DialogDescription>Submit a song for admin approval — we'll let you know!</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="space-y-2">
+          <div className="space-y-5 pt-2">
+            <div className="space-y-2.5">
               <Label className="font-bold text-sm">Song Title</Label>
-              <Input value={newSong} onChange={e => setNewSong(e.target.value)} placeholder="e.g. Ditto" className="h-12 rounded-2xl border-2" />
+              <Input value={newSong} onChange={e => setNewSong(e.target.value)} placeholder="e.g. Ditto" className="h-13 rounded-2xl border-2" />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               <Label className="font-bold text-sm">Artist</Label>
-              <Input value={newArtist} onChange={e => setNewArtist(e.target.value)} placeholder="e.g. NewJeans" className="h-12 rounded-2xl border-2" />
+              <Input value={newArtist} onChange={e => setNewArtist(e.target.value)} placeholder="e.g. NewJeans" className="h-13 rounded-2xl border-2" />
             </div>
             <Button
               onClick={handleCreate}
               disabled={!newSong.trim() || !newArtist.trim()}
-              className="w-full h-12 rounded-2xl font-black gradient-purple text-primary-foreground btn-press relative overflow-hidden"
+              className="w-full h-13 rounded-2xl font-black gradient-purple text-primary-foreground btn-press relative overflow-hidden"
             >
               <span className="relative z-10">Submit for Approval ✨</span>
               {newSong.trim() && newArtist.trim() && <div className="absolute inset-0 shimmer" />}

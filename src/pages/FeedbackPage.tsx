@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, Sparkles, MessageCircle, Music, Heart } from 'lucide-react';
+import { ArrowLeft, Sparkles, MessageCircle, Music, Heart } from 'lucide-react';
 
 export default function FeedbackPage() {
   const navigate = useNavigate();
@@ -20,13 +20,13 @@ export default function FeedbackPage() {
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: 'spring', stiffness: 200 }}
-            className="w-20 h-20 rounded-3xl gradient-purple-deep flex items-center justify-center mx-auto mb-5 glow-purple-intense"
+            className="w-20 h-20 rounded-3xl gradient-purple-deep flex items-center justify-center mx-auto mb-6 glow-purple-intense"
           >
             <Heart className="w-10 h-10 text-primary-foreground" />
           </motion.div>
-          <h2 className="text-2xl font-black text-foreground mb-1.5">Thanks! 💜</h2>
-          <p className="text-muted-foreground text-sm mb-8">Your feedback helps us improve</p>
-          <Button onClick={() => navigate('/')} className="rounded-2xl font-bold gradient-purple text-primary-foreground btn-press h-12 px-8">
+          <h2 className="text-2xl font-black text-foreground mb-2">Thanks! 💜</h2>
+          <p className="text-muted-foreground text-sm mb-10 leading-relaxed">Your feedback helps us improve</p>
+          <Button onClick={() => navigate('/')} className="rounded-2xl font-bold gradient-purple text-primary-foreground btn-press h-13 px-8">
             Back to Home
           </Button>
         </motion.div>
@@ -38,8 +38,8 @@ export default function FeedbackPage() {
 
   return (
     <div className="min-h-screen pb-28">
-      <div className="px-5 pt-4 pb-2">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-muted-foreground text-sm font-medium btn-press">
+      <div className="px-6 pt-5 pb-2">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-muted-foreground text-sm font-medium btn-press min-h-[44px]">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
       </div>
@@ -47,26 +47,26 @@ export default function FeedbackPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="px-6 pt-4 max-w-sm mx-auto"
+        className="px-6 pt-6 max-w-sm mx-auto"
       >
-        <h1 className="text-2xl font-black mb-1 text-foreground tracking-tight">Quick Feedback 📝</h1>
-        <p className="text-sm text-muted-foreground mb-8">Optional — takes 30 seconds!</p>
+        <h1 className="text-2xl font-black mb-1.5 text-foreground tracking-tight">Quick Feedback 📝</h1>
+        <p className="text-sm text-muted-foreground mb-10 leading-relaxed">Optional — takes 30 seconds!</p>
 
-        <form onSubmit={e => { e.preventDefault(); setSubmitted(true); }} className="space-y-6">
+        <form onSubmit={e => { e.preventDefault(); setSubmitted(true); }} className="space-y-8">
           {/* Emoji rating */}
-          <div className="space-y-3">
-            <Label className="font-black text-sm flex items-center gap-1.5">
+          <div className="space-y-4">
+            <Label className="font-black text-sm flex items-center gap-2">
               <Sparkles className="w-3.5 h-3.5 text-primary" />
               How was your experience?
             </Label>
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-2.5">
               {emojis.map((emoji, i) => (
                 <motion.button
                   key={i}
                   type="button"
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setRating(i)}
-                  className={`w-14 h-14 rounded-2xl text-2xl flex items-center justify-center transition-all ${
+                  className={`w-14 h-14 rounded-2xl text-2xl flex items-center justify-center transition-all min-h-[56px] ${
                     rating === i ? 'bg-accent border-2 border-primary glow-purple scale-110' : 'bg-card border-2 border-border'
                   }`}
                 >
@@ -76,30 +76,30 @@ export default function FeedbackPage() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label className="font-bold text-sm flex items-center gap-1.5">
+          <div className="space-y-2.5">
+            <Label className="font-bold text-sm flex items-center gap-2">
               <MessageCircle className="w-3.5 h-3.5 text-primary" />
               How did you hear about us?
             </Label>
-            <Input placeholder="Instagram, friend, TikTok..." className="h-12 rounded-2xl border-2" />
+            <Input placeholder="Instagram, friend, TikTok..." className="h-13 rounded-2xl border-2" />
           </div>
 
-          <div className="space-y-2">
-            <Label className="font-bold text-sm flex items-center gap-1.5">
+          <div className="space-y-2.5">
+            <Label className="font-bold text-sm flex items-center gap-2">
               <Music className="w-3.5 h-3.5 text-primary" />
               Any song requests?
             </Label>
-            <Input placeholder="Your dream K-pop song" className="h-12 rounded-2xl border-2" />
+            <Input placeholder="Your dream K-pop song" className="h-13 rounded-2xl border-2" />
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             <Label className="font-bold text-sm">Anything else?</Label>
-            <Textarea placeholder="Tell us anything..." className="rounded-2xl border-2 min-h-[80px]" />
+            <Textarea placeholder="Tell us anything..." className="rounded-2xl border-2 min-h-[100px]" />
           </div>
 
           <Button
             type="submit"
-            className="w-full h-13 rounded-2xl font-black gradient-purple text-primary-foreground btn-press relative overflow-hidden"
+            className="w-full h-14 rounded-2xl font-black gradient-purple text-primary-foreground btn-press relative overflow-hidden"
           >
             <span className="relative z-10">Submit ✨</span>
             <div className="absolute inset-0 shimmer" />

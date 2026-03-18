@@ -24,7 +24,7 @@ export default function LandingPage() {
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0]);
-  const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.1]);
+  const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.08]);
 
   const handleCTA = () => {
     navigate(student ? '/groups' : '/register');
@@ -32,27 +32,30 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden">
-      {/* Hero Section with Instagram Reel */}
+      {/* Hero Section with Video Background */}
       <section ref={heroRef} className="relative min-h-[100svh] flex flex-col items-center justify-center overflow-hidden">
         {/* Video Background */}
         <motion.div style={{ scale: heroScale }} className="absolute inset-0 z-0">
-          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-background z-10" />
-          <iframe
-            src="https://www.instagram.com/reel/DS1MODGDFJr/embed/"
-            className="w-full h-full border-0 scale-[2.5] origin-center pointer-events-none"
-            style={{ filter: 'brightness(0.8) saturate(1.3)' }}
-            allow="autoplay; encrypted-media"
-            title="Korero Studio"
-          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-background z-10" />
+          <video
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="w-full h-full object-cover"
+            style={{ filter: 'brightness(0.75) saturate(1.2)' }}
+          >
+            <source src="/videos/hero.mp4" type="video/mp4" />
+          </video>
         </motion.div>
 
         {/* Hero Content */}
-        <motion.div style={{ opacity: heroOpacity }} className="relative z-20 text-center px-6 max-w-sm mx-auto">
+        <motion.div style={{ opacity: heroOpacity }} className="relative z-20 text-center px-8 max-w-sm mx-auto">
           <motion.div
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
-            className="w-20 h-20 rounded-3xl gradient-purple-deep flex items-center justify-center mx-auto mb-6 glow-purple-intense float-subtle"
+            className="w-20 h-20 rounded-3xl gradient-purple-deep flex items-center justify-center mx-auto mb-8 glow-purple-intense float-subtle"
           >
             <span className="text-3xl font-black text-primary-foreground tracking-tight">K</span>
           </motion.div>
@@ -61,7 +64,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4, duration: 0.6 }}
-            className="text-5xl font-black tracking-tight mb-2 text-white"
+            className="text-5xl font-black tracking-tight mb-3 text-white"
           >
             Korero
           </motion.h1>
@@ -71,10 +74,10 @@ export default function LandingPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.55, duration: 0.5 }}
           >
-            <p className="text-lg font-medium text-white/90 mb-1">
+            <p className="text-lg font-medium text-white/90 mb-1 leading-relaxed">
               K-pop Dance & Singing Studio
             </p>
-            <p className="text-sm text-white/60 mb-3">
+            <p className="text-sm text-white/50 mb-4">
               Singapore's #1 place to learn, perform & slay
             </p>
           </motion.div>
@@ -84,7 +87,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.65 }}
-            className="flex items-center justify-center gap-4 mb-8"
+            className="flex items-center justify-center gap-6 mb-10"
           >
             {stats.map((s, i) => (
               <motion.div
@@ -95,7 +98,7 @@ export default function LandingPage() {
                 className="text-center"
               >
                 <p className="text-xl font-black text-white">{s.value}</p>
-                <p className="text-[10px] uppercase tracking-widest text-white/50 font-bold">{s.label}</p>
+                <p className="text-[10px] uppercase tracking-widest text-white/40 font-bold">{s.label}</p>
               </motion.div>
             ))}
           </motion.div>
@@ -104,7 +107,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8 }}
-            className="space-y-3"
+            className="space-y-4"
           >
             <Button
               onClick={handleCTA}
@@ -118,7 +121,7 @@ export default function LandingPage() {
               <div className="absolute inset-0 shimmer" />
             </Button>
 
-            <p className="text-[11px] text-white/40 font-medium">
+            <p className="text-[11px] text-white/35 font-medium">
               Free to browse · No commitment needed
             </p>
           </motion.div>
@@ -135,27 +138,27 @@ export default function LandingPage() {
             animate={{ y: [0, 8, 0] }}
             transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
           >
-            <ChevronDown className="w-5 h-5 text-white/40" />
+            <ChevronDown className="w-5 h-5 text-white/30" />
           </motion.div>
         </motion.div>
       </section>
 
       {/* How It Works */}
-      <section className="px-5 py-12 pb-10 relative">
+      <section className="px-6 py-14 relative">
         <div className="max-w-sm mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-8"
+            className="text-center mb-10"
           >
             <p className="text-xs font-black text-primary uppercase tracking-[0.2em] mb-2">How it works</p>
-            <h2 className="text-2xl font-black text-foreground">
+            <h2 className="text-2xl font-black text-foreground leading-tight">
               4 steps to the stage 🔥
             </h2>
           </motion.div>
 
-          <div className="space-y-3">
+          <div className="space-y-4">
             {features.map((f, i) => (
               <motion.div
                 key={f.title}
@@ -163,7 +166,7 @@ export default function LandingPage() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1, duration: 0.5 }}
-                className="card-premium p-4 flex items-center gap-4 group"
+                className="card-premium p-5 flex items-center gap-4 group"
               >
                 <div className="w-12 h-12 rounded-2xl gradient-purple flex items-center justify-center flex-shrink-0 group-hover:glow-purple transition-shadow">
                   <f.icon className="w-5 h-5 text-primary-foreground" />
@@ -173,7 +176,7 @@ export default function LandingPage() {
                     <span className="text-xs text-primary font-black">0{i + 1}</span>
                     {f.title}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{f.desc}</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{f.desc}</p>
                 </div>
                 <span className="text-lg">{f.emoji}</span>
               </motion.div>
@@ -183,13 +186,13 @@ export default function LandingPage() {
       </section>
 
       {/* Trending Songs Preview */}
-      <section className="px-5 py-8 pb-10">
+      <section className="px-6 py-10">
         <div className="max-w-sm mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-center mb-6"
+            className="text-center mb-8"
           >
             <p className="text-xs font-black text-primary uppercase tracking-[0.2em] mb-2">Trending now</p>
             <h2 className="text-2xl font-black text-foreground">
@@ -197,7 +200,7 @@ export default function LandingPage() {
             </h2>
           </motion.div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             {[
               { song: 'Super Shy', artist: 'NewJeans', count: 4, hot: true },
               { song: 'SPOT!', artist: 'ZICO ft. JENNIE', count: 6, hot: true },
@@ -209,14 +212,14 @@ export default function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="card-premium p-4 flex items-center gap-3"
+                className="card-premium p-5 flex items-center gap-4"
               >
-                <div className="w-10 h-10 rounded-xl gradient-purple flex items-center justify-center flex-shrink-0">
+                <div className="w-11 h-11 rounded-2xl gradient-purple flex items-center justify-center flex-shrink-0">
                   <Play className="w-4 h-4 text-primary-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-sm text-foreground truncate">{item.song}</p>
-                  <p className="text-xs text-muted-foreground">{item.artist}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{item.artist}</p>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Users className="w-3 h-3 text-muted-foreground" />
@@ -230,12 +233,12 @@ export default function LandingPage() {
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
-            className="mt-6"
+            className="mt-8"
           >
             <Button
               onClick={handleCTA}
               variant="outline"
-              className="w-full h-12 rounded-2xl font-bold btn-press border-primary/20 text-primary hover:bg-accent"
+              className="w-full h-13 rounded-2xl font-bold btn-press border-primary/20 text-primary hover:bg-accent"
             >
               See All Groups →
             </Button>
@@ -244,20 +247,20 @@ export default function LandingPage() {
       </section>
 
       {/* Final CTA */}
-      <section className="px-5 py-10 pb-32">
+      <section className="px-6 py-12 pb-32">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="max-w-sm mx-auto text-center gradient-purple-deep rounded-3xl p-8 glow-purple-intense relative overflow-hidden"
+          className="max-w-sm mx-auto text-center gradient-purple-deep rounded-3xl p-10 glow-purple-intense relative overflow-hidden"
         >
           <div className="absolute inset-0 shimmer" />
           <div className="relative z-10">
-            <p className="text-3xl mb-3">💜</p>
-            <h3 className="text-xl font-black text-primary-foreground mb-2">
+            <p className="text-3xl mb-4">💜</p>
+            <h3 className="text-xl font-black text-primary-foreground mb-3">
               Ready to slay?
             </h3>
-            <p className="text-sm text-primary-foreground/70 mb-6">
+            <p className="text-sm text-primary-foreground/70 mb-8 leading-relaxed">
               Join 500+ students already vibing at Korero
             </p>
             <Button

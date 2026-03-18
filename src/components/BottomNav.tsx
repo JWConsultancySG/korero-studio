@@ -16,7 +16,7 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-border/50">
-      <div className="flex items-center justify-around max-w-md mx-auto h-[4.5rem] px-2 pb-safe">
+      <div className="flex items-center justify-around max-w-md mx-auto h-20 px-2 pb-safe">
         {tabs.map(tab => {
           const isActive = location.pathname === tab.to ||
             (tab.to !== '/' && location.pathname.startsWith(tab.to));
@@ -25,7 +25,7 @@ export default function BottomNav() {
             <NavLink
               key={tab.to}
               to={tab.to}
-              className="flex flex-col items-center gap-0.5 py-1.5 px-4 relative"
+              className="flex flex-col items-center gap-1 py-2 px-5 relative min-h-[48px] min-w-[48px] justify-center"
             >
               {isActive && (
                 <motion.div
@@ -34,7 +34,7 @@ export default function BottomNav() {
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
-              <div className={`p-1.5 rounded-xl transition-colors ${isActive ? 'bg-accent' : ''}`}>
+              <div className={`p-2 rounded-xl transition-colors ${isActive ? 'bg-accent' : ''}`}>
                 <tab.icon className={`w-5 h-5 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
               </div>
               <span className={`text-[10px] font-bold transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
@@ -25,7 +24,7 @@ export default function BookingFlow() {
   const navigate = useNavigate();
   const { groups, timeSlots, roles, selectRole, createBooking, completePayment, student } = useApp();
   const [step, setStep] = useState(0);
-  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
+  const [selectedSlots, setSelectedSlots] = useState<TimeSlot[]>([]);
   const [selectedRole, setSelectedRole] = useState<RoleName | null>(null);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'paynow'>('stripe');
@@ -52,7 +51,13 @@ export default function BookingFlow() {
 
   const formatTimer = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
-  const handleSelectSlot = (slot: TimeSlot) => setSelectedSlot(slot);
+  const handleToggleSlot = (slot: TimeSlot) => {
+    setSelectedSlots(prev => {
+      const exists = prev.find(s => s.id === slot.id);
+      if (exists) return prev.filter(s => s.id !== slot.id);
+      return [...prev, slot];
+    });
+  };
 
   const handleSelectRole = (role: RoleName) => {
     setSelectedRole(role);
@@ -61,9 +66,9 @@ export default function BookingFlow() {
   };
 
   const handlePayment = async () => {
-    if (!selectedSlot || !selectedRole || !groupId) return;
+    if (!selectedSlots.length || !selectedRole || !groupId) return;
     setProcessing(true);
-    const b = createBooking(groupId, selectedRole, selectedSlot);
+    const b = createBooking(groupId, selectedRole, selectedSlots[0]);
     setBooking(b);
     await new Promise(r => setTimeout(r, 2000));
     completePayment(b.id);
@@ -73,8 +78,6 @@ export default function BookingFlow() {
     setStep(3);
     toast.success("You're in! 🎉");
   };
-
-  const progressValue = ((step + 1) / STEPS.length) * 100;
 
   if (!group) return (
     <div className="min-h-screen flex items-center justify-center">
@@ -88,14 +91,22 @@ export default function BookingFlow() {
     exit: { opacity: 0, x: -30 },
   };
 
+  // Group slots by day
+  const availableSlots = timeSlots.filter(s => s.available);
+  const slotsByDay: Record<string, TimeSlot[]> = {};
+  availableSlots.forEach(slot => {
+    if (!slotsByDay[slot.day]) slotsByDay[slot.day] = [];
+    slotsByDay[slot.day].push(slot);
+  });
+
   return (
     <div className="min-h-screen pb-8">
       {/* Sticky header */}
-      <div className="sticky top-0 z-30 glass-strong border-b border-border/50 px-4 py-3">
+      <div className="sticky top-0 z-30 glass-strong border-b border-border/50 px-5 py-4">
         <div className="max-w-md mx-auto">
-          <div className="flex items-center gap-3 mb-3">
+          <div className="flex items-center gap-3 mb-4">
             {step < 3 && (
-              <button onClick={() => step > 0 ? setStep(step - 1) : navigate(-1)} className="text-muted-foreground btn-press p-1">
+              <button onClick={() => step > 0 ? setStep(step - 1) : navigate(-1)} className="text-muted-foreground btn-press p-1.5 -ml-1.5">
                 <ArrowLeft className="w-5 h-5" />
               </button>
             )}
@@ -104,19 +115,19 @@ export default function BookingFlow() {
                 {group.songTitle} — {group.artist}
               </p>
             </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-accent text-[10px] font-black text-accent-foreground">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-accent text-[10px] font-black text-accent-foreground">
               Step {step + 1}/{STEPS.length}
             </div>
           </div>
 
           {/* Progress bar */}
-          <div className="flex gap-1.5">
+          <div className="flex gap-2">
             {STEPS.map((s, i) => (
               <div key={s} className="flex-1">
-                <div className={`h-1 rounded-full transition-all duration-500 ${
+                <div className={`h-1.5 rounded-full transition-all duration-500 ${
                   i <= step ? 'gradient-purple' : 'bg-muted'
                 }`} />
-                <p className={`text-[9px] font-bold mt-1 text-center ${
+                <p className={`text-[9px] font-bold mt-1.5 text-center ${
                   i <= step ? 'text-primary' : 'text-muted-foreground'
                 }`}>
                   {s}
@@ -127,53 +138,72 @@ export default function BookingFlow() {
         </div>
       </div>
 
-      <div className="px-4 pt-5 max-w-md mx-auto">
+      <div className="px-5 pt-6 max-w-md mx-auto">
         <AnimatePresence mode="wait">
-          {/* Step 0: Time */}
+          {/* Step 0: Time — Multi-select */}
           {step === 0 && (
             <motion.div key="time" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
-              <h2 className="text-2xl font-black mb-1 text-foreground">Pick your time 📅</h2>
-              <p className="text-sm text-muted-foreground mb-6">When works best for you?</p>
-              <div className="space-y-2">
-                {timeSlots.filter(s => s.available).map((slot, i) => (
-                  <motion.button
-                    key={slot.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.04 }}
-                    onClick={() => handleSelectSlot(slot)}
-                    className={`w-full flex items-center gap-3.5 p-4 rounded-2xl border-2 transition-all btn-press ${
-                      selectedSlot?.id === slot.id
-                        ? 'border-primary bg-accent glow-purple'
-                        : 'border-border bg-card hover:border-primary/30'
-                    }`}
-                  >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                      selectedSlot?.id === slot.id ? 'gradient-purple' : 'bg-muted'
-                    }`}>
-                      <Clock className={`w-4 h-4 ${selectedSlot?.id === slot.id ? 'text-primary-foreground' : 'text-muted-foreground'}`} />
+              <h2 className="text-2xl font-black mb-1.5 text-foreground">Pick your times 📅</h2>
+              <p className="text-sm text-muted-foreground mb-2 leading-relaxed">Select all slots that work for you</p>
+              
+              {selectedSlots.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="mb-5"
+                >
+                  <Badge className="gradient-purple text-primary-foreground font-bold text-xs px-3 py-1">
+                    {selectedSlots.length} slot{selectedSlots.length > 1 ? 's' : ''} selected
+                  </Badge>
+                </motion.div>
+              )}
+
+              <div className="space-y-6 mb-6">
+                {Object.entries(slotsByDay).map(([day, slots]) => (
+                  <div key={day}>
+                    <p className="text-xs font-black uppercase tracking-wider text-muted-foreground mb-3">{day}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {slots.map((slot, i) => {
+                        const isSelected = selectedSlots.some(s => s.id === slot.id);
+                        return (
+                          <motion.button
+                            key={slot.id}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: i * 0.03 }}
+                            onClick={() => handleToggleSlot(slot)}
+                            className={`flex items-center gap-2 px-4 py-3 rounded-2xl border-2 transition-all btn-press min-h-[48px] ${
+                              isSelected
+                                ? 'border-primary bg-accent glow-purple'
+                                : 'border-border bg-card hover:border-primary/30'
+                            }`}
+                          >
+                            <Clock className={`w-3.5 h-3.5 ${isSelected ? 'text-primary' : 'text-muted-foreground'}`} />
+                            <span className={`text-sm font-bold ${isSelected ? 'text-primary' : 'text-foreground'}`}>
+                              {slot.time}
+                            </span>
+                            {isSelected && (
+                              <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                className="w-5 h-5 rounded-full gradient-purple flex items-center justify-center"
+                              >
+                                <Check className="w-3 h-3 text-primary-foreground" />
+                              </motion.div>
+                            )}
+                          </motion.button>
+                        );
+                      })}
                     </div>
-                    <div className="text-left flex-1">
-                      <p className="font-bold text-sm text-foreground">{slot.day}</p>
-                      <p className="text-xs text-muted-foreground">{slot.time}</p>
-                    </div>
-                    {selectedSlot?.id === slot.id && (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="w-6 h-6 rounded-full gradient-purple flex items-center justify-center"
-                      >
-                        <Check className="w-3.5 h-3.5 text-primary-foreground" />
-                      </motion.div>
-                    )}
-                  </motion.button>
+                  </div>
                 ))}
               </div>
+
               <div className="sticky bottom-0 pt-4 pb-4 bg-gradient-to-t from-background via-background to-transparent">
                 <Button
                   onClick={() => setStep(1)}
-                  disabled={!selectedSlot}
-                  className="w-full h-13 rounded-2xl font-black text-base gradient-purple text-primary-foreground btn-press disabled:opacity-40"
+                  disabled={selectedSlots.length === 0}
+                  className="w-full h-14 rounded-2xl font-black text-base gradient-purple text-primary-foreground btn-press disabled:opacity-40"
                 >
                   Continue →
                 </Button>
@@ -184,23 +214,23 @@ export default function BookingFlow() {
           {/* Step 1: Role */}
           {step === 1 && (
             <motion.div key="role" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
-              <h2 className="text-2xl font-black mb-1 text-foreground">Choose your role ⭐</h2>
-              <p className="text-sm text-muted-foreground mb-5">What's your vibe?</p>
+              <h2 className="text-2xl font-black mb-1.5 text-foreground">Choose your role ⭐</h2>
+              <p className="text-sm text-muted-foreground mb-6 leading-relaxed">What's your vibe?</p>
 
               {selectedRole && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
-                  className="flex items-center gap-2 mb-5 p-3 rounded-2xl bg-accent border border-primary/20"
+                  className="flex items-center gap-2.5 mb-6 p-4 rounded-2xl bg-accent border border-primary/20"
                 >
-                  <div className="w-6 h-6 rounded-full gradient-purple flex items-center justify-center pulse-ring">
-                    <Timer className="w-3 h-3 text-primary-foreground" />
+                  <div className="w-7 h-7 rounded-full gradient-purple flex items-center justify-center pulse-ring">
+                    <Timer className="w-3.5 h-3.5 text-primary-foreground" />
                   </div>
                   <span className="text-xs font-black text-primary">Role held for {formatTimer(holdTimer)}</span>
                 </motion.div>
               )}
 
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-2 gap-3">
                 {roles.map((role, i) => {
                   const RoleIcon = ROLE_ICONS[role.name] || Star;
                   return (
@@ -211,7 +241,7 @@ export default function BookingFlow() {
                       transition={{ delay: i * 0.06 }}
                       onClick={() => role.available && handleSelectRole(role.name)}
                       disabled={!role.available && role.heldBy !== student?.id}
-                      className={`p-4 rounded-2xl border-2 text-center transition-all btn-press ${
+                      className={`p-5 rounded-2xl border-2 text-center transition-all btn-press min-h-[120px] flex flex-col items-center justify-center ${
                         selectedRole === role.name
                           ? 'border-primary bg-accent glow-purple'
                           : role.available
@@ -219,13 +249,13 @@ export default function BookingFlow() {
                           : 'border-border bg-muted opacity-40'
                       }`}
                     >
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2.5 ${
+                      <div className={`w-11 h-11 rounded-2xl flex items-center justify-center mx-auto mb-3 ${
                         selectedRole === role.name ? 'gradient-purple' : 'bg-muted'
                       }`}>
                         <RoleIcon className={`w-5 h-5 ${selectedRole === role.name ? 'text-primary-foreground' : 'text-muted-foreground'}`} />
                       </div>
                       <p className="font-black text-sm text-foreground">{role.name}</p>
-                      <p className={`text-[10px] font-bold mt-1 ${
+                      <p className={`text-[10px] font-bold mt-1.5 ${
                         selectedRole === role.name ? 'text-primary' : 'text-muted-foreground'
                       }`}>
                         {selectedRole === role.name ? '✅ Selected' : role.available ? '🟢 Available' : '🔴 Taken'}
@@ -234,11 +264,11 @@ export default function BookingFlow() {
                   );
                 })}
               </div>
-              <div className="sticky bottom-0 pt-4 pb-4 bg-gradient-to-t from-background via-background to-transparent">
+              <div className="sticky bottom-0 pt-5 pb-4 bg-gradient-to-t from-background via-background to-transparent">
                 <Button
                   onClick={() => setStep(2)}
                   disabled={!selectedRole}
-                  className="w-full h-13 rounded-2xl font-black text-base gradient-purple text-primary-foreground btn-press disabled:opacity-40"
+                  className="w-full h-14 rounded-2xl font-black text-base gradient-purple text-primary-foreground btn-press disabled:opacity-40"
                 >
                   Continue →
                 </Button>
@@ -249,14 +279,14 @@ export default function BookingFlow() {
           {/* Step 2: Payment */}
           {step === 2 && (
             <motion.div key="pay" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
-              <h2 className="text-2xl font-black mb-1 text-foreground">Payment 💳</h2>
-              <p className="text-sm text-muted-foreground mb-6">Almost there — one more step!</p>
+              <h2 className="text-2xl font-black mb-1.5 text-foreground">Payment 💳</h2>
+              <p className="text-sm text-muted-foreground mb-8 leading-relaxed">Almost there — one more step!</p>
 
               {/* Order summary */}
-              <div className="card-premium p-5 mb-5 relative overflow-hidden">
+              <div className="card-premium p-6 mb-6 relative overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-1 gradient-purple" />
-                <p className="text-xs font-black uppercase tracking-wider text-primary mb-4">Order Summary</p>
-                <div className="space-y-3 text-sm">
+                <p className="text-xs font-black uppercase tracking-wider text-primary mb-5">Order Summary</p>
+                <div className="space-y-4 text-sm">
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground flex items-center gap-2">
                       <Music className="w-3.5 h-3.5" /> Song
@@ -269,11 +299,15 @@ export default function BookingFlow() {
                     </span>
                     <span className="font-bold text-foreground">{selectedRole}</span>
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-start">
                     <span className="text-muted-foreground flex items-center gap-2">
-                      <Clock className="w-3.5 h-3.5" /> Time
+                      <Clock className="w-3.5 h-3.5" /> Time{selectedSlots.length > 1 ? 's' : ''}
                     </span>
-                    <span className="font-bold text-foreground">{selectedSlot?.day} · {selectedSlot?.time}</span>
+                    <div className="text-right">
+                      {selectedSlots.map(slot => (
+                        <p key={slot.id} className="font-bold text-foreground text-sm">{slot.day} · {slot.time}</p>
+                      ))}
+                    </div>
                   </div>
                   <div className="h-px bg-border my-1" />
                   <div className="flex justify-between items-center">
@@ -284,9 +318,9 @@ export default function BookingFlow() {
               </div>
 
               {/* Payment method */}
-              <div className="mb-6">
-                <p className="text-sm font-black text-foreground mb-3">Payment Method</p>
-                <div className="grid grid-cols-2 gap-2.5">
+              <div className="mb-8">
+                <p className="text-sm font-black text-foreground mb-4">Payment Method</p>
+                <div className="grid grid-cols-2 gap-3">
                   {[
                     { id: 'stripe' as const, label: 'Card / Apple Pay', icon: CreditCard },
                     { id: 'paynow' as const, label: 'PayNow / QR', icon: Shield },
@@ -294,11 +328,11 @@ export default function BookingFlow() {
                     <button
                       key={method.id}
                       onClick={() => setPaymentMethod(method.id)}
-                      className={`p-4 rounded-2xl border-2 text-center transition-all btn-press ${
+                      className={`p-5 rounded-2xl border-2 text-center transition-all btn-press min-h-[80px] ${
                         paymentMethod === method.id ? 'border-primary bg-accent' : 'border-border bg-card'
                       }`}
                     >
-                      <method.icon className={`w-5 h-5 mx-auto mb-2 ${paymentMethod === method.id ? 'text-primary' : 'text-muted-foreground'}`} />
+                      <method.icon className={`w-5 h-5 mx-auto mb-2.5 ${paymentMethod === method.id ? 'text-primary' : 'text-muted-foreground'}`} />
                       <p className="text-xs font-bold text-foreground">{method.label}</p>
                     </button>
                   ))}
@@ -321,7 +355,7 @@ export default function BookingFlow() {
                 {!processing && <div className="absolute inset-0 shimmer" />}
               </Button>
 
-              <p className="text-center text-[11px] text-muted-foreground mt-3 flex items-center justify-center gap-1">
+              <p className="text-center text-[11px] text-muted-foreground mt-4 flex items-center justify-center gap-1.5">
                 <Shield className="w-3 h-3" /> Secure payment · Instant confirmation
               </p>
             </motion.div>
@@ -329,7 +363,7 @@ export default function BookingFlow() {
 
           {/* Step 3: Confirmation */}
           {step === 3 && (
-            <motion.div key="done" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }} className="text-center pt-6">
+            <motion.div key="done" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }} className="text-center pt-8">
               {/* Confetti effect */}
               {showConfetti && (
                 <div className="fixed inset-0 pointer-events-none z-50">
@@ -361,15 +395,15 @@ export default function BookingFlow() {
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: 'spring', stiffness: 200, delay: 0.2 }}
-                className="w-24 h-24 rounded-3xl gradient-purple-deep flex items-center justify-center mx-auto mb-6 glow-purple-intense"
+                className="w-24 h-24 rounded-3xl gradient-purple-deep flex items-center justify-center mx-auto mb-8 glow-purple-intense"
               >
                 <Check className="w-12 h-12 text-primary-foreground" />
               </motion.div>
 
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-                <h2 className="text-3xl font-black mb-1 text-foreground">You're in! 🎉</h2>
+                <h2 className="text-3xl font-black mb-2 text-foreground">You're in! 🎉</h2>
                 <p className="text-muted-foreground mb-2">Welcome to the crew</p>
-                <p className="text-xs text-muted-foreground mb-8">
+                <p className="text-xs text-muted-foreground mb-10">
                   📱 You'll receive a WhatsApp confirmation shortly
                 </p>
               </motion.div>
@@ -378,21 +412,27 @@ export default function BookingFlow() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
-                className="card-premium p-5 text-left mb-8 relative overflow-hidden"
+                className="card-premium p-6 text-left mb-8 relative overflow-hidden"
               >
                 <div className="absolute top-0 left-0 right-0 h-1 gradient-purple" />
-                <p className="text-xs font-black uppercase tracking-wider text-primary mb-4">Your Booking</p>
-                <div className="space-y-3 text-sm">
-                  {[
-                    { label: 'Song', value: `${group.songTitle} — ${group.artist}` },
-                    { label: 'Role', value: selectedRole },
-                    { label: 'Time', value: `${selectedSlot?.day} · ${selectedSlot?.time}` },
-                  ].map(item => (
-                    <div key={item.label} className="flex justify-between">
-                      <span className="text-muted-foreground">{item.label}</span>
-                      <span className="font-bold text-foreground">{item.value}</span>
+                <p className="text-xs font-black uppercase tracking-wider text-primary mb-5">Your Booking</p>
+                <div className="space-y-3.5 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Song</span>
+                    <span className="font-bold text-foreground">{group.songTitle} — {group.artist}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Role</span>
+                    <span className="font-bold text-foreground">{selectedRole}</span>
+                  </div>
+                  <div className="flex justify-between items-start">
+                    <span className="text-muted-foreground">Time{selectedSlots.length > 1 ? 's' : ''}</span>
+                    <div className="text-right">
+                      {selectedSlots.map(slot => (
+                        <p key={slot.id} className="font-bold text-foreground">{slot.day} · {slot.time}</p>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                   <div className="h-px bg-border" />
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Payment</span>
@@ -405,11 +445,11 @@ export default function BookingFlow() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 }}
-                className="space-y-2.5"
+                className="space-y-3"
               >
                 <Button
                   onClick={() => navigate('/my-classes')}
-                  className="w-full h-13 rounded-2xl font-black gradient-purple text-primary-foreground btn-press relative overflow-hidden"
+                  className="w-full h-14 rounded-2xl font-black gradient-purple text-primary-foreground btn-press relative overflow-hidden"
                 >
                   <span className="relative z-10">View My Classes 📚</span>
                   <div className="absolute inset-0 shimmer" />
@@ -417,7 +457,7 @@ export default function BookingFlow() {
                 <Button
                   variant="outline"
                   onClick={() => navigate('/feedback')}
-                  className="w-full h-12 rounded-2xl font-bold border-2 btn-press"
+                  className="w-full h-13 rounded-2xl font-bold border-2 btn-press"
                 >
                   Quick Feedback 📝
                 </Button>
