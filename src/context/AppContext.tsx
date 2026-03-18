@@ -1,0 +1,174 @@
+import React, { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import type { Student, SongGroup, Booking, ClassSession, TimeSlot, RoleName, Role } from '@/types';
+
+const MOCK_GROUPS: SongGroup[] = [
+  { id: '1', songTitle: 'Super Shy', artist: 'NewJeans', interestCount: 4, status: 'forming', members: [], maxMembers: 6 },
+  { id: '2', songTitle: 'SPOT!', artist: 'ZICO ft. JENNIE', interestCount: 6, status: 'confirmed', members: [], maxMembers: 6 },
+  { id: '3', songTitle: 'Magnetic', artist: 'ILLIT', interestCount: 3, status: 'forming', members: [], maxMembers: 6 },
+  { id: '4', songTitle: 'HEYA', artist: 'IVE', interestCount: 5, status: 'forming', members: [], maxMembers: 6 },
+  { id: '5', songTitle: 'Supernova', artist: 'aespa', interestCount: 7, status: 'confirmed', members: [], maxMembers: 8 },
+];
+
+const MOCK_TIME_SLOTS: TimeSlot[] = [
+  { id: 't1', day: 'Monday', time: '6:00 PM', available: true },
+  { id: 't2', day: 'Monday', time: '7:30 PM', available: true },
+  { id: 't3', day: 'Tuesday', time: '6:00 PM', available: true },
+  { id: 't4', day: 'Wednesday', time: '7:00 PM', available: true },
+  { id: 't5', day: 'Thursday', time: '6:00 PM', available: false },
+  { id: 't6', day: 'Friday', time: '7:00 PM', available: true },
+  { id: 't7', day: 'Saturday', time: '10:00 AM', available: true },
+  { id: 't8', day: 'Saturday', time: '2:00 PM', available: true },
+  { id: 't9', day: 'Sunday', time: '11:00 AM', available: true },
+];
+
+const DEFAULT_ROLES: Role[] = [
+  { name: 'Main Vocal', available: true },
+  { name: 'Sub Vocal', available: true },
+  { name: 'Main Dancer', available: true },
+  { name: 'Sub Dancer', available: true },
+  { name: 'Rapper', available: true },
+  { name: 'Center', available: true },
+];
+
+const MOCK_SESSIONS: ClassSession[] = [
+  { id: 's1', groupId: '2', room: 'Room A', day: 'Monday', time: '6:00 PM', confirmed: true },
+  { id: 's2', groupId: '5', room: 'Room B', day: 'Wednesday', time: '7:00 PM', confirmed: true },
+];
+
+interface AppState {
+  student: Student | null;
+  groups: SongGroup[];
+  bookings: Booking[];
+  sessions: ClassSession[];
+  timeSlots: TimeSlot[];
+  roles: Role[];
+  pendingGroups: SongGroup[];
+  isAdmin: boolean;
+}
+
+interface AppContextType extends AppState {
+  registerStudent: (s: Omit<Student, 'id'>) => void;
+  joinGroup: (groupId: string) => void;
+  createGroup: (songTitle: string, artist: string) => void;
+  approveGroup: (groupId: string) => void;
+  rejectGroup: (groupId: string) => void;
+  selectRole: (role: RoleName) => void;
+  createBooking: (groupId: string, role: RoleName, timeSlot: TimeSlot) => Booking;
+  completePayment: (bookingId: string) => void;
+  loginAdmin: (password: string) => boolean;
+  logoutAdmin: () => void;
+  assignSession: (groupId: string, room: 'Room A' | 'Room B', day: string, time: string) => void;
+}
+
+const AppContext = createContext<AppContextType | null>(null);
+
+export function AppProvider({ children }: { children: ReactNode }) {
+  const [student, setStudent] = useState<Student | null>(null);
+  const [groups, setGroups] = useState<SongGroup[]>(MOCK_GROUPS);
+  const [pendingGroups, setPendingGroups] = useState<SongGroup[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [sessions, setSessions] = useState<ClassSession[]>(MOCK_SESSIONS);
+  const [roles, setRoles] = useState<Role[]>(DEFAULT_ROLES);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  const registerStudent = useCallback((s: Omit<Student, 'id'>) => {
+    setStudent({ ...s, id: crypto.randomUUID() });
+  }, []);
+
+  const joinGroup = useCallback((groupId: string) => {
+    setGroups(prev => prev.map(g =>
+      g.id === groupId ? { ...g, interestCount: g.interestCount + 1, members: [...g.members, student?.id || ''] } : g
+    ));
+  }, [student]);
+
+  const createGroup = useCallback((songTitle: string, artist: string) => {
+    const newGroup: SongGroup = {
+      id: crypto.randomUUID(),
+      songTitle,
+      artist,
+      interestCount: 1,
+      status: 'pending',
+      members: [student?.id || ''],
+      maxMembers: 6,
+    };
+    setPendingGroups(prev => [...prev, newGroup]);
+  }, [student]);
+
+  const approveGroup = useCallback((groupId: string) => {
+    setPendingGroups(prev => {
+      const group = prev.find(g => g.id === groupId);
+      if (group) {
+        setGroups(gPrev => [...gPrev, { ...group, status: 'forming' }]);
+      }
+      return prev.filter(g => g.id !== groupId);
+    });
+  }, []);
+
+  const rejectGroup = useCallback((groupId: string) => {
+    setPendingGroups(prev => prev.filter(g => g.id !== groupId));
+  }, []);
+
+  const selectRole = useCallback((roleName: RoleName) => {
+    setRoles(prev => prev.map(r =>
+      r.name === roleName ? { ...r, available: false, heldBy: student?.id, holdExpiry: Date.now() + 30 * 60 * 1000 } : r
+    ));
+  }, [student]);
+
+  const createBooking = useCallback((groupId: string, role: RoleName, timeSlot: TimeSlot): Booking => {
+    const booking: Booking = {
+      id: crypto.randomUUID(),
+      studentId: student?.id || '',
+      groupId,
+      role,
+      timeSlot,
+      paymentStatus: 'pending',
+      amount: 45,
+      createdAt: new Date().toISOString(),
+    };
+    setBookings(prev => [...prev, booking]);
+    return booking;
+  }, [student]);
+
+  const completePayment = useCallback((bookingId: string) => {
+    setBookings(prev => prev.map(b =>
+      b.id === bookingId ? { ...b, paymentStatus: 'paid' } : b
+    ));
+  }, []);
+
+  const loginAdmin = useCallback((password: string): boolean => {
+    if (password === 'korero2024') {
+      setIsAdmin(true);
+      return true;
+    }
+    return false;
+  }, []);
+
+  const logoutAdmin = useCallback(() => setIsAdmin(false), []);
+
+  const assignSession = useCallback((groupId: string, room: 'Room A' | 'Room B', day: string, time: string) => {
+    setSessions(prev => [...prev, {
+      id: crypto.randomUUID(),
+      groupId,
+      room,
+      day,
+      time,
+      confirmed: true,
+    }]);
+  }, []);
+
+  return (
+    <AppContext.Provider value={{
+      student, groups, bookings, sessions, timeSlots: MOCK_TIME_SLOTS, roles, pendingGroups, isAdmin,
+      registerStudent, joinGroup, createGroup, approveGroup, rejectGroup, selectRole,
+      createBooking, completePayment, loginAdmin, logoutAdmin, assignSession,
+    }}>
+      {children}
+    </AppContext.Provider>
+  );
+}
+
+export function useApp() {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error('useApp must be used within AppProvider');
+  return ctx;
+}
