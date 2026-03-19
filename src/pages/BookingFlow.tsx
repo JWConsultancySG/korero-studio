@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import type { TimeSlot, RoleName, Booking } from '@/types';
-import { ArrowLeft, Check, Clock, CreditCard, Music, Star, Timer, Sparkles, Shield, Mic2, Users, Zap } from 'lucide-react';
+import { ArrowLeft, Check, Clock, CreditCard, Music, Star, Timer, Sparkles, Shield, Mic2, Users, Zap, CalendarDays, CircleCheck, CircleX, BookOpen, MessageSquare, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 
 const STEPS = ['Time', 'Role', 'Pay', 'Done'];
@@ -76,7 +76,7 @@ export default function BookingFlow() {
     setProcessing(false);
     setShowConfetti(true);
     setStep(3);
-    toast.success("You're in! 🎉");
+    toast.success("You're in!");
   };
 
   if (!group) return (
@@ -91,7 +91,6 @@ export default function BookingFlow() {
     exit: { opacity: 0, x: -30 },
   };
 
-  // Group slots by day
   const availableSlots = timeSlots.filter(s => s.available);
   const slotsByDay: Record<string, TimeSlot[]> = {};
   availableSlots.forEach(slot => {
@@ -120,7 +119,6 @@ export default function BookingFlow() {
             </div>
           </div>
 
-          {/* Progress bar */}
           <div className="flex gap-2">
             {STEPS.map((s, i) => (
               <div key={s} className="flex-1">
@@ -140,18 +138,16 @@ export default function BookingFlow() {
 
       <div className="px-5 pt-6 max-w-md mx-auto">
         <AnimatePresence mode="wait">
-          {/* Step 0: Time — Multi-select */}
+          {/* Step 0: Time */}
           {step === 0 && (
             <motion.div key="time" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
-              <h2 className="text-2xl font-black mb-1.5 text-foreground">Pick your times 📅</h2>
+              <h2 className="text-2xl font-black mb-1.5 text-foreground flex items-center gap-2">
+                Pick your times <CalendarDays className="w-5 h-5 text-primary" />
+              </h2>
               <p className="text-sm text-muted-foreground mb-2 leading-relaxed">Select all slots that work for you</p>
-              
+
               {selectedSlots.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="mb-5"
-                >
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mb-5">
                   <Badge className="gradient-purple text-primary-foreground font-bold text-xs px-3 py-1">
                     {selectedSlots.length} slot{selectedSlots.length > 1 ? 's' : ''} selected
                   </Badge>
@@ -205,7 +201,7 @@ export default function BookingFlow() {
                   disabled={selectedSlots.length === 0}
                   className="w-full h-14 rounded-2xl font-black text-base gradient-purple text-primary-foreground btn-press disabled:opacity-40"
                 >
-                  Continue →
+                  <span className="flex items-center gap-2">Continue <ArrowRight className="w-4 h-4" /></span>
                 </Button>
               </div>
             </motion.div>
@@ -214,7 +210,9 @@ export default function BookingFlow() {
           {/* Step 1: Role */}
           {step === 1 && (
             <motion.div key="role" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
-              <h2 className="text-2xl font-black mb-1.5 text-foreground">Choose your role ⭐</h2>
+              <h2 className="text-2xl font-black mb-1.5 text-foreground flex items-center gap-2">
+                Choose your role <Star className="w-5 h-5 text-primary" />
+              </h2>
               <p className="text-sm text-muted-foreground mb-6 leading-relaxed">What's your vibe?</p>
 
               {selectedRole && (
@@ -255,10 +253,16 @@ export default function BookingFlow() {
                         <RoleIcon className={`w-5 h-5 ${selectedRole === role.name ? 'text-primary-foreground' : 'text-muted-foreground'}`} />
                       </div>
                       <p className="font-black text-sm text-foreground">{role.name}</p>
-                      <p className={`text-[10px] font-bold mt-1.5 ${
+                      <p className={`text-[10px] font-bold mt-1.5 flex items-center gap-1 ${
                         selectedRole === role.name ? 'text-primary' : 'text-muted-foreground'
                       }`}>
-                        {selectedRole === role.name ? '✅ Selected' : role.available ? '🟢 Available' : '🔴 Taken'}
+                        {selectedRole === role.name ? (
+                          <><CircleCheck className="w-3 h-3" /> Selected</>
+                        ) : role.available ? (
+                          <><CircleCheck className="w-3 h-3 text-success" /> Available</>
+                        ) : (
+                          <><CircleX className="w-3 h-3 text-destructive" /> Taken</>
+                        )}
                       </p>
                     </motion.button>
                   );
@@ -270,7 +274,7 @@ export default function BookingFlow() {
                   disabled={!selectedRole}
                   className="w-full h-14 rounded-2xl font-black text-base gradient-purple text-primary-foreground btn-press disabled:opacity-40"
                 >
-                  Continue →
+                  <span className="flex items-center gap-2">Continue <ArrowRight className="w-4 h-4" /></span>
                 </Button>
               </div>
             </motion.div>
@@ -279,10 +283,11 @@ export default function BookingFlow() {
           {/* Step 2: Payment */}
           {step === 2 && (
             <motion.div key="pay" variants={slideVariants} initial="enter" animate="center" exit="exit" transition={{ duration: 0.3 }}>
-              <h2 className="text-2xl font-black mb-1.5 text-foreground">Payment 💳</h2>
+              <h2 className="text-2xl font-black mb-1.5 text-foreground flex items-center gap-2">
+                Payment <CreditCard className="w-5 h-5 text-primary" />
+              </h2>
               <p className="text-sm text-muted-foreground mb-8 leading-relaxed">Almost there — one more step!</p>
 
-              {/* Order summary */}
               <div className="card-premium p-6 mb-6 relative overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-1 gradient-purple" />
                 <p className="text-xs font-black uppercase tracking-wider text-primary mb-5">Order Summary</p>
@@ -317,7 +322,6 @@ export default function BookingFlow() {
                 </div>
               </div>
 
-              {/* Payment method */}
               <div className="mb-8">
                 <p className="text-sm font-black text-foreground mb-4">Payment Method</p>
                 <div className="grid grid-cols-2 gap-3">
@@ -350,7 +354,7 @@ export default function BookingFlow() {
                       <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full" />
                       Processing...
                     </span>
-                  ) : 'Pay $45 →'}
+                  ) : <span className="flex items-center gap-2">Pay $45 <ArrowRight className="w-4 h-4" /></span>}
                 </span>
                 {!processing && <div className="absolute inset-0 shimmer" />}
               </Button>
@@ -364,18 +368,12 @@ export default function BookingFlow() {
           {/* Step 3: Confirmation */}
           {step === 3 && (
             <motion.div key="done" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }} className="text-center pt-8">
-              {/* Confetti effect */}
               {showConfetti && (
                 <div className="fixed inset-0 pointer-events-none z-50">
                   {Array.from({ length: 30 }).map((_, i) => (
                     <motion.div
                       key={i}
-                      initial={{
-                        opacity: 1,
-                        x: '50vw',
-                        y: '40vh',
-                        scale: 0,
-                      }}
+                      initial={{ opacity: 1, x: '50vw', y: '40vh', scale: 0 }}
                       animate={{
                         opacity: 0,
                         x: `${Math.random() * 100}vw`,
@@ -401,10 +399,12 @@ export default function BookingFlow() {
               </motion.div>
 
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
-                <h2 className="text-3xl font-black mb-2 text-foreground">You're in! 🎉</h2>
+                <h2 className="text-3xl font-black mb-2 text-foreground flex items-center justify-center gap-2">
+                  You're in! <Sparkles className="w-6 h-6 text-primary" />
+                </h2>
                 <p className="text-muted-foreground mb-2">Welcome to the crew</p>
-                <p className="text-xs text-muted-foreground mb-10">
-                  📱 You'll receive a WhatsApp confirmation shortly
+                <p className="text-xs text-muted-foreground mb-10 flex items-center justify-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5" /> You'll receive a WhatsApp confirmation shortly
                 </p>
               </motion.div>
 
@@ -436,7 +436,9 @@ export default function BookingFlow() {
                   <div className="h-px bg-border" />
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground">Payment</span>
-                    <Badge className="gradient-purple text-primary-foreground font-black">Paid ✅</Badge>
+                    <Badge className="gradient-purple text-primary-foreground font-black flex items-center gap-1">
+                      <CircleCheck className="w-3 h-3" /> Paid
+                    </Badge>
                   </div>
                 </div>
               </motion.div>
@@ -451,7 +453,7 @@ export default function BookingFlow() {
                   onClick={() => navigate('/my-classes')}
                   className="w-full h-14 rounded-2xl font-black gradient-purple text-primary-foreground btn-press relative overflow-hidden"
                 >
-                  <span className="relative z-10">View My Classes 📚</span>
+                  <span className="relative z-10 flex items-center gap-2">View My Classes <BookOpen className="w-4 h-4" /></span>
                   <div className="absolute inset-0 shimmer" />
                 </Button>
                 <Button
@@ -459,7 +461,7 @@ export default function BookingFlow() {
                   onClick={() => navigate('/feedback')}
                   className="w-full h-13 rounded-2xl font-bold border-2 btn-press"
                 >
-                  Quick Feedback 📝
+                  <span className="flex items-center gap-2">Quick Feedback <MessageSquare className="w-4 h-4" /></span>
                 </Button>
                 <Button
                   variant="ghost"

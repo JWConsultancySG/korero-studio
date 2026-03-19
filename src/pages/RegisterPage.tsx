@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { ArrowLeft, Sparkles, User, Phone, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Sparkles, User, Phone, Mail, Lock, Eye, EyeOff, Check, Heart } from 'lucide-react';
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
@@ -35,7 +35,6 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen gradient-purple-subtle">
-      {/* Header */}
       <div className="px-6 pt-5 pb-2">
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-muted-foreground text-sm font-medium btn-press min-h-[44px]">
           <ArrowLeft className="w-4 h-4" /> Back
@@ -48,7 +47,6 @@ export default function RegisterPage() {
         transition={{ duration: 0.5 }}
         className="px-6 pt-4 pb-28 max-w-sm mx-auto"
       >
-        {/* Progress dots */}
         <div className="flex items-center gap-2 mb-8">
           {[0, 1, 2, 3].map(i => (
             <motion.div
@@ -68,8 +66,8 @@ export default function RegisterPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <h1 className="text-3xl font-black mb-2 text-foreground tracking-tight leading-tight">
-            Create your account 💜
+          <h1 className="text-3xl font-black mb-2 text-foreground tracking-tight leading-tight flex items-center gap-2">
+            Create your account <Heart className="w-6 h-6 text-primary" />
           </h1>
           <p className="text-muted-foreground text-sm mb-8 leading-relaxed">
             Sign up to join groups, track your classes & more
@@ -108,14 +106,13 @@ export default function RegisterPage() {
                     animate={{ scale: 1 }}
                     className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-success flex items-center justify-center"
                   >
-                    <span className="text-success-foreground text-xs">✓</span>
+                    <Check className="w-3 h-3 text-success-foreground" />
                   </motion.div>
                 )}
               </div>
             </motion.div>
           ))}
 
-          {/* Password field */}
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
