@@ -5,12 +5,20 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, MessageCircle, Music, Heart } from 'lucide-react';
+import { ArrowLeft, Sparkles, MessageCircle, Music, Heart, Star, Send, Frown, Meh, Smile, SmilePlus, PartyPopper } from 'lucide-react';
 
 export default function FeedbackPage() {
   const navigate = useNavigate();
   const [submitted, setSubmitted] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
+
+  const ratingOptions = [
+    { icon: Frown, label: 'Meh' },
+    { icon: Meh, label: 'Okay' },
+    { icon: Smile, label: 'Good' },
+    { icon: SmilePlus, label: 'Great' },
+    { icon: PartyPopper, label: 'Amazing' },
+  ];
 
   if (submitted) {
     return (
@@ -24,7 +32,9 @@ export default function FeedbackPage() {
           >
             <Heart className="w-10 h-10 text-primary-foreground" />
           </motion.div>
-          <h2 className="text-2xl font-black text-foreground mb-2">Thanks! 💜</h2>
+          <h2 className="text-2xl font-black text-foreground mb-2 flex items-center justify-center gap-2">
+            Thanks! <Heart className="w-5 h-5 text-primary" />
+          </h2>
           <p className="text-muted-foreground text-sm mb-10 leading-relaxed">Your feedback helps us improve</p>
           <Button onClick={() => navigate('/')} className="rounded-2xl font-bold gradient-purple text-primary-foreground btn-press h-13 px-8">
             Back to Home
@@ -33,8 +43,6 @@ export default function FeedbackPage() {
       </div>
     );
   }
-
-  const emojis = ['😐', '🙂', '😊', '😍', '🤩'];
 
   return (
     <div className="min-h-screen pb-28">
@@ -49,30 +57,34 @@ export default function FeedbackPage() {
         animate={{ opacity: 1, y: 0 }}
         className="px-6 pt-6 max-w-sm mx-auto"
       >
-        <h1 className="text-2xl font-black mb-1.5 text-foreground tracking-tight">Quick Feedback 📝</h1>
+        <h1 className="text-2xl font-black mb-1.5 text-foreground tracking-tight flex items-center gap-2">
+          Quick Feedback <MessageCircle className="w-5 h-5 text-primary" />
+        </h1>
         <p className="text-sm text-muted-foreground mb-10 leading-relaxed">Optional — takes 30 seconds!</p>
 
         <form onSubmit={e => { e.preventDefault(); setSubmitted(true); }} className="space-y-8">
-          {/* Emoji rating */}
           <div className="space-y-4">
             <Label className="font-black text-sm flex items-center gap-2">
               <Sparkles className="w-3.5 h-3.5 text-primary" />
               How was your experience?
             </Label>
             <div className="flex items-center justify-between gap-2.5">
-              {emojis.map((emoji, i) => (
-                <motion.button
-                  key={i}
-                  type="button"
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setRating(i)}
-                  className={`w-14 h-14 rounded-2xl text-2xl flex items-center justify-center transition-all min-h-[56px] ${
-                    rating === i ? 'bg-accent border-2 border-primary glow-purple scale-110' : 'bg-card border-2 border-border'
-                  }`}
-                >
-                  {emoji}
-                </motion.button>
-              ))}
+              {ratingOptions.map((option, i) => {
+                const Icon = option.icon;
+                return (
+                  <motion.button
+                    key={i}
+                    type="button"
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setRating(i)}
+                    className={`w-14 h-14 rounded-2xl flex flex-col items-center justify-center transition-all min-h-[56px] ${
+                      rating === i ? 'bg-accent border-2 border-primary glow-purple scale-110' : 'bg-card border-2 border-border'
+                    }`}
+                  >
+                    <Icon className={`w-5 h-5 ${rating === i ? 'text-primary' : 'text-muted-foreground'}`} />
+                  </motion.button>
+                );
+              })}
             </div>
           </div>
 
@@ -101,7 +113,7 @@ export default function FeedbackPage() {
             type="submit"
             className="w-full h-14 rounded-2xl font-black gradient-purple text-primary-foreground btn-press relative overflow-hidden"
           >
-            <span className="relative z-10">Submit ✨</span>
+            <span className="relative z-10 flex items-center gap-2">Submit <Send className="w-4 h-4" /></span>
             <div className="absolute inset-0 shimmer" />
           </Button>
         </form>

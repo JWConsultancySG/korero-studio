@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { useApp } from '@/context/AppContext';
 import { useNavigate } from 'react-router-dom';
-import { Music, Clock, Star, Sparkles, ArrowRight } from 'lucide-react';
+import { Music, Clock, Star, Sparkles, ArrowRight, BookOpen, CircleCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -14,7 +14,9 @@ export default function MyClassesPage() {
     <div className="min-h-screen pb-28">
       <div className="gradient-purple-subtle px-6 pt-7 pb-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-md mx-auto">
-          <h1 className="text-2xl font-black mb-1 text-foreground tracking-tight">My Classes 📚</h1>
+          <h1 className="text-2xl font-black mb-1 text-foreground tracking-tight flex items-center gap-2">
+            My Classes <BookOpen className="w-5 h-5 text-primary" />
+          </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">Your booked sessions</p>
           {paidBookings.length > 0 && (
             <div className="flex items-center gap-1.5 mt-4 px-3.5 py-2 rounded-full bg-card border border-border text-xs font-bold text-foreground w-fit min-h-[36px]">
@@ -73,7 +75,9 @@ export default function MyClassesPage() {
                         </span>
                       </div>
                     </div>
-                    <Badge className="gradient-purple text-primary-foreground text-[10px] font-black">Paid ✅</Badge>
+                    <Badge className="gradient-purple text-primary-foreground text-[10px] font-black flex items-center gap-1">
+                      <CircleCheck className="w-3 h-3" /> Paid
+                    </Badge>
                   </div>
                 </motion.div>
               );

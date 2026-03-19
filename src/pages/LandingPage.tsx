@@ -2,14 +2,14 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { Music, Users, Star, Zap, ChevronDown, Sparkles, Play } from 'lucide-react';
+import { Music, Users, Star, Zap, ChevronDown, Sparkles, Play, Heart, ArrowRight, TrendingUp } from 'lucide-react';
 import { useRef } from 'react';
 
 const features = [
-  { icon: Music, title: 'Pick Your Song', desc: 'Trending K-pop hits updated weekly', emoji: '🎵' },
-  { icon: Users, title: 'Find Your Crew', desc: 'Squad up with fellow stans', emoji: '👯' },
-  { icon: Star, title: 'Own Your Role', desc: 'Main vocal, dancer, rapper — you decide', emoji: '⭐' },
-  { icon: Zap, title: 'Hit The Stage', desc: 'Book, pay, and slay in minutes', emoji: '⚡' },
+  { icon: Music, title: 'Pick Your Song', desc: 'Trending K-pop hits updated weekly' },
+  { icon: Users, title: 'Find Your Crew', desc: 'Squad up with fellow stans' },
+  { icon: Star, title: 'Own Your Role', desc: 'Main vocal, dancer, rapper — you decide' },
+  { icon: Zap, title: 'Hit The Stage', desc: 'Book, pay, and slay in minutes' },
 ];
 
 const stats = [
@@ -30,7 +30,6 @@ export default function LandingPage() {
     navigate(student ? '/groups' : '/register');
   };
 
-  // Get top 3 forming groups for trending section
   const trendingGroups = groups
     .filter(g => g.status === 'forming')
     .sort((a, b) => (b.interestCount / b.maxMembers) - (a.interestCount / a.maxMembers))
@@ -38,19 +37,14 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden">
-      {/* Hero Section with Video Background */}
+      {/* Hero Section */}
       <section ref={heroRef} className="relative min-h-[100svh] flex flex-col items-center justify-center overflow-hidden">
-        {/* Video Background */}
         <motion.div style={{ scale: heroScale }} className="absolute inset-0 z-0">
-          {/* Stronger overlay for readability */}
           <div className="absolute inset-0 z-10" style={{
             background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.75) 70%, rgba(0,0,0,0.95) 100%)'
           }} />
           <video
-            autoPlay
-            muted
-            loop
-            playsInline
+            autoPlay muted loop playsInline
             className="w-full h-full object-cover"
             style={{ filter: 'brightness(0.6) saturate(1.1)' }}
           >
@@ -58,7 +52,6 @@ export default function LandingPage() {
           </video>
         </motion.div>
 
-        {/* Hero Content */}
         <motion.div style={{ opacity: heroOpacity }} className="relative z-20 text-center px-8 max-w-sm mx-auto">
           <motion.div
             initial={{ scale: 0, rotate: -180 }}
@@ -94,7 +87,6 @@ export default function LandingPage() {
             </p>
           </motion.div>
 
-          {/* Social Proof */}
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
@@ -139,7 +131,6 @@ export default function LandingPage() {
           </motion.div>
         </motion.div>
 
-        {/* Scroll indicator */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -165,8 +156,8 @@ export default function LandingPage() {
             className="text-center mb-10"
           >
             <p className="text-xs font-black text-primary uppercase tracking-[0.2em] mb-2">How it works</p>
-            <h2 className="text-2xl font-black text-foreground leading-tight">
-              4 steps to the stage 🔥
+            <h2 className="text-2xl font-black text-foreground leading-tight flex items-center justify-center gap-2">
+              4 steps to the stage <Zap className="w-5 h-5 text-primary" />
             </h2>
           </motion.div>
 
@@ -190,14 +181,13 @@ export default function LandingPage() {
                   </p>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{f.desc}</p>
                 </div>
-                <span className="text-lg">{f.emoji}</span>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Trending Songs Preview */}
+      {/* Trending Songs */}
       <section className="px-6 py-10">
         <div className="max-w-sm mx-auto">
           <motion.div
@@ -207,8 +197,8 @@ export default function LandingPage() {
             className="text-center mb-8"
           >
             <p className="text-xs font-black text-primary uppercase tracking-[0.2em] mb-2">Trending now</p>
-            <h2 className="text-2xl font-black text-foreground">
-              What's hot this week 🔥
+            <h2 className="text-2xl font-black text-foreground flex items-center justify-center gap-2">
+              What's hot this week <TrendingUp className="w-5 h-5 text-destructive" />
             </h2>
           </motion.div>
 
@@ -254,7 +244,7 @@ export default function LandingPage() {
               variant="outline"
               className="w-full h-13 rounded-2xl font-bold btn-press border-primary/20 text-primary hover:bg-accent"
             >
-              See All Groups →
+              See All Groups <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </motion.div>
         </div>
@@ -270,7 +260,7 @@ export default function LandingPage() {
         >
           <div className="absolute inset-0 shimmer" />
           <div className="relative z-10">
-            <p className="text-3xl mb-4">💜</p>
+            <Heart className="w-8 h-8 text-primary-foreground mx-auto mb-4" />
             <h3 className="text-xl font-black text-primary-foreground mb-3">
               Ready to slay?
             </h3>
@@ -282,7 +272,7 @@ export default function LandingPage() {
               size="lg"
               className="w-full h-14 rounded-2xl text-lg font-black bg-primary-foreground text-primary hover:bg-primary-foreground/90 btn-press"
             >
-              Let's go 🔥
+              <span className="flex items-center gap-2">Let's go <Zap className="w-5 h-5" /></span>
             </Button>
           </div>
         </motion.div>

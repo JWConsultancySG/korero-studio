@@ -7,7 +7,7 @@ import { useApp } from '@/context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, Music, CheckCircle, XCircle, Calendar, ArrowLeft,
-  AlertTriangle, MessageSquare, LogOut, TrendingUp, Shield, Sparkles, BarChart3
+  AlertTriangle, MessageSquare, LogOut, TrendingUp, Shield, Sparkles, BarChart3, Flame
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -56,7 +56,7 @@ export default function AdminPage() {
               className="h-13 rounded-2xl mb-4 border-2 text-center text-lg tracking-widest"
             />
             <Button type="submit" className="w-full h-13 rounded-2xl font-black gradient-purple text-primary-foreground btn-press">
-              Enter →
+              <span className="flex items-center gap-2">Enter <ArrowLeft className="w-4 h-4 rotate-180" /></span>
             </Button>
           </form>
         </motion.div>
@@ -80,7 +80,6 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen pb-28">
-      {/* Header */}
       <div className="gradient-purple-subtle px-5 pt-5 pb-4">
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div>
@@ -94,7 +93,6 @@ export default function AdminPage() {
       </div>
 
       <div className="px-4 max-w-lg mx-auto">
-        {/* Tabs */}
         <div className="flex gap-1 py-4 overflow-x-auto no-scrollbar">
           {TABS.map(t => (
             <button
@@ -110,7 +108,6 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {/* Overview */}
         {tab === 'overview' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
             <div className="grid grid-cols-2 gap-2.5">
@@ -150,15 +147,15 @@ export default function AdminPage() {
                   <AlertTriangle className="w-4 h-4 text-destructive" /> Almost Full!
                 </p>
                 {nearThreshold.map(g => (
-                  <p key={g.id} className="text-xs text-muted-foreground">
-                    🔥 {g.songTitle} — {g.interestCount}/{g.maxMembers} members
+                  <p key={g.id} className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Flame className="w-3 h-3 text-destructive" /> {g.songTitle} — {g.interestCount}/{g.maxMembers} members
                   </p>
                 ))}
               </div>
             )}
 
             <Button
-              onClick={() => toast.success('📱 WhatsApp notification sent to all confirmed groups!')}
+              onClick={() => toast.success('WhatsApp notification sent to all confirmed groups!')}
               variant="outline"
               className="w-full h-12 rounded-2xl font-bold border-2 btn-press"
             >
@@ -167,7 +164,6 @@ export default function AdminPage() {
           </motion.div>
         )}
 
-        {/* Songs */}
         {tab === 'songs' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
             {pendingGroups.length > 0 && (
@@ -189,7 +185,7 @@ export default function AdminPage() {
                       <p className="text-xs text-muted-foreground">{g.artist}</p>
                     </div>
                     <div className="flex gap-1.5">
-                      <Button size="sm" onClick={() => { approveGroup(g.id); toast.success('Approved! ✅'); }} className="rounded-xl gradient-purple text-primary-foreground btn-press h-8 w-8 p-0">
+                      <Button size="sm" onClick={() => { approveGroup(g.id); toast.success('Approved!'); }} className="rounded-xl gradient-purple text-primary-foreground btn-press h-8 w-8 p-0">
                         <CheckCircle className="w-4 h-4" />
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => { rejectGroup(g.id); toast.error('Rejected'); }} className="rounded-xl btn-press h-8 w-8 p-0">
@@ -230,7 +226,6 @@ export default function AdminPage() {
           </motion.div>
         )}
 
-        {/* Calendar */}
         {tab === 'calendar' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
             <p className="text-xs font-black uppercase tracking-wider text-primary mb-1">Studio Rooms</p>
@@ -290,7 +285,7 @@ export default function AdminPage() {
                   onClick={() => {
                     if (!assignGroupId) return;
                     assignSession(assignGroupId, newRoom, newDay, newTime);
-                    toast.success('Class assigned! ✅');
+                    toast.success('Class assigned!');
                     setAssignGroupId('');
                   }}
                   disabled={!assignGroupId}
@@ -303,7 +298,6 @@ export default function AdminPage() {
           </motion.div>
         )}
 
-        {/* Matcher */}
         {tab === 'matcher' && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
             <div className="mb-4">

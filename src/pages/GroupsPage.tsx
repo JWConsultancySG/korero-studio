@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { Plus, Users, Music, Search, Flame, Sparkles, TrendingUp, Zap } from 'lucide-react';
+import { Plus, Users, Music, Search, Flame, Sparkles, TrendingUp, Zap, Clock, Lock, CircleDot, ArrowRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -30,16 +30,13 @@ export default function GroupsPage() {
     setShowCreate(false);
     setNewSong('');
     setNewArtist('');
-    toast.success('Song submitted for approval! ⏳');
+    toast.success('Song submitted for approval!');
   };
 
-  // Separate joinable (forming) vs full/confirmed groups
   const joinableGroups = groups.filter(g => g.status === 'forming' && g.interestCount < g.maxMembers);
   const confirmedGroups = groups.filter(g => g.status === 'confirmed' || g.interestCount >= g.maxMembers);
-  
-  // Include pending groups from student
   const allDisplayGroups = [...joinableGroups, ...pendingGroups];
-  
+
   const filteredJoinable = search
     ? allDisplayGroups.filter(g => g.songTitle.toLowerCase().includes(search.toLowerCase()) || g.artist.toLowerCase().includes(search.toLowerCase()))
     : allDisplayGroups;
@@ -51,11 +48,11 @@ export default function GroupsPage() {
   const getBadge = (group: typeof groups[0]) => {
     const fillPercent = (group.interestCount / group.maxMembers) * 100;
     const spotsLeft = group.maxMembers - group.interestCount;
-    
-    if (group.status === 'pending') return { text: '⏳ Pending', className: 'bg-muted text-muted-foreground' };
-    if (fillPercent >= 80) return { text: `🔥 ${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left!`, className: 'bg-destructive/10 text-destructive font-black' };
-    if (fillPercent >= 50) return { text: '💜 Filling fast', className: 'bg-accent text-accent-foreground' };
-    return { text: '🟢 Open', className: 'bg-muted text-muted-foreground' };
+
+    if (group.status === 'pending') return { text: 'Pending', icon: Clock, className: 'bg-muted text-muted-foreground' };
+    if (fillPercent >= 80) return { text: `${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left`, icon: Flame, className: 'bg-destructive/10 text-destructive font-black' };
+    if (fillPercent >= 50) return { text: 'Filling fast', icon: TrendingUp, className: 'bg-accent text-accent-foreground' };
+    return { text: 'Open', icon: CircleDot, className: 'bg-muted text-muted-foreground' };
   };
 
   return (
@@ -63,10 +60,11 @@ export default function GroupsPage() {
       {/* Header */}
       <div className="gradient-purple-subtle px-6 pt-7 pb-6">
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="max-w-md mx-auto">
-          <h1 className="text-2xl font-black mb-1 text-foreground tracking-tight">Find Your Song 🎤</h1>
+          <h1 className="text-2xl font-black mb-1 text-foreground tracking-tight flex items-center gap-2">
+            Find Your Song <Music className="w-5 h-5 text-primary" />
+          </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">Claim your spot before it's gone</p>
 
-          {/* Stats */}
           <div className="flex items-center gap-2.5 mt-5">
             <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-card border border-border text-xs font-bold text-foreground min-h-[36px]">
               <TrendingUp className="w-3 h-3 text-primary" />
@@ -78,7 +76,6 @@ export default function GroupsPage() {
             </div>
           </div>
 
-          {/* Search */}
           <div className="relative mt-5">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -103,6 +100,7 @@ export default function GroupsPage() {
                   const isAlmostFull = fillPercent >= 80;
                   const isHot = fillPercent >= 50;
                   const badge = getBadge(group);
+                  const BadgeIcon = badge.icon;
                   const spotsLeft = group.maxMembers - group.interestCount;
 
                   return (
@@ -116,13 +114,11 @@ export default function GroupsPage() {
                         isAlmostFull ? 'border-destructive/30' : ''
                       }`}
                     >
-                      {/* Urgency top bar for almost-full groups */}
                       {isAlmostFull && group.status !== 'pending' && (
                         <div className="absolute top-0 left-0 right-0 h-0.5 bg-destructive" />
                       )}
 
                       <div className="flex items-start gap-4">
-                        {/* Icon */}
                         <div className="relative flex-shrink-0">
                           <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
                             isAlmostFull ? 'bg-destructive/10' : 'gradient-purple'
@@ -135,14 +131,12 @@ export default function GroupsPage() {
                           </div>
                         </div>
 
-                        {/* Content */}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <p className="font-black text-base text-foreground truncate leading-tight">{group.songTitle}</p>
                           </div>
                           <p className="text-xs text-muted-foreground mb-3">{group.artist}</p>
 
-                          {/* Progress bar */}
                           <div className="mb-3">
                             <div className="flex items-center justify-between mb-1.5">
                               <div className="flex items-center gap-1.5">
@@ -152,6 +146,7 @@ export default function GroupsPage() {
                                 </span>
                               </div>
                               <Badge className={`text-[10px] px-2 py-0 h-5 font-bold border-0 ${badge.className}`}>
+                                <BadgeIcon className="w-2.5 h-2.5 mr-1" />
                                 {badge.text}
                               </Badge>
                             </div>
@@ -167,20 +162,19 @@ export default function GroupsPage() {
                             </div>
                           </div>
 
-                          {/* Scarcity copy */}
                           {isAlmostFull && group.status !== 'pending' && (
                             <motion.p
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
-                              className="text-[11px] font-bold text-destructive"
+                              className="text-[11px] font-bold text-destructive flex items-center gap-1"
                             >
-                              Last {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} — claim it before it's gone 🔥
+                              <Flame className="w-3 h-3" />
+                              Last {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} — claim it before it's gone
                             </motion.p>
                           )}
                         </div>
                       </div>
 
-                      {/* Join CTA */}
                       {group.status !== 'pending' && (
                         <motion.div className="mt-4">
                           <Button
@@ -211,11 +205,11 @@ export default function GroupsPage() {
 
         {filteredJoinable.length === 0 && filteredConfirmed.length === 0 && (
           <div className="text-center py-16">
-            <p className="text-muted-foreground text-sm">No groups found 😅</p>
+            <Search className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground text-sm">No groups found</p>
           </div>
         )}
 
-        {/* Confirmed / Full Groups */}
         {filteredConfirmed.length > 0 && (
           <div className="mt-10">
             <p className="text-xs font-black uppercase tracking-[0.15em] text-muted-foreground mb-4">Confirmed / Full</p>
@@ -236,8 +230,8 @@ export default function GroupsPage() {
                       <p className="font-bold text-sm text-foreground truncate">{group.songTitle}</p>
                       <p className="text-xs text-muted-foreground mt-0.5">{group.artist}</p>
                     </div>
-                    <Badge className="text-[10px] px-2.5 py-0.5 h-5 font-bold bg-muted text-muted-foreground border-0">
-                      FULL 🔒
+                    <Badge className="text-[10px] px-2.5 py-0.5 h-5 font-bold bg-muted text-muted-foreground border-0 flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" /> FULL
                     </Badge>
                   </div>
                 </motion.div>
@@ -264,7 +258,9 @@ export default function GroupsPage() {
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="rounded-3xl mx-4 max-w-sm border-border">
           <DialogHeader>
-            <DialogTitle className="font-black text-xl">Request a Song 🎤</DialogTitle>
+            <DialogTitle className="font-black text-xl flex items-center gap-2">
+              Request a Song <Music className="w-5 h-5 text-primary" />
+            </DialogTitle>
             <DialogDescription>Submit a song for admin approval — we'll let you know!</DialogDescription>
           </DialogHeader>
           <div className="space-y-5 pt-2">
@@ -281,7 +277,7 @@ export default function GroupsPage() {
               disabled={!newSong.trim() || !newArtist.trim()}
               className="w-full h-13 rounded-2xl font-black gradient-purple text-primary-foreground btn-press relative overflow-hidden"
             >
-              <span className="relative z-10">Submit for Approval ✨</span>
+              <span className="relative z-10 flex items-center gap-2">Submit for Approval <Sparkles className="w-4 h-4" /></span>
               {newSong.trim() && newArtist.trim() && <div className="absolute inset-0 shimmer" />}
             </Button>
           </div>
