@@ -2,7 +2,7 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { Music, Users, Star, Zap, ChevronDown, Sparkles, Play, Heart, ArrowRight } from 'lucide-react';
+import { Music, Users, Star, Zap, ChevronDown, Sparkles, Play, Heart, ArrowRight, TrendingUp } from 'lucide-react';
 import { useRef } from 'react';
 
 const features = [
