@@ -16,7 +16,7 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-border/50">
-      <div className="flex items-stretch justify-around max-w-md mx-auto h-20 px-2 pb-safe">
+      <div className="flex items-stretch max-w-md mx-auto h-20 px-2 pb-safe">
         {tabs.map(tab => {
           const isActive = location.pathname === tab.to ||
             (tab.to !== '/' && location.pathname.startsWith(tab.to));
@@ -25,12 +25,13 @@ export default function BottomNav() {
             <NavLink
               key={tab.to}
               to={tab.to}
-              className="flex flex-col items-center gap-1 pt-3 px-5 relative min-w-[48px]"
+              className="flex flex-col items-center justify-center gap-1 relative flex-1"
             >
               {isActive && (
                 <motion.div
                   layoutId="nav-indicator"
-                  className="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-[3px] rounded-full gradient-purple"
+                  className="absolute top-0 h-[3px] w-10 rounded-full gradient-purple"
+                  style={{ left: '50%', transform: 'translateX(-50%)' }}
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
