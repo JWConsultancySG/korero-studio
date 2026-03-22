@@ -154,7 +154,7 @@ export default function GroupsPage() {
                                 animate={{ width: `${fillPercent}%` }}
                                 transition={{ delay: 0.3 + i * 0.05, duration: 0.6, ease: 'easeOut' }}
                                 className={`h-full rounded-full ${
-                                  isAlmostFull ? 'bg-destructive' : isHot ? 'gradient-purple' : 'bg-primary/40'
+                                  isAlmostFull ? 'gradient-purple glow-purple' : isHot ? 'gradient-purple' : 'bg-primary/40'
                                 }`}
                               />
                             </div>
