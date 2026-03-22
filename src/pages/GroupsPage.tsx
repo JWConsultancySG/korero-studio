@@ -248,34 +248,15 @@ export default function GroupsPage() {
       </motion.button>
 
       {/* Create Dialog */}
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
-        <DialogContent className="rounded-3xl mx-4 max-w-sm border-border">
-          <DialogHeader>
-            <DialogTitle className="font-black text-xl flex items-center gap-2">
-              Request a Song <Music className="w-5 h-5 text-primary" />
-            </DialogTitle>
-            <DialogDescription>Submit a song for admin approval — we'll let you know!</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-5 pt-2">
-            <div className="space-y-2.5">
-              <Label className="font-bold text-sm">Song Title</Label>
-              <Input value={newSong} onChange={e => setNewSong(e.target.value)} placeholder="e.g. Ditto" className="h-13 rounded-2xl border-2" />
-            </div>
-            <div className="space-y-2.5">
-              <Label className="font-bold text-sm">Artist</Label>
-              <Input value={newArtist} onChange={e => setNewArtist(e.target.value)} placeholder="e.g. NewJeans" className="h-13 rounded-2xl border-2" />
-            </div>
-            <Button
-              onClick={handleCreate}
-              disabled={!newSong.trim() || !newArtist.trim()}
-              className="w-full h-13 rounded-2xl font-black gradient-purple text-primary-foreground btn-press relative overflow-hidden"
-            >
-              <span className="relative z-10 flex items-center gap-2">Submit for Approval <Sparkles className="w-4 h-4" /></span>
-              {newSong.trim() && newArtist.trim() && <div className="absolute inset-0 shimmer" />}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <SongSearchDialog
+        open={showCreate}
+        onOpenChange={setShowCreate}
+        onSubmit={(song, artist) => {
+          createGroup(song, artist);
+          setShowCreate(false);
+          toast.success('Song submitted for approval! 🎶');
+        }}
+      />
     </div>
   );
 }
