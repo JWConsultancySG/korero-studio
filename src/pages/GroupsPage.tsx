@@ -1,19 +1,46 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { Plus, Users, Music, Search, Sparkles, TrendingUp, Zap, Clock, Lock, CircleDot, ArrowRight } from 'lucide-react';
+import { Plus, Users, Music, Search, Sparkles, TrendingUp, Zap, Lock, CircleDot, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import SongSearchDialog from '@/components/groups/SongSearchDialog';
 
+// Fetch iTunes artwork for a song
+const fetchArtwork = async (songTitle: string, artist: string): Promise<string | null> => {
+  try {
+    const res = await fetch(
+      `https://itunes.apple.com/search?term=${encodeURIComponent(`${songTitle} ${artist}`)}&media=music&entity=song&limit=1`
+    );
+    const data = await res.json();
+    if (data.results?.[0]?.artworkUrl100) {
+      return data.results[0].artworkUrl100.replace('100x100', '200x200');
+    }
+  } catch { /* ignore */ }
+  return null;
+};
+
 export default function GroupsPage() {
-  const { groups, student, joinGroup, createGroup, pendingGroups } = useApp();
+  const { groups, student, joinGroup, createGroup } = useApp();
   const navigate = useNavigate();
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState('');
+  const [artworkMap, setArtworkMap] = useState<Record<string, string>>({});
+
+  // Fetch artwork for all groups on mount
+  useEffect(() => {
+    const allGroups = groups.filter(g => !g.imageUrl);
+    allGroups.forEach(async (group) => {
+      if (artworkMap[group.id]) return;
+      const url = await fetchArtwork(group.songTitle, group.artist);
+      if (url) {
+        setArtworkMap(prev => ({ ...prev, [group.id]: url }));
+      }
+    });
+  }, [groups]);
 
   const handleJoin = (groupId: string) => {
     if (!student) { navigate('/register'); return; }
@@ -21,33 +48,33 @@ export default function GroupsPage() {
     navigate(`/booking/${groupId}`);
   };
 
-  const handleCreate = (song: string, artist: string) => {
-    createGroup(song, artist);
+  const handleCreate = (song: string, artist: string, artworkUrl?: string) => {
+    createGroup(song, artist, artworkUrl);
     setShowCreate(false);
-    toast.success('Song submitted for approval!');
+    toast.success('Song group created! Others can join now 🎶');
   };
 
   const joinableGroups = groups.filter(g => g.status === 'forming' && g.interestCount < g.maxMembers);
-  const confirmedGroups = groups.filter(g => g.status === 'confirmed' || g.interestCount >= g.maxMembers);
-  const allDisplayGroups = [...joinableGroups, ...pendingGroups];
+  const fullGroups = groups.filter(g => g.status === 'confirmed' || g.interestCount >= g.maxMembers);
 
   const filteredJoinable = search
-    ? allDisplayGroups.filter(g => g.songTitle.toLowerCase().includes(search.toLowerCase()) || g.artist.toLowerCase().includes(search.toLowerCase()))
-    : allDisplayGroups;
+    ? joinableGroups.filter(g => g.songTitle.toLowerCase().includes(search.toLowerCase()) || g.artist.toLowerCase().includes(search.toLowerCase()))
+    : joinableGroups;
 
-  const filteredConfirmed = search
-    ? confirmedGroups.filter(g => g.songTitle.toLowerCase().includes(search.toLowerCase()) || g.artist.toLowerCase().includes(search.toLowerCase()))
-    : confirmedGroups;
+  const filteredFull = search
+    ? fullGroups.filter(g => g.songTitle.toLowerCase().includes(search.toLowerCase()) || g.artist.toLowerCase().includes(search.toLowerCase()))
+    : fullGroups;
 
   const getBadge = (group: typeof groups[0]) => {
     const fillPercent = (group.interestCount / group.maxMembers) * 100;
     const spotsLeft = group.maxMembers - group.interestCount;
 
-    if (group.status === 'pending') return { text: 'Pending', icon: Clock, className: 'bg-muted text-muted-foreground' };
-    if (fillPercent >= 80) return { text: `${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left`, icon: Zap, className: 'bg-primary/10 text-primary font-black' };
+    if (fillPercent >= 80) return { text: `${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left!`, icon: Zap, className: 'bg-primary/15 text-primary font-black animate-pulse' };
     if (fillPercent >= 50) return { text: 'Filling fast', icon: TrendingUp, className: 'bg-accent text-accent-foreground' };
     return { text: 'Open', icon: CircleDot, className: 'bg-muted text-muted-foreground' };
   };
+
+  const getArtwork = (group: typeof groups[0]) => group.imageUrl || artworkMap[group.id] || null;
 
   return (
     <div className="min-h-screen pb-28">
@@ -82,96 +109,114 @@ export default function GroupsPage() {
         </motion.div>
       </div>
 
-      {/* Joinable Groups */}
+      {/* Groups Forming Now */}
       <div className="px-5 pt-5 max-w-md mx-auto">
         {filteredJoinable.length > 0 && (
-          <div className="space-y-3.5">
-            <AnimatePresence>
-              {filteredJoinable
-                .sort((a, b) => (b.interestCount / b.maxMembers) - (a.interestCount / a.maxMembers))
-                .map((group, i) => {
-                  const fillPercent = (group.interestCount / group.maxMembers) * 100;
-                  const isAlmostFull = fillPercent >= 80;
-                  const isHot = fillPercent >= 50;
-                  const badge = getBadge(group);
-                  const BadgeIcon = badge.icon;
-                  const spotsLeft = group.maxMembers - group.interestCount;
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-muted-foreground mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+              Groups Forming Now
+            </p>
+            <div className="space-y-3.5">
+              <AnimatePresence>
+                {filteredJoinable
+                  .sort((a, b) => (b.interestCount / b.maxMembers) - (a.interestCount / a.maxMembers))
+                  .map((group, i) => {
+                    const fillPercent = (group.interestCount / group.maxMembers) * 100;
+                    const isAlmostFull = fillPercent >= 80;
+                    const isHot = fillPercent >= 50;
+                    const badge = getBadge(group);
+                    const BadgeIcon = badge.icon;
+                    const spotsLeft = group.maxMembers - group.interestCount;
+                    const artwork = getArtwork(group);
 
-                  return (
-                    <motion.div
-                      key={group.id}
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ delay: i * 0.04 }}
-                      className={`card-premium p-5 relative overflow-hidden group ${
-                        isAlmostFull ? 'border-primary/40' : ''
-                      }`}
-                    >
-                      {isAlmostFull && group.status !== 'pending' && (
-                        <div className="absolute top-0 left-0 right-0 h-0.5 gradient-purple" />
-                      )}
+                    return (
+                      <motion.div
+                        key={group.id}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ delay: i * 0.04 }}
+                        className={`card-premium p-4 relative overflow-hidden group ${
+                          isAlmostFull ? 'border-primary/40 shadow-[0_0_20px_-5px_hsl(var(--primary)/0.25)]' : ''
+                        }`}
+                      >
+                        {isAlmostFull && (
+                          <div className="absolute top-0 left-0 right-0 h-1 gradient-purple" />
+                        )}
 
-                      <div className="flex items-start gap-4">
-                        <div className="relative flex-shrink-0">
-                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center gradient-purple ${isAlmostFull ? 'pulse-ring glow-purple' : ''}`}>
-                            {isAlmostFull ? (
-                              <Zap className="w-6 h-6 text-primary-foreground" />
+                        <div className="flex items-start gap-3.5">
+                          {/* Artwork */}
+                          <div className="relative flex-shrink-0">
+                            {artwork ? (
+                              <div className={`relative ${isAlmostFull ? 'pulse-ring' : ''}`}>
+                                <img
+                                  src={artwork}
+                                  alt={group.songTitle}
+                                  className="w-16 h-16 rounded-2xl object-cover"
+                                />
+                                {isAlmostFull && (
+                                  <div className="absolute inset-0 rounded-2xl ring-2 ring-primary/40 animate-pulse" />
+                                )}
+                              </div>
                             ) : (
-                              <Music className="w-5 h-5 text-primary-foreground" />
+                              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center gradient-purple ${isAlmostFull ? 'pulse-ring glow-purple' : ''}`}>
+                                <Music className="w-6 h-6 text-primary-foreground" />
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <p className="font-black text-base text-foreground truncate leading-tight">{group.songTitle}</p>
+                              {isAlmostFull && <Zap className="w-3.5 h-3.5 text-primary flex-shrink-0 animate-pulse" />}
+                            </div>
+                            <p className="text-xs text-muted-foreground mb-2.5">{group.artist}</p>
+
+                            <div className="mb-2">
+                              <div className="flex items-center justify-between mb-1.5">
+                                <div className="flex items-center gap-1.5">
+                                  <Users className="w-3 h-3 text-muted-foreground" />
+                                  <span className="text-[11px] font-bold text-muted-foreground">
+                                    {group.interestCount} / {group.maxMembers}
+                                  </span>
+                                </div>
+                                <Badge className={`text-[10px] px-2 py-0 h-5 font-bold border-0 ${badge.className}`}>
+                                  <BadgeIcon className="w-2.5 h-2.5 mr-1" />
+                                  {badge.text}
+                                </Badge>
+                              </div>
+                              <div className="h-2.5 bg-muted rounded-full overflow-hidden">
+                                <motion.div
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${fillPercent}%` }}
+                                  transition={{ delay: 0.3 + i * 0.05, duration: 0.6, ease: 'easeOut' }}
+                                  className={`h-full rounded-full ${
+                                    isAlmostFull ? 'gradient-purple glow-purple' : isHot ? 'gradient-purple' : 'bg-primary/40'
+                                  }`}
+                                />
+                              </div>
+                            </div>
+
+                            {isAlmostFull && (
+                              <motion.p
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: [0.7, 1, 0.7] }}
+                                transition={{ repeat: Infinity, duration: 2 }}
+                                className="text-[11px] font-black text-primary flex items-center gap-1"
+                              >
+                                🔥 Last {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} — grab it now!
+                              </motion.p>
                             )}
                           </div>
                         </div>
 
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <p className="font-black text-base text-foreground truncate leading-tight">{group.songTitle}</p>
-                          </div>
-                          <p className="text-xs text-muted-foreground mb-3">{group.artist}</p>
-
-                          <div className="mb-3">
-                            <div className="flex items-center justify-between mb-1.5">
-                              <div className="flex items-center gap-1.5">
-                                <Users className="w-3 h-3 text-muted-foreground" />
-                                <span className="text-[11px] font-bold text-muted-foreground">
-                                  {group.interestCount} / {group.maxMembers} members
-                                </span>
-                              </div>
-                              <Badge className={`text-[10px] px-2 py-0 h-5 font-bold border-0 ${badge.className}`}>
-                                <BadgeIcon className="w-2.5 h-2.5 mr-1" />
-                                {badge.text}
-                              </Badge>
-                            </div>
-                            <div className="h-2 bg-muted rounded-full overflow-hidden">
-                              <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: `${fillPercent}%` }}
-                                transition={{ delay: 0.3 + i * 0.05, duration: 0.6, ease: 'easeOut' }}
-                                className={`h-full rounded-full ${
-                                  isAlmostFull ? 'gradient-purple glow-purple' : isHot ? 'gradient-purple' : 'bg-primary/40'
-                                }`}
-                              />
-                            </div>
-                          </div>
-
-                          {isAlmostFull && group.status !== 'pending' && (
-                            <motion.p
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              className="text-[11px] font-bold text-primary flex items-center gap-1"
-                            >
-                              <Zap className="w-3 h-3" />
-                              Last {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} — claim it before it's gone
-                            </motion.p>
-                          )}
-                        </div>
-                      </div>
-
-                      {group.status !== 'pending' && (
-                        <motion.div className="mt-4">
+                        <motion.div className="mt-3">
                           <Button
                             onClick={() => handleJoin(group.id)}
-                            className="w-full rounded-2xl font-black text-sm btn-press h-12 relative overflow-hidden gradient-purple text-primary-foreground"
+                            className={`w-full rounded-2xl font-black text-sm btn-press h-11 relative overflow-hidden gradient-purple text-primary-foreground ${
+                              isAlmostFull ? 'shadow-[0_4px_15px_-3px_hsl(var(--primary)/0.4)]' : ''
+                            }`}
                           >
                             <span className="relative z-10 flex items-center gap-2">
                               {isAlmostFull ? (
@@ -180,50 +225,69 @@ export default function GroupsPage() {
                                 <>Join This Group <Sparkles className="w-4 h-4" /></>
                               )}
                             </span>
-                            <div className="absolute inset-0 shimmer" />
+                            {isAlmostFull && <div className="absolute inset-0 shimmer" />}
                           </Button>
                         </motion.div>
-                      )}
-                    </motion.div>
-                  );
-                })}
-            </AnimatePresence>
+
+                        {/* Next class note for full groups */}
+                      </motion.div>
+                    );
+                  })}
+              </AnimatePresence>
+            </div>
           </div>
         )}
 
-        {filteredJoinable.length === 0 && filteredConfirmed.length === 0 && (
+        {filteredJoinable.length === 0 && filteredFull.length === 0 && (
           <div className="text-center py-16">
             <Search className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
             <p className="text-muted-foreground text-sm">No groups found</p>
           </div>
         )}
 
-        {filteredConfirmed.length > 0 && (
+        {/* Full / Confirmed Groups */}
+        {filteredFull.length > 0 && (
           <div className="mt-10">
-            <p className="text-xs font-black uppercase tracking-[0.15em] text-muted-foreground mb-4">Confirmed / Full</p>
+            <p className="text-xs font-black uppercase tracking-[0.15em] text-muted-foreground mb-4">Full — Join for Next Class</p>
             <div className="space-y-3">
-              {filteredConfirmed.map((group, i) => (
-                <motion.div
-                  key={group.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.04 }}
-                  className="card-premium p-5 opacity-60"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center flex-shrink-0">
-                      <Music className="w-5 h-5 text-muted-foreground" />
+              {filteredFull.map((group, i) => {
+                const artwork = getArtwork(group);
+                return (
+                  <motion.div
+                    key={group.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: i * 0.04 }}
+                    className="card-premium p-4"
+                  >
+                    <div className="flex items-center gap-3.5">
+                      {artwork ? (
+                        <img src={artwork} alt={group.songTitle} className="w-12 h-12 rounded-xl object-cover flex-shrink-0 opacity-60" />
+                      ) : (
+                        <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                          <Music className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm text-foreground truncate">{group.songTitle}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{group.artist}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge className="text-[10px] px-2.5 py-0.5 h-5 font-bold bg-muted text-muted-foreground border-0 flex items-center gap-1">
+                          <Lock className="w-2.5 h-2.5" /> FULL
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm text-foreground truncate">{group.songTitle}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">{group.artist}</p>
-                    </div>
-                    <Badge className="text-[10px] px-2.5 py-0.5 h-5 font-bold bg-muted text-muted-foreground border-0 flex items-center gap-1">
-                      <Lock className="w-2.5 h-2.5" /> FULL
-                    </Badge>
-                  </div>
-                </motion.div>
-              ))}
+                    <Button
+                      onClick={() => handleJoin(group.id)}
+                      variant="outline"
+                      className="w-full mt-3 rounded-2xl font-bold text-xs h-9 border-primary/20 text-primary hover:bg-primary/5"
+                    >
+                      Join Waitlist for Next Class <ArrowRight className="w-3 h-3 ml-1" />
+                    </Button>
+                  </motion.div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -246,11 +310,7 @@ export default function GroupsPage() {
       <SongSearchDialog
         open={showCreate}
         onOpenChange={setShowCreate}
-        onSubmit={(song, artist) => {
-          createGroup(song, artist);
-          setShowCreate(false);
-          toast.success('Song submitted for approval! 🎶');
-        }}
+        onSubmit={handleCreate}
       />
     </div>
   );
