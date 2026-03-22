@@ -148,7 +148,7 @@ export default function AdminPage() {
                 </p>
                 {nearThreshold.map(g => (
                   <p key={g.id} className="text-xs text-muted-foreground flex items-center gap-1">
-                    <Flame className="w-3 h-3 text-destructive" /> {g.songTitle} — {g.interestCount}/{g.maxMembers} members
+                    <Zap className="w-3 h-3 text-primary" /> {g.songTitle} — {g.interestCount}/{g.maxMembers} members
                   </p>
                 ))}
               </div>
