@@ -13,8 +13,7 @@ export default function GroupsPage() {
   const { groups, student, joinGroup, createGroup, pendingGroups } = useApp();
   const navigate = useNavigate();
   const [showCreate, setShowCreate] = useState(false);
-  const [newSong, setNewSong] = useState('');
-  const [newArtist, setNewArtist] = useState('');
+  const [search, setSearch] = useState('');
   const [search, setSearch] = useState('');
 
   const handleJoin = (groupId: string) => {
