@@ -51,7 +51,7 @@ export default function AddTimeSheet({ dateLabel, onAdd, onClose, existingSlots 
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
         onClick={e => e.stopPropagation()}
         className="relative w-full max-w-md bg-card rounded-t-3xl border-t border-border flex flex-col"
-        style={{ maxHeight: '80svh' }}
+        style={{ maxHeight: '85svh' }}
       >
         {/* Handle */}
         <div className="w-10 h-1 rounded-full bg-muted mx-auto mt-3 mb-2 flex-shrink-0" />
@@ -68,7 +68,7 @@ export default function AddTimeSheet({ dateLabel, onAdd, onClose, existingSlots 
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pb-6">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           <div className="space-y-4">
             {/* Start time */}
             <div>

@@ -6,11 +6,7 @@ import { Button } from '@/components/ui/button';
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 8); // 8AM-10PM
 
-const formatHourShort = (h: number) => {
-  if (h === 12) return '12P';
-  if (h > 12) return `${h - 12}P`;
-  return `${h}A`;
-};
+const formatHour24 = (h: number) => `${h.toString().padStart(2, '0')}:00`;
 
 export type WeeklyTemplate = Record<number, Set<number>>; // dayIndex -> Set of hours
 
@@ -89,10 +85,10 @@ export default function WeeklyGrid({ template, onChange, onApply, onClear, hasEx
         <div className="flex">
           <div className="w-11 flex-shrink-0 bg-muted/50 border-b border-border" />
           <div ref={scrollRef} className="flex-1 overflow-x-auto scrollbar-hide">
-            <div className="flex min-w-[600px]">
+            <div className="flex">
               {HOURS.map(h => (
-                <div key={h} className="flex-1 text-center py-2 text-[9px] font-bold text-muted-foreground border-b border-border bg-muted/30">
-                  {formatHourShort(h)}
+                <div key={h} className="w-14 flex-shrink-0 text-center py-2 text-[9px] font-bold text-muted-foreground border-b border-border bg-muted/30">
+                  {formatHour24(h)}
                 </div>
               ))}
             </div>
@@ -115,7 +111,7 @@ export default function WeeklyGrid({ template, onChange, onApply, onClear, hasEx
                   }
                 }}
               >
-                <div className="flex min-w-[600px]">
+                <div className="flex">
                   {HOURS.map(h => {
                     const isSelected = daySet.has(h);
                     const isPrevSelected = daySet.has(h - 1);
@@ -126,7 +122,7 @@ export default function WeeklyGrid({ template, onChange, onApply, onClear, hasEx
                         key={h}
                         onPointerDown={() => handlePointerDown(dayIdx, h)}
                         onPointerEnter={() => handlePointerEnter(dayIdx, h)}
-                        className={`flex-1 h-10 border-b border-r border-border/40 transition-colors duration-100 cursor-pointer ${
+                        className={`w-14 flex-shrink-0 h-10 border-b border-r border-border/40 transition-colors duration-100 cursor-pointer ${
                           isSelected
                             ? `bg-primary/80 ${!isPrevSelected ? 'rounded-l-md' : ''} ${!isNextSelected ? 'rounded-r-md' : ''}`
                             : 'hover:bg-accent/60'
