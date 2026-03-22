@@ -86,7 +86,7 @@ interface AppContextType extends AppState {
   loginStudent: (email: string, password: string) => boolean;
   logoutStudent: () => void;
   joinGroup: (groupId: string) => void;
-  createGroup: (songTitle: string, artist: string) => void;
+  createGroup: (songTitle: string, artist: string, imageUrl?: string) => void;
   approveGroup: (groupId: string) => void;
   rejectGroup: (groupId: string) => void;
   selectRole: (role: RoleName) => void;
