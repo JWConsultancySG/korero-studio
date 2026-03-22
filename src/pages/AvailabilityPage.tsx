@@ -17,6 +17,8 @@ import AddTimeSheet from '@/components/schedule/AddTimeSheet';
 export default function AvailabilityPage() {
   const { student, availability, addAvailability, removeAvailability, setAvailabilityBatch, clearAllAvailability, groups } = useApp();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
   const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
   const [adding, setAdding] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
