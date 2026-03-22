@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { Plus, Users, Music, Search, Flame, Sparkles, TrendingUp, Zap, Clock, Lock, CircleDot, ArrowRight } from 'lucide-react';
+import { Plus, Users, Music, Search, Sparkles, TrendingUp, Zap, Clock, Lock, CircleDot, ArrowRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
