@@ -278,12 +278,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAvailability(prev => prev.filter(s => s.isConfirmedClass));
   }, []);
 
+  const setClassPreference = useCallback((pref: ClassType) => {
+    setStudent(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, classPreference: pref };
+      // Also update in registeredUsers
+      setRegisteredUsers(users => users.map(u =>
+        u.student.id === prev.id ? { ...u, student: updated } : u
+      ));
+      return updated;
+    });
+  }, []);
+
   return (
     <AppContext.Provider value={{
       student, groups, bookings, sessions, timeSlots: MOCK_TIME_SLOTS, roles, pendingGroups, isAdmin, isAuthenticated, availability,
       registerStudent, loginStudent, logoutStudent, joinGroup, createGroup, approveGroup, rejectGroup, selectRole,
       createBooking, completePayment, loginAdmin, logoutAdmin, assignSession, addAvailability, removeAvailability,
-      setAvailabilityBatch, clearAllAvailability,
+      setAvailabilityBatch, clearAllAvailability, setClassPreference,
     }}>
       {children}
     </AppContext.Provider>
