@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { Music, Users, Star, Zap, ChevronDown, Sparkles, Play, Heart, ArrowRight, TrendingUp, LogIn, UserPlus, LogOut } from 'lucide-react';
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 
 const features = [
   { icon: Music, title: 'Pick Your Song', desc: 'Trending K-pop hits updated weekly' },
@@ -24,6 +24,8 @@ export default function LandingPage() {
   const heroRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoReady, setVideoReady] = useState(false);
+  const [shouldLoadVideo, setShouldLoadVideo] = useState(false);
+  const [videoFailed, setVideoFailed] = useState(false);
   const handleVideoReady = useCallback(() => setVideoReady(true), []);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0]);
@@ -37,6 +39,24 @@ export default function LandingPage() {
     .filter(g => g.status === 'forming')
     .sort((a, b) => (b.interestCount / b.maxMembers) - (a.interestCount / a.maxMembers))
     .slice(0, 3);
+
+  useEffect(() => {
+    const connection = (navigator as Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string };
+    }).connection;
+
+    if (connection?.saveData || connection?.effectiveType === 'slow-2g' || connection?.effectiveType === '2g') {
+      return;
+    }
+
+    const idleCallback = window.requestIdleCallback?.(() => setShouldLoadVideo(true), { timeout: 1200 });
+    const timeoutId = window.setTimeout(() => setShouldLoadVideo(true), 180);
+
+    return () => {
+      if (idleCallback) window.cancelIdleCallback?.(idleCallback);
+      window.clearTimeout(timeoutId);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col overflow-x-hidden">
@@ -90,17 +110,19 @@ export default function LandingPage() {
             src="/videos/hero-poster.jpg"
             alt=""
             className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
-            style={{ opacity: videoReady ? 0 : 1, filter: 'brightness(0.85) saturate(1.1)' }}
+            style={{ opacity: videoReady && !videoFailed ? 0 : 1, filter: 'brightness(0.85) saturate(1.1)' }}
           />
           <video
             ref={videoRef}
             autoPlay muted loop playsInline
-            preload="metadata"
+            preload="none"
             onCanPlay={handleVideoReady}
+            onError={() => setVideoFailed(true)}
             className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
-            style={{ opacity: videoReady ? 1 : 0, filter: 'brightness(0.85) saturate(1.1)' }}
+            poster="/videos/hero-poster.jpg"
+            style={{ opacity: shouldLoadVideo && videoReady && !videoFailed ? 1 : 0, filter: 'brightness(0.85) saturate(1.1)' }}
           >
-            <source src="/videos/hero.mp4" type="video/mp4" />
+            {shouldLoadVideo && <source src="/videos/hero.mp4" type="video/mp4" />}
           </video>
         </motion.div>
 
