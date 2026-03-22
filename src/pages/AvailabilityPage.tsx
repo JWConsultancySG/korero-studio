@@ -1,33 +1,29 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { useApp } from '@/context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import {
-  CalendarDays, ChevronLeft, ChevronRight, Plus, Clock, Trash2,
-  Check, Music, AlertCircle, ArrowRight
+  CalendarDays, ChevronLeft, ChevronRight, Plus, Clock,
+  Music, AlertCircle, ArrowRight, Sparkles
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { format, addDays, isSameDay, startOfDay, isToday, isBefore } from 'date-fns';
+import { format, addDays, isSameDay, startOfDay, isToday, isBefore, getDay } from 'date-fns';
 import type { AvailabilitySlot } from '@/types';
-
-const HOURS = Array.from({ length: 15 }, (_, i) => i + 8); // 8am to 10pm start
-const formatHour = (h: number) => {
-  if (h === 0 || h === 24) return '12 AM';
-  if (h === 12) return '12 PM';
-  if (h > 12) return `${h - 12} PM`;
-  return `${h} AM`;
-};
+import WeeklyGrid, { type WeeklyTemplate } from '@/components/schedule/WeeklyGrid';
+import DayTimeline from '@/components/schedule/DayTimeline';
+import AddTimeSheet from '@/components/schedule/AddTimeSheet';
 
 export default function AvailabilityPage() {
-  const { student, availability, addAvailability, removeAvailability, groups, sessions, bookings } = useApp();
+  const { student, availability, addAvailability, removeAvailability, setAvailabilityBatch, clearAllAvailability, groups } = useApp();
   const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
   const [adding, setAdding] = useState(false);
-  const [startHour, setStartHour] = useState(16);
-  const [endHour, setEndHour] = useState(18);
   const [weekOffset, setWeekOffset] = useState(0);
+  const [activeTab, setActiveTab] = useState<'template' | 'calendar'>('template');
+
+  // Weekly template state: dayIndex (0=Mon, 6=Sun) -> Set of hours
+  const [weeklyTemplate, setWeeklyTemplate] = useState<WeeklyTemplate>({});
 
   if (!student) {
     return (
@@ -44,28 +40,61 @@ export default function AvailabilityPage() {
     );
   }
 
-  // Generate 30 days starting from today
   const today = startOfDay(new Date());
   const allDays = Array.from({ length: 30 }, (_, i) => addDays(today, i));
-
-  // Show 7 days at a time
   const visibleDays = allDays.slice(weekOffset * 7, weekOffset * 7 + 7);
   const maxWeekOffset = Math.floor(29 / 7);
 
   const dateKey = format(selectedDate, 'yyyy-MM-dd');
   const slotsForDate = availability.filter(s => s.date === dateKey);
-
-  // Get confirmed classes for selected date
   const confirmedSlotsForDate = slotsForDate.filter(s => s.isConfirmedClass);
   const freeSlotsForDate = slotsForDate.filter(s => !s.isConfirmedClass);
 
-  const handleAdd = () => {
-    if (endHour <= startHour) {
-      toast.error('End time must be after start time');
-      return;
-    }
+  // Convert JS getDay (0=Sun) to our grid (0=Mon)
+  const jsToGridDay = (jsDay: number) => jsDay === 0 ? 6 : jsDay - 1;
 
-    // Check overlap with existing slots
+  const applyTemplate = () => {
+    const slots: AvailabilitySlot[] = [];
+
+    allDays.forEach(day => {
+      const gridDay = jsToGridDay(getDay(day));
+      const hours = weeklyTemplate[gridDay];
+      if (!hours || hours.size === 0) return;
+
+      const key = format(day, 'yyyy-MM-dd');
+      // Check for confirmed classes on this date
+      const confirmedOnDate = availability.filter(s => s.date === key && s.isConfirmedClass);
+
+      // Group contiguous hours into slots
+      const sortedHours = Array.from(hours).sort((a, b) => a - b);
+      let blockStart = sortedHours[0];
+      let blockEnd = sortedHours[0] + 1;
+
+      for (let i = 1; i <= sortedHours.length; i++) {
+        if (i < sortedHours.length && sortedHours[i] === blockEnd) {
+          blockEnd = sortedHours[i] + 1;
+        } else {
+          // Check if this block overlaps with any confirmed class
+          const overlapsConfirmed = confirmedOnDate.some(c =>
+            blockStart < c.endHour && blockEnd > c.startHour
+          );
+          if (!overlapsConfirmed) {
+            slots.push({ date: key, startHour: blockStart, endHour: blockEnd });
+          }
+          if (i < sortedHours.length) {
+            blockStart = sortedHours[i];
+            blockEnd = sortedHours[i] + 1;
+          }
+        }
+      }
+    });
+
+    setAvailabilityBatch(slots);
+    toast.success(`Applied to ${allDays.length} days`);
+    setActiveTab('calendar');
+  };
+
+  const handleAddTime = (startHour: number, endHour: number) => {
     const hasOverlap = slotsForDate.some(s =>
       (startHour < s.endHour && endHour > s.startHour)
     );
@@ -73,30 +102,24 @@ export default function AvailabilityPage() {
       toast.error('This overlaps with an existing slot');
       return;
     }
-
-    addAvailability({
-      date: dateKey,
-      startHour,
-      endHour,
-    });
+    addAvailability({ date: dateKey, startHour, endHour });
     setAdding(false);
-    toast.success('Availability added');
+    toast.success('Time added');
   };
 
-  const handleRemove = (slot: AvailabilitySlot) => {
+  const handleRemoveSlot = (slot: AvailabilitySlot) => {
     if (slot.isConfirmedClass) {
-      toast.error("Can't remove confirmed class slots");
+      toast.error("Can't remove confirmed classes");
       return;
     }
     removeAvailability(slot.date, slot.startHour, slot.endHour);
     toast.success('Slot removed');
   };
 
-  // Count total availability slots
   const totalSlots = availability.filter(s => !s.isConfirmedClass).length;
   const totalConfirmed = availability.filter(s => s.isConfirmedClass).length;
+  const hasExistingSlots = totalSlots > 0;
 
-  // Check if a date has slots
   const dateHasSlots = (date: Date) => {
     const key = format(date, 'yyyy-MM-dd');
     return availability.some(s => s.date === key && !s.isConfirmedClass);
@@ -105,9 +128,6 @@ export default function AvailabilityPage() {
     const key = format(date, 'yyyy-MM-dd');
     return availability.some(s => s.date === key && s.isConfirmedClass);
   };
-
-  // Timeline visualization for selected date (8am-11pm)
-  const timelineHours = Array.from({ length: 16 }, (_, i) => i + 8); // 8-23
 
   return (
     <div className="min-h-screen pb-28">
@@ -136,261 +156,193 @@ export default function AvailabilityPage() {
       </div>
 
       <div className="px-5 pt-4 max-w-md mx-auto">
-        {/* Week navigation */}
-        <div className="flex items-center justify-between mb-3">
+        {/* Tab switcher */}
+        <div className="flex gap-1 p-1 bg-muted rounded-2xl mb-5">
           <button
-            onClick={() => setWeekOffset(Math.max(0, weekOffset - 1))}
-            disabled={weekOffset === 0}
-            className="p-2 rounded-xl btn-press disabled:opacity-30"
+            onClick={() => setActiveTab('template')}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all btn-press ${
+              activeTab === 'template'
+                ? 'gradient-purple text-primary-foreground glow-purple'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
           >
-            <ChevronLeft className="w-5 h-5 text-foreground" />
+            <Sparkles className="w-3 h-3 inline mr-1" />
+            Weekly Pattern
           </button>
-          <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">
-            {format(visibleDays[0], 'MMM d')} — {format(visibleDays[visibleDays.length - 1], 'MMM d')}
-          </p>
           <button
-            onClick={() => setWeekOffset(Math.min(maxWeekOffset, weekOffset + 1))}
-            disabled={weekOffset >= maxWeekOffset}
-            className="p-2 rounded-xl btn-press disabled:opacity-30"
+            onClick={() => setActiveTab('calendar')}
+            className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all btn-press ${
+              activeTab === 'calendar'
+                ? 'gradient-purple text-primary-foreground glow-purple'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
           >
-            <ChevronRight className="w-5 h-5 text-foreground" />
+            <CalendarDays className="w-3 h-3 inline mr-1" />
+            30-Day View
           </button>
         </div>
 
-        {/* Day selector */}
-        <div className="grid grid-cols-7 gap-1.5 mb-6">
-          {visibleDays.map((day, i) => {
-            const isSelected = isSameDay(day, selectedDate);
-            const hasSlots = dateHasSlots(day);
-            const hasConfirmed = dateHasConfirmed(day);
-            const isPast = isBefore(day, today) && !isToday(day);
-
-            return (
-              <motion.button
-                key={day.toISOString()}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: i * 0.03 }}
-                onClick={() => !isPast && setSelectedDate(day)}
-                disabled={isPast}
-                className={`flex flex-col items-center py-2.5 px-1 rounded-2xl transition-all btn-press min-h-[72px] ${
-                  isSelected
-                    ? 'gradient-purple glow-purple'
-                    : isPast
-                    ? 'opacity-30'
-                    : 'bg-card border border-border hover:border-primary/30'
-                }`}
-              >
-                <span className={`text-[10px] font-bold uppercase ${isSelected ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                  {format(day, 'EEE')}
-                </span>
-                <span className={`text-lg font-black ${isSelected ? 'text-primary-foreground' : 'text-foreground'}`}>
-                  {format(day, 'd')}
-                </span>
-                <div className="flex gap-0.5 mt-1">
-                  {hasSlots && (
-                    <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-primary-foreground' : 'bg-primary'}`} />
-                  )}
-                  {hasConfirmed && (
-                    <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-primary-foreground/60' : 'bg-success'}`} />
-                  )}
-                </div>
-              </motion.button>
-            );
-          })}
-        </div>
-
-        {/* Selected day detail */}
         <AnimatePresence mode="wait">
-          <motion.div
-            key={dateKey}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <p className="font-black text-foreground text-lg">
-                  {isToday(selectedDate) ? 'Today' : format(selectedDate, 'EEEE')}
-                </p>
-                <p className="text-xs text-muted-foreground">{format(selectedDate, 'MMMM d, yyyy')}</p>
-              </div>
-              <Button
-                onClick={() => setAdding(true)}
-                size="sm"
-                className="rounded-2xl gradient-purple text-primary-foreground font-bold btn-press h-10 px-4"
-              >
-                <Plus className="w-4 h-4 mr-1" /> Add Time
-              </Button>
-            </div>
+          {activeTab === 'template' ? (
+            <motion.div
+              key="template"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+            >
+              <WeeklyGrid
+                template={weeklyTemplate}
+                onChange={setWeeklyTemplate}
+                onApply={applyTemplate}
+                onClear={() => {
+                  setWeeklyTemplate({});
+                  clearAllAvailability();
+                  toast.success('All cleared');
+                }}
+                hasExistingSlots={hasExistingSlots}
+              />
 
-            {/* Timeline view */}
-            <div className="card-premium p-4 mb-4">
-              <div className="relative">
-                {timelineHours.map((hour, i) => {
-                  // Find slots that cover this hour
-                  const freeSlot = freeSlotsForDate.find(s => hour >= s.startHour && hour < s.endHour);
-                  const confirmedSlot = confirmedSlotsForDate.find(s => hour >= s.startHour && hour < s.endHour);
-                  const isStart = freeSlot?.startHour === hour || confirmedSlot?.startHour === hour;
+              {/* How it works tip */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="card-premium p-4 mt-5 flex items-start gap-3"
+              >
+                <AlertCircle className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-bold text-foreground mb-0.5">How it works</p>
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                    Set your typical weekly schedule here, then tap "Apply" to fill all 30 days.
+                    Switch to "30-Day View" to adjust specific dates.
+                    Confirmed classes are automatically protected.
+                  </p>
+                </div>
+              </motion.div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="calendar"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.2 }}
+            >
+              {/* Week navigation */}
+              <div className="flex items-center justify-between mb-3">
+                <button
+                  onClick={() => setWeekOffset(Math.max(0, weekOffset - 1))}
+                  disabled={weekOffset === 0}
+                  className="p-2 rounded-xl btn-press disabled:opacity-30"
+                >
+                  <ChevronLeft className="w-5 h-5 text-foreground" />
+                </button>
+                <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">
+                  {format(visibleDays[0], 'MMM d')} — {format(visibleDays[visibleDays.length - 1], 'MMM d')}
+                </p>
+                <button
+                  onClick={() => setWeekOffset(Math.min(maxWeekOffset, weekOffset + 1))}
+                  disabled={weekOffset >= maxWeekOffset}
+                  className="p-2 rounded-xl btn-press disabled:opacity-30"
+                >
+                  <ChevronRight className="w-5 h-5 text-foreground" />
+                </button>
+              </div>
+
+              {/* Day selector */}
+              <div className="grid grid-cols-7 gap-1.5 mb-5">
+                {visibleDays.map((day, i) => {
+                  const isSelected = isSameDay(day, selectedDate);
+                  const hasSlots = dateHasSlots(day);
+                  const hasConfirmed = dateHasConfirmed(day);
+                  const isPast = isBefore(day, today) && !isToday(day);
 
                   return (
-                    <div key={hour} className="flex items-stretch min-h-[32px]">
-                      <div className="w-14 flex-shrink-0 text-[10px] font-bold text-muted-foreground pt-0.5">
-                        {hour % 2 === 0 ? formatHour(hour) : ''}
-                      </div>
-                      <div className="flex-1 border-t border-border/50 relative">
-                        {confirmedSlot && isStart && (
-                          <div
-                            className="absolute inset-x-0 z-10 bg-primary/10 border border-primary/30 rounded-xl px-2.5 py-1.5 flex items-center gap-1.5"
-                            style={{ height: `${(confirmedSlot.endHour - confirmedSlot.startHour) * 32}px` }}
-                          >
-                            <Music className="w-3 h-3 text-primary flex-shrink-0" />
-                            <span className="text-[11px] font-bold text-primary truncate">
-                              {groups.find(g => g.id === confirmedSlot.confirmedGroupId)?.songTitle || 'Class'}
-                            </span>
-                          </div>
+                    <motion.button
+                      key={day.toISOString()}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: i * 0.03 }}
+                      onClick={() => !isPast && setSelectedDate(day)}
+                      disabled={isPast}
+                      className={`flex flex-col items-center py-2.5 px-1 rounded-2xl transition-all btn-press min-h-[72px] ${
+                        isSelected
+                          ? 'gradient-purple glow-purple'
+                          : isPast
+                          ? 'opacity-30'
+                          : 'bg-card border border-border hover:border-primary/30'
+                      }`}
+                    >
+                      <span className={`text-[10px] font-bold uppercase ${isSelected ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                        {format(day, 'EEE')}
+                      </span>
+                      <span className={`text-lg font-black ${isSelected ? 'text-primary-foreground' : 'text-foreground'}`}>
+                        {format(day, 'd')}
+                      </span>
+                      <div className="flex gap-0.5 mt-1">
+                        {hasSlots && (
+                          <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-primary-foreground' : 'bg-primary'}`} />
                         )}
-                        {freeSlot && isStart && !confirmedSlot && (
-                          <div
-                            className="absolute inset-x-0 z-10 bg-accent border border-border rounded-xl px-2.5 py-1.5 flex items-center justify-between"
-                            style={{ height: `${(freeSlot.endHour - freeSlot.startHour) * 32}px` }}
-                          >
-                            <span className="text-[11px] font-bold text-foreground">
-                              {formatHour(freeSlot.startHour)} — {formatHour(freeSlot.endHour)}
-                            </span>
-                            <button
-                              onClick={() => handleRemove(freeSlot)}
-                              className="p-1 rounded-lg hover:bg-muted btn-press"
-                            >
-                              <Trash2 className="w-3 h-3 text-muted-foreground" />
-                            </button>
-                          </div>
+                        {hasConfirmed && (
+                          <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-primary-foreground/60' : 'bg-primary/40'}`} />
                         )}
                       </div>
-                    </div>
+                    </motion.button>
                   );
                 })}
               </div>
-            </div>
 
-            {/* Empty state */}
-            {slotsForDate.length === 0 && !adding && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-8">
-                <Clock className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
-                <p className="text-sm font-bold text-muted-foreground mb-1">No availability set</p>
-                <p className="text-xs text-muted-foreground">Tap "Add Time" to mark when you're free</p>
-              </motion.div>
-            )}
-          </motion.div>
-        </AnimatePresence>
-
-        {/* Add time modal */}
-        <AnimatePresence>
-          {adding && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-end justify-center bg-foreground/40"
-              onClick={() => setAdding(false)}
-            >
-              <motion.div
-                initial={{ y: '100%' }}
-                animate={{ y: 0 }}
-                exit={{ y: '100%' }}
-                transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                onClick={e => e.stopPropagation()}
-                className="w-full max-w-md bg-card rounded-t-3xl border-t border-border h-[85svh] overflow-hidden flex flex-col"
-              >
-                <div className="w-10 h-1 rounded-full bg-muted mx-auto mb-4 mt-3 flex-shrink-0" />
-                <div className="flex-shrink-0 px-6">
-                  <h3 className="text-lg font-black text-foreground mb-1">Add Free Time</h3>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    {format(selectedDate, 'EEEE, MMMM d')}
-                  </p>
-                </div>
-
-                <div className="space-y-5 overflow-y-auto overscroll-contain px-6 pb-[max(2.5rem,env(safe-area-inset-bottom))] flex-1 min-h-0">
-                  <div>
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2.5 block">From</label>
-                    <div className="grid grid-cols-5 gap-1.5">
-                      {HOURS.map(h => (
-                        <button
-                          key={`s-${h}`}
-                          onClick={() => {
-                            setStartHour(h);
-                            if (endHour <= h) setEndHour(h + 1);
-                          }}
-                          className={`py-2.5 rounded-xl text-xs font-bold transition-all btn-press ${
-                            startHour === h
-                              ? 'gradient-purple text-primary-foreground glow-purple'
-                              : 'bg-muted text-foreground hover:bg-accent'
-                          }`}
-                        >
-                          {formatHour(h)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2.5 block">To</label>
-                    <div className="grid grid-cols-5 gap-1.5">
-                      {HOURS.filter(h => h > startHour).concat([23]).map(h => (
-                        <button
-                          key={`e-${h}`}
-                          onClick={() => setEndHour(h)}
-                          className={`py-2.5 rounded-xl text-xs font-bold transition-all btn-press ${
-                            endHour === h
-                              ? 'gradient-purple text-primary-foreground glow-purple'
-                              : 'bg-muted text-foreground hover:bg-accent'
-                          }`}
-                        >
-                          {formatHour(h)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="card-premium p-4 flex items-center gap-3">
-                    <Clock className="w-5 h-5 text-primary" />
+              {/* Selected day detail */}
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={dateKey}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="flex items-center justify-between mb-3">
                     <div>
-                      <p className="font-black text-sm text-foreground">
-                        {formatHour(startHour)} — {formatHour(endHour)}
+                      <p className="font-black text-foreground text-lg">
+                        {isToday(selectedDate) ? 'Today' : format(selectedDate, 'EEEE')}
                       </p>
-                      <p className="text-[11px] text-muted-foreground">{endHour - startHour} hour{endHour - startHour !== 1 ? 's' : ''}</p>
+                      <p className="text-xs text-muted-foreground">{format(selectedDate, 'MMMM d, yyyy')}</p>
                     </div>
+                    <Button
+                      onClick={() => setAdding(true)}
+                      size="sm"
+                      className="rounded-2xl gradient-purple text-primary-foreground font-bold btn-press h-10 px-4"
+                    >
+                      <Plus className="w-4 h-4 mr-1" /> Add Time
+                    </Button>
                   </div>
 
-                  <Button
-                    onClick={handleAdd}
-                    className="w-full h-14 rounded-2xl font-black text-base gradient-purple text-primary-foreground btn-press"
-                  >
-                    <span className="flex items-center gap-2">Confirm <Check className="w-4 h-4" /></span>
-                  </Button>
-                </div>
-              </motion.div>
+                  <DayTimeline
+                    freeSlots={freeSlotsForDate}
+                    confirmedSlots={confirmedSlotsForDate}
+                    groups={groups}
+                    onRemoveSlot={handleRemoveSlot}
+                    onAddTime={() => setAdding(true)}
+                    isEmpty={slotsForDate.length === 0}
+                  />
+                </motion.div>
+              </AnimatePresence>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Tip */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="card-premium p-4 mt-4 flex items-start gap-3"
-        >
-          <AlertCircle className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-xs font-bold text-foreground mb-0.5">How it works</p>
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              Set your free times once — it applies to all song groups you join.
-              When a class is confirmed, that time is automatically blocked here.
-            </p>
-          </div>
-        </motion.div>
+        {/* Add time bottom sheet */}
+        <AnimatePresence>
+          {adding && (
+            <AddTimeSheet
+              dateLabel={format(selectedDate, 'EEEE, MMMM d')}
+              onAdd={handleAddTime}
+              onClose={() => setAdding(false)}
+              existingSlots={slotsForDate}
+            />
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
