@@ -1,5 +1,5 @@
 /* AppContext - centralized state */
-import React, { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import type { Student, SongGroup, Booking, ClassSession, TimeSlot, RoleName, Role, AvailabilitySlot } from '@/types';
 
 const MOCK_GROUPS: SongGroup[] = [
@@ -38,8 +38,35 @@ const MOCK_SESSIONS: ClassSession[] = [
   { id: 's1', groupId: '5', room: 'Room A', day: 'Wednesday', time: '7:00 PM', confirmed: true },
 ];
 
-// Mock registered users store
-const REGISTERED_USERS: Array<{ email: string; password: string; student: Student }> = [];
+type RegisteredUserRecord = { email: string; password: string; student: Student };
+
+const STORAGE_KEYS = {
+  users: 'korero.registeredUsers',
+  student: 'korero.studentSession',
+  admin: 'korero.adminSession',
+} as const;
+
+const readStorage = <T,>(key: string, fallback: T): T => {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const value = window.localStorage.getItem(key);
+    return value ? JSON.parse(value) as T : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const writeStorage = (key: string, value: unknown) => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.setItem(key, JSON.stringify(value));
+};
+
+const removeStorage = (key: string) => {
+  if (typeof window === 'undefined') return;
+  window.localStorage.removeItem(key);
+};
+
+const normalizeEmail = (email: string) => email.trim().toLowerCase();
 
 interface AppState {
   student: Student | null;
@@ -77,49 +104,68 @@ interface AppContextType extends AppState {
 const AppContext = createContext<AppContextType | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [student, setStudent] = useState<Student | null>(null);
+  const [registeredUsers, setRegisteredUsers] = useState<RegisteredUserRecord[]>(() =>
+    readStorage<RegisteredUserRecord[]>(STORAGE_KEYS.users, [])
+  );
+  const [student, setStudent] = useState<Student | null>(() =>
+    readStorage<Student | null>(STORAGE_KEYS.student, null)
+  );
   const [groups, setGroups] = useState<SongGroup[]>(MOCK_GROUPS);
   const [pendingGroups, setPendingGroups] = useState<SongGroup[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [sessions, setSessions] = useState<ClassSession[]>(MOCK_SESSIONS);
   const [roles, setRoles] = useState<Role[]>(DEFAULT_ROLES);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => readStorage<boolean>(STORAGE_KEYS.admin, false));
   const [availability, setAvailability] = useState<AvailabilitySlot[]>([]);
 
+  const isAuthenticated = Boolean(student);
+
+  useEffect(() => {
+    writeStorage(STORAGE_KEYS.users, registeredUsers);
+  }, [registeredUsers]);
+
+  useEffect(() => {
+    if (student) {
+      writeStorage(STORAGE_KEYS.student, student);
+      return;
+    }
+    removeStorage(STORAGE_KEYS.student);
+  }, [student]);
+
+  useEffect(() => {
+    writeStorage(STORAGE_KEYS.admin, isAdmin);
+  }, [isAdmin]);
+
   const registerStudent = useCallback((s: Omit<Student, 'id'> & { password: string }): boolean => {
-    // Check if email already exists
-    const exists = REGISTERED_USERS.some(u => u.email.toLowerCase() === s.email.toLowerCase());
+    const email = normalizeEmail(s.email);
+    const exists = registeredUsers.some(u => u.email === email);
     if (exists) return false;
 
     const newStudent: Student = {
       id: crypto.randomUUID(),
       name: s.name,
       whatsapp: s.whatsapp,
-      email: s.email,
+      email,
     };
 
-    REGISTERED_USERS.push({ email: s.email.toLowerCase(), password: s.password, student: newStudent });
+    setRegisteredUsers(prev => [...prev, { email, password: s.password, student: newStudent }]);
     setStudent(newStudent);
-    setIsAuthenticated(true);
     return true;
-  }, []);
+  }, [registeredUsers]);
 
   const loginStudent = useCallback((email: string, password: string): boolean => {
-    const user = REGISTERED_USERS.find(
-      u => u.email === email.toLowerCase() && u.password === password
+    const user = registeredUsers.find(
+      u => u.email === normalizeEmail(email) && u.password === password
     );
     if (user) {
       setStudent(user.student);
-      setIsAuthenticated(true);
       return true;
     }
     return false;
-  }, []);
+  }, [registeredUsers]);
 
   const logoutStudent = useCallback(() => {
     setStudent(null);
-    setIsAuthenticated(false);
   }, []);
 
   const joinGroup = useCallback((groupId: string) => {

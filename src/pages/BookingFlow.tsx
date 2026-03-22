@@ -120,9 +120,9 @@ export default function BookingFlow() {
             <CalendarDays className="w-10 h-10 text-primary-foreground" />
           </motion.div>
 
-          <h2 className="text-2xl font-black text-foreground mb-2">Set your schedule first</h2>
+          <h2 className="text-2xl font-black text-foreground mb-2">Pick your free time first 🔥</h2>
           <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
-            Before joining a song group, let us know when you're free for the next 30 days. This helps us find the best class times for everyone.
+            Share your availability for the next 30 days — we’ll use it to lock in the best class times for you and your group!
           </p>
 
           <div className="space-y-3">
