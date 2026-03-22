@@ -80,8 +80,8 @@
     --accent: 270 30% 18%;
     --accent-foreground: 270 60% 80%;
 
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 0 0% 95%;
+    --destructive: 270 60% 55%;
+    --destructive-foreground: 0 0% 100%;
 
     --border: 260 10% 18%;
     --input: 260 10% 18%;
