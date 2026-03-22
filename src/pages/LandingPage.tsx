@@ -239,7 +239,7 @@ export default function LandingPage() {
           >
             <p className="text-xs font-black text-primary uppercase tracking-[0.2em] mb-2">Trending now</p>
             <h2 className="text-2xl font-black text-foreground flex items-center justify-center gap-2">
-              What's hot this week <TrendingUp className="w-5 h-5 text-destructive" />
+              What's hot this week <TrendingUp className="w-5 h-5 text-primary" />
             </h2>
           </motion.div>
 

@@ -177,11 +177,7 @@ export default function GroupsPage() {
                         <motion.div className="mt-4">
                           <Button
                             onClick={() => handleJoin(group.id)}
-                            className={`w-full rounded-2xl font-black text-sm btn-press h-12 relative overflow-hidden ${
-                              isAlmostFull
-                                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                                : 'gradient-purple text-primary-foreground'
-                            }`}
+                            className="w-full rounded-2xl font-black text-sm btn-press h-12 relative overflow-hidden gradient-purple text-primary-foreground"
                           >
                             <span className="relative z-10 flex items-center gap-2">
                               {isAlmostFull ? (
@@ -190,7 +186,7 @@ export default function GroupsPage() {
                                 <>Join This Group <Sparkles className="w-4 h-4" /></>
                               )}
                             </span>
-                            {!isAlmostFull && <div className="absolute inset-0 shimmer" />}
+                            <div className="absolute inset-0 shimmer" />
                           </Button>
                         </motion.div>
                       )}

@@ -104,10 +104,10 @@ export default function RegisterPage() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-6 p-4 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-start gap-3"
+            className="mb-6 p-4 rounded-2xl bg-muted border border-border flex items-start gap-3"
           >
-            <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
-            <p className="text-sm font-medium text-destructive">{error}</p>
+            <AlertCircle className="w-4 h-4 text-foreground mt-0.5 shrink-0" />
+            <p className="text-sm font-medium text-foreground">{error}</p>
           </motion.div>
         )}
 

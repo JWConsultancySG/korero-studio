@@ -261,7 +261,7 @@ export default function AvailabilityPage() {
                             </span>
                             <button
                               onClick={() => handleRemove(freeSlot)}
-                              className="p-1 rounded-lg hover:bg-destructive/10 btn-press"
+                              className="p-1 rounded-lg hover:bg-muted btn-press"
                             >
                               <Trash2 className="w-3 h-3 text-muted-foreground" />
                             </button>
