@@ -1,6 +1,6 @@
 /* AppContext - centralized state */
 import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import type { Student, SongGroup, Booking, ClassSession, TimeSlot, RoleName, Role, AvailabilitySlot } from '@/types';
+import type { Student, SongGroup, Booking, ClassSession, TimeSlot, RoleName, Role, AvailabilitySlot, ClassType } from '@/types';
 
 const MOCK_GROUPS: SongGroup[] = [
   { id: '1', songTitle: 'Super Shy', artist: 'NewJeans', interestCount: 3, status: 'forming', members: [], maxMembers: 5 },
