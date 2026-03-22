@@ -92,8 +92,13 @@ export default function AvailabilityPage() {
     });
 
     setAvailabilityBatch(slots);
-    toast.success(`Applied to ${allDays.length} days`);
-    setActiveTab('calendar');
+    if (returnTo) {
+      toast.success('Schedule set! 🎉 Taking you back to join your group…');
+      setTimeout(() => navigate(returnTo), 1500);
+    } else {
+      toast.success(`Applied to ${allDays.length} days`);
+      setActiveTab('calendar');
+    }
   };
 
   const handleAddTime = (startHour: number, endHour: number) => {
