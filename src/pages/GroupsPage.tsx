@@ -22,12 +22,9 @@ export default function GroupsPage() {
     navigate(`/booking/${groupId}`);
   };
 
-  const handleCreate = () => {
-    if (!newSong.trim() || !newArtist.trim()) return;
-    createGroup(newSong, newArtist);
+  const handleCreate = (song: string, artist: string) => {
+    createGroup(song, artist);
     setShowCreate(false);
-    setNewSong('');
-    setNewArtist('');
     toast.success('Song submitted for approval!');
   };
 
