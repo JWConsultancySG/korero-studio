@@ -154,9 +154,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const selectRole = useCallback((roleName: RoleName) => {
-    setRoles(prev => prev.map(r =>
-      r.name === roleName ? { ...r, available: false, heldBy: student?.id, holdExpiry: Date.now() + 30 * 60 * 1000 } : r
-    ));
+    setRoles(prev => prev.map(r => {
+      // Release any role previously held by this student
+      if (r.heldBy === student?.id && r.name !== roleName) {
+        return { ...r, available: true, heldBy: undefined, holdExpiry: undefined };
+      }
+      // Hold the new role
+      if (r.name === roleName) {
+        return { ...r, available: false, heldBy: student?.id, holdExpiry: Date.now() + 30 * 60 * 1000 };
+      }
+      return r;
+    }));
   }, [student]);
 
   const createBooking = useCallback((groupId: string, role: RoleName, timeSlot: TimeSlot): Booking => {
