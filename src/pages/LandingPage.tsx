@@ -82,11 +82,20 @@ export default function LandingPage() {
           <div className="absolute inset-0 z-10" style={{
             background: 'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.45) 40%, rgba(0,0,0,0.6) 70%, rgba(0,0,0,0.9) 100%)'
           }} />
+          {/* Blurred poster – visible instantly */}
+          <img
+            src="/videos/hero-poster.jpg"
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
+            style={{ opacity: videoReady ? 0 : 1, filter: 'brightness(0.85) saturate(1.1)' }}
+          />
           <video
+            ref={videoRef}
             autoPlay muted loop playsInline
-            preload="auto"
-            className="w-full h-full object-cover"
-            style={{ filter: 'brightness(0.8) saturate(1.1)' }}
+            preload="metadata"
+            onCanPlay={handleVideoReady}
+            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
+            style={{ opacity: videoReady ? 1 : 0, filter: 'brightness(0.85) saturate(1.1)' }}
           >
             <source src="/videos/hero.mp4" type="video/mp4" />
           </video>
