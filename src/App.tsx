@@ -13,6 +13,7 @@ import BookingFlow from "./pages/BookingFlow";
 import MyClassesPage from "./pages/MyClassesPage";
 import FeedbackPage from "./pages/FeedbackPage";
 import AdminPage from "./pages/AdminPage";
+import AvailabilityPage from "./pages/AvailabilityPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/groups" element={<GroupsPage />} />
             <Route path="/booking/:groupId" element={<BookingFlow />} />
             <Route path="/my-classes" element={<MyClassesPage />} />
+            <Route path="/schedule" element={<AvailabilityPage />} />
             <Route path="/feedback" element={<FeedbackPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="*" element={<NotFound />} />

@@ -47,6 +47,14 @@ export interface Booking {
   createdAt: string;
 }
 
+export interface AvailabilitySlot {
+  date: string; // ISO date string YYYY-MM-DD
+  startHour: number; // 8-22 (8am-10pm)
+  endHour: number; // 9-23 (9am-11pm)
+  isConfirmedClass?: boolean;
+  confirmedGroupId?: string;
+}
+
 export type PaymentMethod = 'stripe' | 'paynow';
 
 export interface ClassSession {

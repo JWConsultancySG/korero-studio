@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
-import type { Student, SongGroup, Booking, ClassSession, TimeSlot, RoleName, Role } from '@/types';
+import type { Student, SongGroup, Booking, ClassSession, TimeSlot, RoleName, Role, AvailabilitySlot } from '@/types';
 
 const MOCK_GROUPS: SongGroup[] = [
   { id: '1', songTitle: 'Super Shy', artist: 'NewJeans', interestCount: 3, status: 'forming', members: [], maxMembers: 5 },
@@ -50,6 +50,7 @@ interface AppState {
   pendingGroups: SongGroup[];
   isAdmin: boolean;
   isAuthenticated: boolean;
+  availability: AvailabilitySlot[];
 }
 
 interface AppContextType extends AppState {
@@ -66,6 +67,8 @@ interface AppContextType extends AppState {
   loginAdmin: (password: string) => boolean;
   logoutAdmin: () => void;
   assignSession: (groupId: string, room: 'Room A' | 'Room B', day: string, time: string) => void;
+  addAvailability: (slot: AvailabilitySlot) => void;
+  removeAvailability: (date: string, startHour: number, endHour: number) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -79,6 +82,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [roles, setRoles] = useState<Role[]>(DEFAULT_ROLES);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [availability, setAvailability] = useState<AvailabilitySlot[]>([]);
 
   const registerStudent = useCallback((s: Omit<Student, 'id'> & { password: string }): boolean => {
     // Check if email already exists
@@ -196,11 +200,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }]);
   }, []);
 
+  const addAvailability = useCallback((slot: AvailabilitySlot) => {
+    setAvailability(prev => [...prev, slot]);
+  }, []);
+
+  const removeAvailability = useCallback((date: string, startHour: number, endHour: number) => {
+    setAvailability(prev => prev.filter(s => !(s.date === date && s.startHour === startHour && s.endHour === endHour)));
+  }, []);
+
   return (
     <AppContext.Provider value={{
-      student, groups, bookings, sessions, timeSlots: MOCK_TIME_SLOTS, roles, pendingGroups, isAdmin, isAuthenticated,
+      student, groups, bookings, sessions, timeSlots: MOCK_TIME_SLOTS, roles, pendingGroups, isAdmin, isAuthenticated, availability,
       registerStudent, loginStudent, logoutStudent, joinGroup, createGroup, approveGroup, rejectGroup, selectRole,
-      createBooking, completePayment, loginAdmin, logoutAdmin, assignSession,
+      createBooking, completePayment, loginAdmin, logoutAdmin, assignSession, addAvailability, removeAvailability,
     }}>
       {children}
     </AppContext.Provider>

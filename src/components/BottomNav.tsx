@@ -1,10 +1,11 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Music, BookOpen, Settings } from 'lucide-react';
+import { Home, Music, CalendarDays, BookOpen, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const tabs = [
   { to: '/', icon: Home, label: 'Home' },
   { to: '/groups', icon: Music, label: 'Groups' },
+  { to: '/schedule', icon: CalendarDays, label: 'Schedule' },
   { to: '/my-classes', icon: BookOpen, label: 'Classes' },
   { to: '/admin', icon: Settings, label: 'Admin' },
 ];
