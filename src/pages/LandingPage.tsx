@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { Music, Users, Star, Zap, ChevronDown, Sparkles, Play, Heart, ArrowRight, TrendingUp, LogIn, UserPlus, LogOut } from 'lucide-react';
-import { useRef } from 'react';
+import { useRef, useState, useCallback } from 'react';
 
 const features = [
   { icon: Music, title: 'Pick Your Song', desc: 'Trending K-pop hits updated weekly' },
@@ -22,6 +22,9 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const { student, groups, isAuthenticated, logoutStudent } = useApp();
   const heroRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoReady, setVideoReady] = useState(false);
+  const handleVideoReady = useCallback(() => setVideoReady(true), []);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0]);
   const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.08]);
@@ -82,11 +85,20 @@ export default function LandingPage() {
           <div className="absolute inset-0 z-10" style={{
             background: 'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.45) 40%, rgba(0,0,0,0.6) 70%, rgba(0,0,0,0.9) 100%)'
           }} />
+          {/* Blurred poster – visible instantly */}
+          <img
+            src="/videos/hero-poster.jpg"
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
+            style={{ opacity: videoReady ? 0 : 1, filter: 'brightness(0.85) saturate(1.1)' }}
+          />
           <video
+            ref={videoRef}
             autoPlay muted loop playsInline
-            preload="auto"
-            className="w-full h-full object-cover"
-            style={{ filter: 'brightness(0.8) saturate(1.1)' }}
+            preload="metadata"
+            onCanPlay={handleVideoReady}
+            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
+            style={{ opacity: videoReady ? 1 : 0, filter: 'brightness(0.85) saturate(1.1)' }}
           >
             <source src="/videos/hero.mp4" type="video/mp4" />
           </video>
