@@ -8,6 +8,7 @@ import BottomNav from "@/components/BottomNav";
 import LandingPage from "./pages/LandingPage";
 import RegisterPage from "./pages/RegisterPage";
 import LoginPage from "./pages/LoginPage";
+import PreferencesPage from "./pages/PreferencesPage";
 import GroupsPage from "./pages/GroupsPage";
 import BookingFlow from "./pages/BookingFlow";
 import MyClassesPage from "./pages/MyClassesPage";
