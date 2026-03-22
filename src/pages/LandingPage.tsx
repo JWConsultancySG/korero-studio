@@ -2,7 +2,7 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { Music, Users, Star, Zap, ChevronDown, Sparkles, Play, Heart, ArrowRight, TrendingUp } from 'lucide-react';
+import { Music, Users, Star, Zap, ChevronDown, Sparkles, Play, Heart, ArrowRight, TrendingUp, LogIn, UserPlus, LogOut } from 'lucide-react';
 import { useRef } from 'react';
 
 const features = [
@@ -20,7 +20,7 @@ const stats = [
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const { student, groups } = useApp();
+  const { student, groups, isAuthenticated, logoutStudent } = useApp();
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroOpacity = useTransform(scrollYProgress, [0, 1], [1, 0]);
@@ -39,14 +39,55 @@ export default function LandingPage() {
     <div className="min-h-screen flex flex-col overflow-x-hidden">
       {/* Hero Section */}
       <section ref={heroRef} className="relative min-h-[100svh] flex flex-col items-center justify-center overflow-hidden">
+        {/* Top Auth Bar */}
+        <div className="absolute top-0 left-0 right-0 z-30 px-5 pt-5 flex items-center justify-end gap-2">
+          {isAuthenticated ? (
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
+              <span className="text-xs font-bold" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                Hi, {student?.name?.split(' ')[0]}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={logoutStudent}
+                className="h-9 px-3 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10"
+                style={{ color: 'rgba(255,255,255,0.9)' }}
+              >
+                <LogOut className="w-3.5 h-3.5 mr-1.5" /> Sign Out
+              </Button>
+            </motion.div>
+          ) : (
+            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/login')}
+                className="h-9 px-3 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10"
+                style={{ color: 'rgba(255,255,255,0.9)' }}
+              >
+                <LogIn className="w-3.5 h-3.5 mr-1.5" /> Sign In
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => navigate('/register')}
+                className="h-9 px-3 rounded-xl text-xs font-bold gradient-purple text-primary-foreground"
+              >
+                <UserPlus className="w-3.5 h-3.5 mr-1.5" /> Sign Up
+              </Button>
+            </motion.div>
+          )}
+        </div>
+
         <motion.div style={{ scale: heroScale }} className="absolute inset-0 z-0">
           <div className="absolute inset-0 z-10" style={{
-            background: 'linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0.75) 70%, rgba(0,0,0,0.95) 100%)'
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.45) 40%, rgba(0,0,0,0.6) 70%, rgba(0,0,0,0.9) 100%)'
           }} />
           <video
             autoPlay muted loop playsInline
+            preload="auto"
             className="w-full h-full object-cover"
-            style={{ filter: 'brightness(0.6) saturate(1.1)' }}
+            style={{ filter: 'brightness(0.75) saturate(1.1)' }}
+            poster=""
           >
             <source src="/videos/hero.mp4" type="video/mp4" />
           </video>
