@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
-import type { Student, SongGroup, Booking, ClassSession, TimeSlot, RoleName, Role } from '@/types';
+import type { Student, SongGroup, Booking, ClassSession, TimeSlot, RoleName, Role, AvailabilitySlot } from '@/types';
 
 const MOCK_GROUPS: SongGroup[] = [
   { id: '1', songTitle: 'Super Shy', artist: 'NewJeans', interestCount: 3, status: 'forming', members: [], maxMembers: 5 },
