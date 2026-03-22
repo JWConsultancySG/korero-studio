@@ -200,11 +200,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }]);
   }, []);
 
+  const addAvailability = useCallback((slot: AvailabilitySlot) => {
+    setAvailability(prev => [...prev, slot]);
+  }, []);
+
+  const removeAvailability = useCallback((date: string, startHour: number, endHour: number) => {
+    setAvailability(prev => prev.filter(s => !(s.date === date && s.startHour === startHour && s.endHour === endHour)));
+  }, []);
+
   return (
     <AppContext.Provider value={{
-      student, groups, bookings, sessions, timeSlots: MOCK_TIME_SLOTS, roles, pendingGroups, isAdmin, isAuthenticated,
+      student, groups, bookings, sessions, timeSlots: MOCK_TIME_SLOTS, roles, pendingGroups, isAdmin, isAuthenticated, availability,
       registerStudent, loginStudent, logoutStudent, joinGroup, createGroup, approveGroup, rejectGroup, selectRole,
-      createBooking, completePayment, loginAdmin, logoutAdmin, assignSession,
+      createBooking, completePayment, loginAdmin, logoutAdmin, assignSession, addAvailability, removeAvailability,
     }}>
       {children}
     </AppContext.Provider>
