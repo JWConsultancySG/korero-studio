@@ -303,13 +303,15 @@ export default function AvailabilityPage() {
                 onClick={e => e.stopPropagation()}
                 className="w-full max-w-md bg-card rounded-t-3xl border-t border-border max-h-[85vh] flex flex-col"
               >
-                <div className="w-10 h-1 rounded-full bg-muted mx-auto mb-6" />
-                <h3 className="text-lg font-black text-foreground mb-1">Add Free Time</h3>
-                <p className="text-xs text-muted-foreground mb-6">
-                  {format(selectedDate, 'EEEE, MMMM d')}
-                </p>
+                <div className="w-10 h-1 rounded-full bg-muted mx-auto mb-4 mt-3 flex-shrink-0" />
+                <div className="flex-shrink-0 px-6">
+                  <h3 className="text-lg font-black text-foreground mb-1">Add Free Time</h3>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    {format(selectedDate, 'EEEE, MMMM d')}
+                  </p>
+                </div>
 
-                <div className="space-y-5">
+                <div className="space-y-5 overflow-y-auto px-6 pb-10 flex-1">
                   <div>
                     <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2.5 block">From</label>
                     <div className="grid grid-cols-5 gap-1.5">
