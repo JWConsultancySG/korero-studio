@@ -13,6 +13,7 @@ import BookingFlow from "./pages/BookingFlow";
 import MyClassesPage from "./pages/MyClassesPage";
 import FeedbackPage from "./pages/FeedbackPage";
 import AdminPage from "./pages/AdminPage";
+import AvailabilityPage from "./pages/AvailabilityPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
