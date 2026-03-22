@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/context/AppContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   CalendarDays, ChevronLeft, ChevronRight, Plus, Clock,
   Music, AlertCircle, ArrowRight, Sparkles
@@ -17,6 +17,8 @@ import AddTimeSheet from '@/components/schedule/AddTimeSheet';
 export default function AvailabilityPage() {
   const { student, availability, addAvailability, removeAvailability, setAvailabilityBatch, clearAllAvailability, groups } = useApp();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = searchParams.get('returnTo');
   const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
   const [adding, setAdding] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
@@ -90,8 +92,13 @@ export default function AvailabilityPage() {
     });
 
     setAvailabilityBatch(slots);
-    toast.success(`Applied to ${allDays.length} days`);
-    setActiveTab('calendar');
+    if (returnTo) {
+      toast.success('Schedule set! 🎉 Taking you back to join your group…');
+      setTimeout(() => navigate(returnTo), 1500);
+    } else {
+      toast.success(`Applied to ${allDays.length} days`);
+      setActiveTab('calendar');
+    }
   };
 
   const handleAddTime = (startHour: number, endHour: number) => {
@@ -104,7 +111,12 @@ export default function AvailabilityPage() {
     }
     addAvailability({ date: dateKey, startHour, endHour });
     setAdding(false);
-    toast.success('Time added');
+    if (returnTo) {
+      toast.success('Availability saved! 🔥 Let\'s get you into that group…');
+      setTimeout(() => navigate(returnTo), 1500);
+    } else {
+      toast.success('Time added');
+    }
   };
 
   const handleRemoveSlot = (slot: AvailabilitySlot) => {
