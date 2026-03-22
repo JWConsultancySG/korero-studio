@@ -85,7 +85,7 @@ export default function WeeklyGrid({ template, onChange, onApply, onClear, hasEx
         <div className="flex">
           <div className="w-11 flex-shrink-0 bg-muted/50 border-b border-border" />
           <div ref={scrollRef} className="flex-1 overflow-x-auto scrollbar-hide">
-            <div className="flex min-w-[600px]">
+            <div className="flex">
               {HOURS.map(h => (
                 <div key={h} className="w-14 flex-shrink-0 text-center py-2 text-[9px] font-bold text-muted-foreground border-b border-border bg-muted/30">
                   {formatHour24(h)}
