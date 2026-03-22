@@ -127,7 +127,7 @@ export default function BookingFlow() {
 
           <div className="space-y-3">
             <Button
-              onClick={() => navigate('/schedule')}
+              onClick={() => navigate(`/schedule?returnTo=/booking/${groupId}`)}
               className="w-full h-14 rounded-2xl font-black text-base gradient-purple text-primary-foreground btn-press relative overflow-hidden"
             >
               <span className="relative z-10 flex items-center gap-2">

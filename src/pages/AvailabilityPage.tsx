@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/context/AppContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   CalendarDays, ChevronLeft, ChevronRight, Plus, Clock,
   Music, AlertCircle, ArrowRight, Sparkles
