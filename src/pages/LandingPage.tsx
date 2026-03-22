@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
 import { Music, Users, Star, Zap, ChevronDown, Sparkles, Play, Heart, ArrowRight, TrendingUp, LogIn, UserPlus, LogOut } from 'lucide-react';
-import { useRef } from 'react';
+import { useRef, useState, useCallback } from 'react';
 
 const features = [
   { icon: Music, title: 'Pick Your Song', desc: 'Trending K-pop hits updated weekly' },
