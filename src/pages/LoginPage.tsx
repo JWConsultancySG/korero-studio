@@ -72,9 +72,9 @@ export default function LoginPage() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-6 p-4 rounded-2xl bg-destructive/10 border border-destructive/20"
+            className="mb-6 p-4 rounded-2xl bg-muted border border-border"
           >
-            <p className="text-sm font-medium text-destructive">{error}</p>
+            <p className="text-sm font-medium text-foreground">{error}</p>
           </motion.div>
         )}
 

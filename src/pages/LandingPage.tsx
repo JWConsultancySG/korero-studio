@@ -44,7 +44,7 @@ export default function LandingPage() {
           {isAuthenticated ? (
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
               <span className="text-xs font-bold" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                Hi, {student?.name?.split(' ')[0]}
+                Hi, {student?.name || 'there'}
               </span>
               <Button
                 variant="ghost"
@@ -86,8 +86,7 @@ export default function LandingPage() {
             autoPlay muted loop playsInline
             preload="auto"
             className="w-full h-full object-cover"
-            style={{ filter: 'brightness(0.75) saturate(1.1)' }}
-            poster=""
+            style={{ filter: 'brightness(0.8) saturate(1.1)' }}
           >
             <source src="/videos/hero.mp4" type="video/mp4" />
           </video>
@@ -239,7 +238,7 @@ export default function LandingPage() {
           >
             <p className="text-xs font-black text-primary uppercase tracking-[0.2em] mb-2">Trending now</p>
             <h2 className="text-2xl font-black text-foreground flex items-center justify-center gap-2">
-              What's hot this week <TrendingUp className="w-5 h-5 text-destructive" />
+              What's hot this week <TrendingUp className="w-5 h-5 text-primary" />
             </h2>
           </motion.div>
 

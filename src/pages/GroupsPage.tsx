@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { Plus, Users, Music, Search, Flame, Sparkles, TrendingUp, Zap, Clock, Lock, CircleDot, ArrowRight } from 'lucide-react';
+import { Plus, Users, Music, Search, Sparkles, TrendingUp, Zap, Clock, Lock, CircleDot, ArrowRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
@@ -50,7 +50,7 @@ export default function GroupsPage() {
     const spotsLeft = group.maxMembers - group.interestCount;
 
     if (group.status === 'pending') return { text: 'Pending', icon: Clock, className: 'bg-muted text-muted-foreground' };
-    if (fillPercent >= 80) return { text: `${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left`, icon: Flame, className: 'bg-destructive/10 text-destructive font-black' };
+    if (fillPercent >= 80) return { text: `${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left`, icon: Zap, className: 'bg-primary/10 text-primary font-black' };
     if (fillPercent >= 50) return { text: 'Filling fast', icon: TrendingUp, className: 'bg-accent text-accent-foreground' };
     return { text: 'Open', icon: CircleDot, className: 'bg-muted text-muted-foreground' };
   };
@@ -71,7 +71,7 @@ export default function GroupsPage() {
               {joinableGroups.length} open
             </div>
             <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-card border border-border text-xs font-bold text-foreground min-h-[36px]">
-              <Flame className="w-3 h-3 text-destructive" />
+              <Zap className="w-3 h-3 text-primary" />
               {joinableGroups.filter(g => (g.interestCount / g.maxMembers) >= 0.8).length} almost full
             </div>
           </div>
@@ -111,20 +111,18 @@ export default function GroupsPage() {
                       exit={{ opacity: 0, y: -10 }}
                       transition={{ delay: i * 0.04 }}
                       className={`card-premium p-5 relative overflow-hidden group ${
-                        isAlmostFull ? 'border-destructive/30' : ''
+                        isAlmostFull ? 'border-primary/40' : ''
                       }`}
                     >
                       {isAlmostFull && group.status !== 'pending' && (
-                        <div className="absolute top-0 left-0 right-0 h-0.5 bg-destructive" />
+                        <div className="absolute top-0 left-0 right-0 h-0.5 gradient-purple" />
                       )}
 
                       <div className="flex items-start gap-4">
                         <div className="relative flex-shrink-0">
-                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
-                            isAlmostFull ? 'bg-destructive/10' : 'gradient-purple'
-                          } ${isAlmostFull ? 'pulse-ring' : ''}`}>
+                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center gradient-purple ${isAlmostFull ? 'pulse-ring glow-purple' : ''}`}>
                             {isAlmostFull ? (
-                              <Flame className="w-6 h-6 text-destructive" />
+                              <Zap className="w-6 h-6 text-primary-foreground" />
                             ) : (
                               <Music className="w-5 h-5 text-primary-foreground" />
                             )}
@@ -156,7 +154,7 @@ export default function GroupsPage() {
                                 animate={{ width: `${fillPercent}%` }}
                                 transition={{ delay: 0.3 + i * 0.05, duration: 0.6, ease: 'easeOut' }}
                                 className={`h-full rounded-full ${
-                                  isAlmostFull ? 'bg-destructive' : isHot ? 'gradient-purple' : 'bg-primary/40'
+                                  isAlmostFull ? 'gradient-purple glow-purple' : isHot ? 'gradient-purple' : 'bg-primary/40'
                                 }`}
                               />
                             </div>
@@ -166,9 +164,9 @@ export default function GroupsPage() {
                             <motion.p
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
-                              className="text-[11px] font-bold text-destructive flex items-center gap-1"
+                              className="text-[11px] font-bold text-primary flex items-center gap-1"
                             >
-                              <Flame className="w-3 h-3" />
+                              <Zap className="w-3 h-3" />
                               Last {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} — claim it before it's gone
                             </motion.p>
                           )}
@@ -179,11 +177,7 @@ export default function GroupsPage() {
                         <motion.div className="mt-4">
                           <Button
                             onClick={() => handleJoin(group.id)}
-                            className={`w-full rounded-2xl font-black text-sm btn-press h-12 relative overflow-hidden ${
-                              isAlmostFull
-                                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                                : 'gradient-purple text-primary-foreground'
-                            }`}
+                            className="w-full rounded-2xl font-black text-sm btn-press h-12 relative overflow-hidden gradient-purple text-primary-foreground"
                           >
                             <span className="relative z-10 flex items-center gap-2">
                               {isAlmostFull ? (
@@ -192,7 +186,7 @@ export default function GroupsPage() {
                                 <>Join This Group <Sparkles className="w-4 h-4" /></>
                               )}
                             </span>
-                            {!isAlmostFull && <div className="absolute inset-0 shimmer" />}
+                            <div className="absolute inset-0 shimmer" />
                           </Button>
                         </motion.div>
                       )}
