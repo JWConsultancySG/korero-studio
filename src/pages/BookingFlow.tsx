@@ -45,9 +45,12 @@ export default function BookingFlow() {
     if (!student) navigate('/register');
   }, [student, navigate]);
 
-  // Check availability on mount
+  // Check preference + availability on mount
   useEffect(() => {
-    if (student && availability.length === 0) {
+    if (!student) return;
+    if (!student.classPreference) {
+      setShowPreferencePrompt(true);
+    } else if (availability.length === 0) {
       setShowAvailabilityPrompt(true);
     }
   }, [student, availability]);
