@@ -14,7 +14,6 @@ export default function GroupsPage() {
   const navigate = useNavigate();
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState('');
-  const [search, setSearch] = useState('');
 
   const handleJoin = (groupId: string) => {
     if (!student) { navigate('/register'); return; }
