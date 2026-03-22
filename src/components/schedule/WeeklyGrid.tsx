@@ -122,7 +122,7 @@ export default function WeeklyGrid({ template, onChange, onApply, onClear, hasEx
                         key={h}
                         onPointerDown={() => handlePointerDown(dayIdx, h)}
                         onPointerEnter={() => handlePointerEnter(dayIdx, h)}
-                        className={`flex-1 h-10 border-b border-r border-border/40 transition-colors duration-100 cursor-pointer ${
+                        className={`w-14 flex-shrink-0 h-10 border-b border-r border-border/40 transition-colors duration-100 cursor-pointer ${
                           isSelected
                             ? `bg-primary/80 ${!isPrevSelected ? 'rounded-l-md' : ''} ${!isNextSelected ? 'rounded-r-md' : ''}`
                             : 'hover:bg-accent/60'
