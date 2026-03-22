@@ -1,3 +1,4 @@
+/* AppContext - centralized state */
 import React, { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import type { Student, SongGroup, Booking, ClassSession, TimeSlot, RoleName, Role, AvailabilitySlot } from '@/types';
 
