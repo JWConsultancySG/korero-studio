@@ -21,7 +21,7 @@ interface WeeklyGridProps {
 export default function WeeklyGrid({ template, onChange, onApply, onClear, hasExistingSlots }: WeeklyGridProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragMode, setDragMode] = useState<'add' | 'remove'>('add');
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const toggleCell = useCallback((dayIdx: number, hour: number) => {
     const newTemplate = { ...template };
@@ -75,66 +75,70 @@ export default function WeeklyGrid({ template, onChange, onApply, onClear, hasEx
         )}
       </div>
 
-      {/* Grid */}
+      {/* Grid — single horizontal scroll container for header + all rows */}
       <div
         className="card-premium rounded-2xl overflow-hidden select-none touch-none"
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerUp}
       >
-        {/* Hour headers - scrollable */}
         <div className="flex">
-          <div className="w-11 flex-shrink-0 bg-muted/50 border-b border-border" />
-          <div ref={scrollRef} className="flex-1 overflow-x-auto scrollbar-hide">
-            <div className="flex">
-              {HOURS.map(h => (
-                <div key={h} className="w-14 flex-shrink-0 text-center py-2 text-[9px] font-bold text-muted-foreground border-b border-border bg-muted/30">
-                  {formatHour24(h)}
-                </div>
-              ))}
+          {/* Fixed day labels column */}
+          <div className="flex-shrink-0 w-11">
+            {/* Empty corner cell */}
+            <div className="h-8 bg-muted/50 border-b border-border" />
+            {/* Day labels */}
+            {DAYS.map((day) => (
+              <div key={day} className="h-10 flex items-center justify-center bg-muted/30 border-b border-border">
+                <span className="text-[10px] font-black text-muted-foreground uppercase">{day}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Scrollable hours area — single scroll for header + all rows */}
+          <div
+            ref={scrollContainerRef}
+            className="flex-1 overflow-x-auto"
+            style={{ scrollbarWidth: 'thin', scrollbarColor: 'hsl(var(--muted-foreground) / 0.3) transparent' }}
+          >
+            <div style={{ width: `${HOURS.length * 56}px` }}>
+              {/* Hour headers */}
+              <div className="flex h-8">
+                {HOURS.map(h => (
+                  <div key={h} className="w-14 flex-shrink-0 text-center flex items-center justify-center text-[9px] font-bold text-muted-foreground border-b border-border bg-muted/30">
+                    {formatHour24(h)}
+                  </div>
+                ))}
+              </div>
+
+              {/* Day rows */}
+              {DAYS.map((day, dayIdx) => {
+                const daySet = template[dayIdx] || new Set();
+                return (
+                  <div key={day} className="flex">
+                    {HOURS.map(h => {
+                      const isSelected = daySet.has(h);
+                      const isPrevSelected = daySet.has(h - 1);
+                      const isNextSelected = daySet.has(h + 1);
+
+                      return (
+                        <div
+                          key={h}
+                          onPointerDown={() => handlePointerDown(dayIdx, h)}
+                          onPointerEnter={() => handlePointerEnter(dayIdx, h)}
+                          className={`w-14 flex-shrink-0 h-10 border-b border-r border-border/40 transition-colors duration-100 cursor-pointer ${
+                            isSelected
+                              ? `bg-primary/80 ${!isPrevSelected ? 'rounded-l-md' : ''} ${!isNextSelected ? 'rounded-r-md' : ''}`
+                              : 'hover:bg-accent/60'
+                          }`}
+                        />
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
-
-        {/* Day rows */}
-        {DAYS.map((day, dayIdx) => {
-          const daySet = template[dayIdx] || new Set();
-          return (
-            <div key={day} className="flex">
-              <div className="w-11 flex-shrink-0 flex items-center justify-center py-1 bg-muted/30 border-b border-border">
-                <span className="text-[10px] font-black text-muted-foreground uppercase">{day}</span>
-              </div>
-              <div className="flex-1 overflow-x-auto scrollbar-hide" 
-                onScroll={(e) => {
-                  // Sync scroll with header
-                  if (scrollRef.current) {
-                    scrollRef.current.scrollLeft = (e.target as HTMLDivElement).scrollLeft;
-                  }
-                }}
-              >
-                <div className="flex">
-                  {HOURS.map(h => {
-                    const isSelected = daySet.has(h);
-                    const isPrevSelected = daySet.has(h - 1);
-                    const isNextSelected = daySet.has(h + 1);
-
-                    return (
-                      <div
-                        key={h}
-                        onPointerDown={() => handlePointerDown(dayIdx, h)}
-                        onPointerEnter={() => handlePointerEnter(dayIdx, h)}
-                        className={`w-14 flex-shrink-0 h-10 border-b border-r border-border/40 transition-colors duration-100 cursor-pointer ${
-                          isSelected
-                            ? `bg-primary/80 ${!isPrevSelected ? 'rounded-l-md' : ''} ${!isNextSelected ? 'rounded-r-md' : ''}`
-                            : 'hover:bg-accent/60'
-                        }`}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          );
-        })}
       </div>
 
       {/* Stats + Apply */}

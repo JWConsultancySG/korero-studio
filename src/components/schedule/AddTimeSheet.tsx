@@ -68,7 +68,7 @@ export default function AddTimeSheet({ dateLabel, onAdd, onClose, existingSlots 
         </div>
 
         {/* Scrollable content */}
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pb-[max(5rem,calc(env(safe-area-inset-bottom)+4rem))]">
           <div className="space-y-4">
             {/* Start time */}
             <div>
