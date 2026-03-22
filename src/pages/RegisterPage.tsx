@@ -53,7 +53,7 @@ export default function RegisterPage() {
     setLoading(false);
 
     if (success) {
-      navigate('/groups');
+      navigate('/preferences');
     } else {
       setError('An account with this email already exists. Try signing in instead.');
     }

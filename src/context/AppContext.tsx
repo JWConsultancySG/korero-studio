@@ -1,6 +1,6 @@
 /* AppContext - centralized state */
 import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
-import type { Student, SongGroup, Booking, ClassSession, TimeSlot, RoleName, Role, AvailabilitySlot } from '@/types';
+import type { Student, SongGroup, Booking, ClassSession, TimeSlot, RoleName, Role, AvailabilitySlot, ClassType } from '@/types';
 
 const MOCK_GROUPS: SongGroup[] = [
   { id: '1', songTitle: 'Super Shy', artist: 'NewJeans', interestCount: 3, status: 'forming', members: [], maxMembers: 5 },
@@ -99,6 +99,7 @@ interface AppContextType extends AppState {
   removeAvailability: (date: string, startHour: number, endHour: number) => void;
   setAvailabilityBatch: (slots: AvailabilitySlot[]) => void;
   clearAllAvailability: () => void;
+  setClassPreference: (pref: ClassType) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -277,12 +278,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAvailability(prev => prev.filter(s => s.isConfirmedClass));
   }, []);
 
+  const setClassPreference = useCallback((pref: ClassType) => {
+    setStudent(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, classPreference: pref };
+      // Also update in registeredUsers
+      setRegisteredUsers(users => users.map(u =>
+        u.student.id === prev.id ? { ...u, student: updated } : u
+      ));
+      return updated;
+    });
+  }, []);
+
   return (
     <AppContext.Provider value={{
       student, groups, bookings, sessions, timeSlots: MOCK_TIME_SLOTS, roles, pendingGroups, isAdmin, isAuthenticated, availability,
       registerStudent, loginStudent, logoutStudent, joinGroup, createGroup, approveGroup, rejectGroup, selectRole,
       createBooking, completePayment, loginAdmin, logoutAdmin, assignSession, addAvailability, removeAvailability,
-      setAvailabilityBatch, clearAllAvailability,
+      setAvailabilityBatch, clearAllAvailability, setClassPreference,
     }}>
       {children}
     </AppContext.Provider>

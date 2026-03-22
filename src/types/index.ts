@@ -1,8 +1,11 @@
+export type ClassType = 'no-filming' | 'half-song' | 'full-song';
+
 export interface Student {
   id: string;
   name: string;
   whatsapp: string;
   email: string;
+  classPreference?: ClassType;
 }
 
 export type GroupStatus = 'forming' | 'confirmed' | 'pending';
