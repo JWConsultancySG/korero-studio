@@ -111,7 +111,12 @@ export default function AvailabilityPage() {
     }
     addAvailability({ date: dateKey, startHour, endHour });
     setAdding(false);
-    toast.success('Time added');
+    if (returnTo) {
+      toast.success('Availability saved! 🔥 Let\'s get you into that group…');
+      setTimeout(() => navigate(returnTo), 1500);
+    } else {
+      toast.success('Time added');
+    }
   };
 
   const handleRemoveSlot = (slot: AvailabilitySlot) => {
