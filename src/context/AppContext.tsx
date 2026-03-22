@@ -67,6 +67,8 @@ interface AppContextType extends AppState {
   loginAdmin: (password: string) => boolean;
   logoutAdmin: () => void;
   assignSession: (groupId: string, room: 'Room A' | 'Room B', day: string, time: string) => void;
+  addAvailability: (slot: AvailabilitySlot) => void;
+  removeAvailability: (date: string, startHour: number, endHour: number) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
