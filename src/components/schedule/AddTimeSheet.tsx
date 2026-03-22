@@ -51,7 +51,7 @@ export default function AddTimeSheet({ dateLabel, onAdd, onClose, existingSlots 
         transition={{ type: 'spring', damping: 25, stiffness: 300 }}
         onClick={e => e.stopPropagation()}
         className="relative w-full max-w-md bg-card rounded-t-3xl border-t border-border flex flex-col"
-        style={{ maxHeight: '80svh' }}
+        style={{ maxHeight: '85svh' }}
       >
         {/* Handle */}
         <div className="w-10 h-1 rounded-full bg-muted mx-auto mt-3 mb-2 flex-shrink-0" />
