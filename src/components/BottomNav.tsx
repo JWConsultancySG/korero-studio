@@ -12,7 +12,7 @@ const tabs = [
 export default function BottomNav() {
   const location = useLocation();
 
-  if (location.pathname.startsWith('/booking') || location.pathname === '/register' || location.pathname === '/feedback') return null;
+  if (location.pathname.startsWith('/booking') || location.pathname === '/register' || location.pathname === '/login' || location.pathname === '/feedback') return null;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 glass-strong border-t border-border/50">
