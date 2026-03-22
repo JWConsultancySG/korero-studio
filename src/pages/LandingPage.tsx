@@ -44,7 +44,7 @@ export default function LandingPage() {
           {isAuthenticated ? (
             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3">
               <span className="text-xs font-bold" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                Hi, {student?.name?.split(' ')[0]}
+                Hi, {student?.name || 'there'}
               </span>
               <Button
                 variant="ghost"
