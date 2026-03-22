@@ -301,7 +301,7 @@ export default function AvailabilityPage() {
                 exit={{ y: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                 onClick={e => e.stopPropagation()}
-                className="w-full max-w-md bg-card rounded-t-3xl border-t border-border max-h-[85vh] flex flex-col"
+                className="w-full max-w-md bg-card rounded-t-3xl border-t border-border h-[85svh] overflow-hidden flex flex-col"
               >
                 <div className="w-10 h-1 rounded-full bg-muted mx-auto mb-4 mt-3 flex-shrink-0" />
                 <div className="flex-shrink-0 px-6">
