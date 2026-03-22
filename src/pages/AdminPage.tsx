@@ -7,7 +7,7 @@ import { useApp } from '@/context/AppContext';
 import { useNavigate } from 'react-router-dom';
 import {
   Users, Music, CheckCircle, XCircle, Calendar, ArrowLeft,
-  AlertTriangle, MessageSquare, LogOut, TrendingUp, Shield, Sparkles, BarChart3, Flame
+  AlertTriangle, MessageSquare, LogOut, TrendingUp, Shield, Sparkles, BarChart3, Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
 
