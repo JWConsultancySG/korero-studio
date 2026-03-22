@@ -71,7 +71,7 @@ export default function GroupsPage() {
               {joinableGroups.length} open
             </div>
             <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-card border border-border text-xs font-bold text-foreground min-h-[36px]">
-              <Flame className="w-3 h-3 text-destructive" />
+              <Zap className="w-3 h-3 text-primary" />
               {joinableGroups.filter(g => (g.interestCount / g.maxMembers) >= 0.8).length} almost full
             </div>
           </div>
