@@ -7,6 +7,7 @@ import { AppProvider } from "@/context/AppContext";
 import BottomNav from "@/components/BottomNav";
 import LandingPage from "./pages/LandingPage";
 import RegisterPage from "./pages/RegisterPage";
+import LoginPage from "./pages/LoginPage";
 import GroupsPage from "./pages/GroupsPage";
 import BookingFlow from "./pages/BookingFlow";
 import MyClassesPage from "./pages/MyClassesPage";
@@ -26,6 +27,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/login" element={<LoginPage />} />
             <Route path="/groups" element={<GroupsPage />} />
             <Route path="/booking/:groupId" element={<BookingFlow />} />
             <Route path="/my-classes" element={<MyClassesPage />} />
