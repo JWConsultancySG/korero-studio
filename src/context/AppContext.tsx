@@ -99,6 +99,7 @@ interface AppContextType extends AppState {
   removeAvailability: (date: string, startHour: number, endHour: number) => void;
   setAvailabilityBatch: (slots: AvailabilitySlot[]) => void;
   clearAllAvailability: () => void;
+  setClassPreference: (pref: ClassType) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
