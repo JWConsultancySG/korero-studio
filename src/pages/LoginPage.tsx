@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { ArrowLeft, Mail, Lock, Eye, EyeOff, LogIn, Sparkles } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -17,7 +17,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { loginStudent } = useApp();
 
-  const isValid = email.trim() && password.trim().length >= 6;
+  const isValid = email.trim().includes('@') && password.trim().length >= 6;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,7 +25,6 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
-    // Simulate network delay
     await new Promise(r => setTimeout(r, 800));
 
     const success = loginStudent(email, password);
@@ -34,7 +33,7 @@ export default function LoginPage() {
     if (success) {
       navigate('/groups');
     } else {
-      setError('Invalid email or password. Try again.');
+      setError('Incorrect email or password. Please try again.');
     }
   };
 
@@ -61,11 +60,11 @@ export default function LoginPage() {
           transition={{ delay: 0.2 }}
           className="mb-10"
         >
-          <h1 className="text-3xl font-black mb-2 text-foreground tracking-tight leading-tight flex items-center gap-2">
-            Welcome back <Sparkles className="w-6 h-6 text-primary" />
+          <h1 className="text-3xl font-black mb-2 text-foreground tracking-tight leading-tight">
+            Welcome back
           </h1>
           <p className="text-muted-foreground text-sm leading-relaxed">
-            Sign in to check your groups & classes
+            Sign in to your Korero account
           </p>
         </motion.div>
 
@@ -88,7 +87,7 @@ export default function LoginPage() {
           >
             <Label htmlFor="email" className="font-bold text-sm flex items-center gap-2">
               <Mail className="w-3.5 h-3.5 text-primary" />
-              Email
+              Email Address
             </Label>
             <div className={`relative rounded-2xl transition-shadow duration-300 ${
               focusedField === 'email' ? 'glow-purple' : ''
@@ -96,7 +95,7 @@ export default function LoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="you@email.com"
+                placeholder="e.g. sarah@example.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 onFocus={() => setFocusedField('email')}
@@ -122,7 +121,7 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Min. 6 characters"
+                placeholder="Enter your password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 onFocus={() => setFocusedField('password')}
