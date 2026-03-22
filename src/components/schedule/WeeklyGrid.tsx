@@ -6,11 +6,7 @@ import { Button } from '@/components/ui/button';
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 8); // 8AM-10PM
 
-const formatHourShort = (h: number) => {
-  if (h === 12) return '12P';
-  if (h > 12) return `${h - 12}P`;
-  return `${h}A`;
-};
+const formatHour24 = (h: number) => `${h.toString().padStart(2, '0')}:00`;
 
 export type WeeklyTemplate = Record<number, Set<number>>; // dayIndex -> Set of hours
 
