@@ -5,11 +5,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { ArrowLeft, Sparkles, User, Phone, Mail, Lock, Eye, EyeOff, Check, Heart, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, Eye, EyeOff, LogIn, Sparkles } from 'lucide-react';
 
-export default function RegisterPage() {
-  const [name, setName] = useState('');
-  const [whatsapp, setWhatsapp] = useState('');
+export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -17,10 +15,9 @@ export default function RegisterPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { registerStudent } = useApp();
+  const { loginStudent } = useApp();
 
-  const isValid = name.trim() && whatsapp.trim() && email.trim() && password.trim().length >= 6;
-  const filledCount = [name, whatsapp, email, password].filter(v => v.trim()).length;
+  const isValid = email.trim() && password.trim().length >= 6;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,26 +28,23 @@ export default function RegisterPage() {
     // Simulate network delay
     await new Promise(r => setTimeout(r, 800));
 
-    const success = registerStudent({ name, whatsapp, email, password });
+    const success = loginStudent(email, password);
     setLoading(false);
 
     if (success) {
       navigate('/groups');
     } else {
-      setError('An account with this email already exists. Try signing in instead.');
+      setError('Invalid email or password. Try again.');
     }
   };
-
-  const fields = [
-    { id: 'name', label: 'Full Name', icon: User, value: name, setter: setName, placeholder: 'Your name', type: 'text' },
-    { id: 'email', label: 'Email', icon: Mail, value: email, setter: setEmail, placeholder: 'you@email.com', type: 'email' },
-    { id: 'whatsapp', label: 'WhatsApp', icon: Phone, value: whatsapp, setter: setWhatsapp, placeholder: '+65 9123 4567', type: 'tel' },
-  ];
 
   return (
     <div className="min-h-screen gradient-purple-subtle">
       <div className="px-6 pt-5 pb-2">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-muted-foreground text-sm font-medium btn-press min-h-[44px]">
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2 text-muted-foreground text-sm font-medium btn-press min-h-[44px]"
+        >
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
       </div>
@@ -61,30 +55,17 @@ export default function RegisterPage() {
         transition={{ duration: 0.5 }}
         className="px-6 pt-4 pb-28 max-w-sm mx-auto"
       >
-        <div className="flex items-center gap-2 mb-8">
-          {[0, 1, 2, 3].map(i => (
-            <motion.div
-              key={i}
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.1 + i * 0.1 }}
-              className={`h-1.5 rounded-full transition-all duration-500 ${
-                i < filledCount ? 'w-8 gradient-purple' : 'w-1.5 bg-border'
-              }`}
-            />
-          ))}
-        </div>
-
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
+          className="mb-10"
         >
           <h1 className="text-3xl font-black mb-2 text-foreground tracking-tight leading-tight flex items-center gap-2">
-            Create your account <Heart className="w-6 h-6 text-primary" />
+            Welcome back <Sparkles className="w-6 h-6 text-primary" />
           </h1>
-          <p className="text-muted-foreground text-sm mb-8 leading-relaxed">
-            Sign up to join groups, track your classes & more
+          <p className="text-muted-foreground text-sm leading-relaxed">
+            Sign in to check your groups & classes
           </p>
         </motion.div>
 
@@ -92,56 +73,43 @@ export default function RegisterPage() {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-6 p-4 rounded-2xl bg-destructive/10 border border-destructive/20 flex items-start gap-3"
+            className="mb-6 p-4 rounded-2xl bg-destructive/10 border border-destructive/20"
           >
-            <AlertCircle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
             <p className="text-sm font-medium text-destructive">{error}</p>
           </motion.div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {fields.map((field, i) => (
-            <motion.div
-              key={field.id}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 + i * 0.08 }}
-              className="space-y-2"
-            >
-              <Label htmlFor={field.id} className="font-bold text-sm flex items-center gap-2">
-                <field.icon className="w-3.5 h-3.5 text-primary" />
-                {field.label}
-              </Label>
-              <div className={`relative rounded-2xl transition-shadow duration-300 ${
-                focusedField === field.id ? 'glow-purple' : ''
-              }`}>
-                <Input
-                  id={field.id}
-                  type={field.type}
-                  placeholder={field.placeholder}
-                  value={field.value}
-                  onChange={e => field.setter(e.target.value)}
-                  onFocus={() => setFocusedField(field.id)}
-                  onBlur={() => setFocusedField(null)}
-                  className="h-14 rounded-2xl text-base border-2 border-border focus:border-primary transition-colors bg-card px-4"
-                />
-                {field.value.trim() && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-success flex items-center justify-center"
-                  >
-                    <Check className="w-3 h-3 text-success-foreground" />
-                  </motion.div>
-                )}
-              </div>
-            </motion.div>
-          ))}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="space-y-2"
+          >
+            <Label htmlFor="email" className="font-bold text-sm flex items-center gap-2">
+              <Mail className="w-3.5 h-3.5 text-primary" />
+              Email
+            </Label>
+            <div className={`relative rounded-2xl transition-shadow duration-300 ${
+              focusedField === 'email' ? 'glow-purple' : ''
+            }`}>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@email.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                onFocus={() => setFocusedField('email')}
+                onBlur={() => setFocusedField(null)}
+                className="h-14 rounded-2xl text-base border-2 border-border focus:border-primary transition-colors bg-card px-4"
+              />
+            </div>
+          </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.54 }}
+            transition={{ delay: 0.38 }}
             className="space-y-2"
           >
             <Label htmlFor="password" className="font-bold text-sm flex items-center gap-2">
@@ -169,15 +137,12 @@ export default function RegisterPage() {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            {password && password.length < 6 && (
-              <p className="text-[11px] text-destructive font-medium">At least 6 characters needed</p>
-            )}
           </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.65 }}
+            transition={{ delay: 0.46 }}
             className="pt-3"
           >
             <Button
@@ -187,16 +152,25 @@ export default function RegisterPage() {
               className="w-full text-lg font-black h-14 rounded-2xl gradient-purple text-primary-foreground glow-purple btn-press relative overflow-hidden group disabled:opacity-40 disabled:glow-none"
             >
               <span className="relative z-10 flex items-center gap-2">
-                {loading ? 'Creating account...' : 'Create Account'}
-                <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                {loading ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+                  >
+                    <LogIn className="w-5 h-5" />
+                  </motion.div>
+                ) : (
+                  <LogIn className="w-5 h-5" />
+                )}
+                {loading ? 'Signing in...' : 'Sign In'}
               </span>
               {isValid && !loading && <div className="absolute inset-0 shimmer" />}
             </Button>
 
             <p className="text-center text-sm text-muted-foreground mt-6 leading-relaxed">
-              Already have an account?{' '}
-              <Link to="/login" className="text-primary font-bold hover:underline">
-                Sign In
+              Don't have an account?{' '}
+              <Link to="/register" className="text-primary font-bold hover:underline">
+                Sign Up
               </Link>
             </p>
           </motion.div>

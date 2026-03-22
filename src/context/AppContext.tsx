@@ -37,6 +37,9 @@ const MOCK_SESSIONS: ClassSession[] = [
   { id: 's1', groupId: '5', room: 'Room A', day: 'Wednesday', time: '7:00 PM', confirmed: true },
 ];
 
+// Mock registered users store
+const REGISTERED_USERS: Array<{ email: string; password: string; student: Student }> = [];
+
 interface AppState {
   student: Student | null;
   groups: SongGroup[];
@@ -46,10 +49,13 @@ interface AppState {
   roles: Role[];
   pendingGroups: SongGroup[];
   isAdmin: boolean;
+  isAuthenticated: boolean;
 }
 
 interface AppContextType extends AppState {
-  registerStudent: (s: Omit<Student, 'id'>) => void;
+  registerStudent: (s: Omit<Student, 'id'> & { password: string }) => boolean;
+  loginStudent: (email: string, password: string) => boolean;
+  logoutStudent: () => void;
   joinGroup: (groupId: string) => void;
   createGroup: (songTitle: string, artist: string) => void;
   approveGroup: (groupId: string) => void;
@@ -72,9 +78,41 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<ClassSession[]>(MOCK_SESSIONS);
   const [roles, setRoles] = useState<Role[]>(DEFAULT_ROLES);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const registerStudent = useCallback((s: Omit<Student, 'id'>) => {
-    setStudent({ ...s, id: crypto.randomUUID() });
+  const registerStudent = useCallback((s: Omit<Student, 'id'> & { password: string }): boolean => {
+    // Check if email already exists
+    const exists = REGISTERED_USERS.some(u => u.email.toLowerCase() === s.email.toLowerCase());
+    if (exists) return false;
+
+    const newStudent: Student = {
+      id: crypto.randomUUID(),
+      name: s.name,
+      whatsapp: s.whatsapp,
+      email: s.email,
+    };
+
+    REGISTERED_USERS.push({ email: s.email.toLowerCase(), password: s.password, student: newStudent });
+    setStudent(newStudent);
+    setIsAuthenticated(true);
+    return true;
+  }, []);
+
+  const loginStudent = useCallback((email: string, password: string): boolean => {
+    const user = REGISTERED_USERS.find(
+      u => u.email === email.toLowerCase() && u.password === password
+    );
+    if (user) {
+      setStudent(user.student);
+      setIsAuthenticated(true);
+      return true;
+    }
+    return false;
+  }, []);
+
+  const logoutStudent = useCallback(() => {
+    setStudent(null);
+    setIsAuthenticated(false);
   }, []);
 
   const joinGroup = useCallback((groupId: string) => {
@@ -160,8 +198,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   return (
     <AppContext.Provider value={{
-      student, groups, bookings, sessions, timeSlots: MOCK_TIME_SLOTS, roles, pendingGroups, isAdmin,
-      registerStudent, joinGroup, createGroup, approveGroup, rejectGroup, selectRole,
+      student, groups, bookings, sessions, timeSlots: MOCK_TIME_SLOTS, roles, pendingGroups, isAdmin, isAuthenticated,
+      registerStudent, loginStudent, logoutStudent, joinGroup, createGroup, approveGroup, rejectGroup, selectRole,
       createBooking, completePayment, loginAdmin, logoutAdmin, assignSession,
     }}>
       {children}
