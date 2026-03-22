@@ -311,7 +311,7 @@ export default function AvailabilityPage() {
                   </p>
                 </div>
 
-                <div className="space-y-5 overflow-y-auto px-6 pb-10 flex-1">
+                <div className="space-y-5 overflow-y-auto overscroll-contain px-6 pb-[max(2.5rem,env(safe-area-inset-bottom))] flex-1 min-h-0">
                   <div>
                     <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2.5 block">From</label>
                     <div className="grid grid-cols-5 gap-1.5">
