@@ -32,6 +32,7 @@ export default function BookingFlow() {
   const [holdTimer, setHoldTimer] = useState(1800);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showAvailabilityPrompt, setShowAvailabilityPrompt] = useState(false);
+  const [showPreferencePrompt, setShowPreferencePrompt] = useState(false);
 
   // Mock card form state
   const [cardNumber, setCardNumber] = useState('');
