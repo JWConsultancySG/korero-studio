@@ -50,7 +50,7 @@ export default function GroupsPage() {
     const spotsLeft = group.maxMembers - group.interestCount;
 
     if (group.status === 'pending') return { text: 'Pending', icon: Clock, className: 'bg-muted text-muted-foreground' };
-    if (fillPercent >= 80) return { text: `${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left`, icon: Flame, className: 'bg-destructive/10 text-destructive font-black' };
+    if (fillPercent >= 80) return { text: `${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left`, icon: Zap, className: 'bg-primary/10 text-primary font-black' };
     if (fillPercent >= 50) return { text: 'Filling fast', icon: TrendingUp, className: 'bg-accent text-accent-foreground' };
     return { text: 'Open', icon: CircleDot, className: 'bg-muted text-muted-foreground' };
   };
