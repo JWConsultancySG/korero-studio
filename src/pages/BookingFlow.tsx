@@ -106,46 +106,52 @@ export default function BookingFlow() {
     </div>
   );
 
+  // Preference gate screen
+  if (showPreferencePrompt) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-6">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center max-w-sm mx-auto">
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200, delay: 0.1 }}
+            className="w-20 h-20 rounded-3xl gradient-purple flex items-center justify-center mx-auto mb-6 glow-purple">
+            <Sparkles className="w-10 h-10 text-primary-foreground" />
+          </motion.div>
+          <h2 className="text-2xl font-black text-foreground mb-2">Choose your class style first 💃</h2>
+          <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
+            Tell us your preferred class type so we can match you with the right group!
+          </p>
+          <div className="space-y-3">
+            <Button onClick={() => navigate(`/preferences?returnTo=/booking/${groupId}`)}
+              className="w-full h-14 rounded-2xl font-black text-base gradient-purple text-primary-foreground btn-press relative overflow-hidden">
+              <span className="relative z-10 flex items-center gap-2">Choose My Style <ArrowRight className="w-4 h-4" /></span>
+              <div className="absolute inset-0 shimmer" />
+            </Button>
+            <Button variant="ghost" onClick={() => navigate(-1)} className="w-full font-bold text-muted-foreground">Go Back</Button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
   // Availability gate screen
   if (showAvailabilityPrompt) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center max-w-sm mx-auto"
-        >
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ type: 'spring', stiffness: 200, delay: 0.1 }}
-            className="w-20 h-20 rounded-3xl gradient-purple flex items-center justify-center mx-auto mb-6 glow-purple"
-          >
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center max-w-sm mx-auto">
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200, delay: 0.1 }}
+            className="w-20 h-20 rounded-3xl gradient-purple flex items-center justify-center mx-auto mb-6 glow-purple">
             <CalendarDays className="w-10 h-10 text-primary-foreground" />
           </motion.div>
-
           <h2 className="text-2xl font-black text-foreground mb-2">Pick your free time first 🔥</h2>
           <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
-            Share your availability for the next 30 days — we’ll use it to lock in the best class times for you and your group!
+            Share your availability for the next 30 days — we'll use it to lock in the best class times for you and your group!
           </p>
-
           <div className="space-y-3">
-            <Button
-              onClick={() => navigate(`/schedule?returnTo=/booking/${groupId}`)}
-              className="w-full h-14 rounded-2xl font-black text-base gradient-purple text-primary-foreground btn-press relative overflow-hidden"
-            >
-              <span className="relative z-10 flex items-center gap-2">
-                Set My Availability <ArrowRight className="w-4 h-4" />
-              </span>
+            <Button onClick={() => navigate(`/schedule?returnTo=/booking/${groupId}`)}
+              className="w-full h-14 rounded-2xl font-black text-base gradient-purple text-primary-foreground btn-press relative overflow-hidden">
+              <span className="relative z-10 flex items-center gap-2">Set My Availability <ArrowRight className="w-4 h-4" /></span>
               <div className="absolute inset-0 shimmer" />
             </Button>
-            <Button
-              variant="ghost"
-              onClick={() => navigate(-1)}
-              className="w-full font-bold text-muted-foreground"
-            >
-              Go Back
-            </Button>
+            <Button variant="ghost" onClick={() => navigate(-1)} className="w-full font-bold text-muted-foreground">Go Back</Button>
           </div>
         </motion.div>
       </div>
@@ -289,15 +295,11 @@ export default function BookingFlow() {
                 <p className="text-xs font-black uppercase tracking-wider text-primary mb-5">Order Summary</p>
                 <div className="space-y-4 text-sm">
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                      <Music className="w-3.5 h-3.5" /> Song
-                    </span>
+                    <span className="text-muted-foreground flex items-center gap-2"><Music className="w-3.5 h-3.5" /> Song</span>
                     <span className="font-bold text-foreground">{group.songTitle}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground flex items-center gap-2">
-                      <Star className="w-3.5 h-3.5" /> Role
-                    </span>
+                    <span className="text-muted-foreground flex items-center gap-2"><Star className="w-3.5 h-3.5" /> Role</span>
                     <span className="font-bold text-foreground">{selectedRole}</span>
                   </div>
                   <div className="h-px bg-border my-1" />
@@ -332,50 +334,25 @@ export default function BookingFlow() {
 
               {/* Stripe Mock Card Form */}
               {paymentMethod === 'stripe' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="card-premium p-5 mb-6 space-y-4"
-                >
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card-premium p-5 mb-6 space-y-4">
                   <div className="flex items-center gap-2 mb-1">
                     <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent">
                       <Shield className="w-3 h-3 text-primary" />
                       <span className="text-[10px] font-black text-primary uppercase tracking-wider">Powered by Stripe</span>
                     </div>
                   </div>
-
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-muted-foreground">Card Number</label>
-                    <Input
-                      placeholder="4242 4242 4242 4242"
-                      value={cardNumber}
-                      onChange={e => setCardNumber(formatCardNumber(e.target.value))}
-                      className="h-12 rounded-xl text-sm border-2 border-border bg-card font-mono tracking-wider"
-                      maxLength={19}
-                    />
+                    <Input placeholder="4242 4242 4242 4242" value={cardNumber} onChange={e => setCardNumber(formatCardNumber(e.target.value))} className="h-12 rounded-xl text-sm border-2 border-border bg-card font-mono tracking-wider" maxLength={19} />
                   </div>
-
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-muted-foreground">Expiry</label>
-                      <Input
-                        placeholder="MM/YY"
-                        value={cardExpiry}
-                        onChange={e => setCardExpiry(formatExpiry(e.target.value))}
-                        className="h-12 rounded-xl text-sm border-2 border-border bg-card font-mono"
-                        maxLength={5}
-                      />
+                      <Input placeholder="MM/YY" value={cardExpiry} onChange={e => setCardExpiry(formatExpiry(e.target.value))} className="h-12 rounded-xl text-sm border-2 border-border bg-card font-mono" maxLength={5} />
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-muted-foreground">CVC</label>
-                      <Input
-                        placeholder="123"
-                        value={cardCvc}
-                        onChange={e => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 3))}
-                        className="h-12 rounded-xl text-sm border-2 border-border bg-card font-mono"
-                        maxLength={3}
-                        type="password"
-                      />
+                      <Input placeholder="123" value={cardCvc} onChange={e => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 3))} className="h-12 rounded-xl text-sm border-2 border-border bg-card font-mono" maxLength={3} type="password" />
                     </div>
                   </div>
                 </motion.div>
@@ -383,23 +360,12 @@ export default function BookingFlow() {
 
               {/* PayNow QR Mock */}
               {paymentMethod === 'paynow' && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="card-premium p-6 mb-6 text-center"
-                >
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card-premium p-6 mb-6 text-center">
                   <p className="text-xs font-bold text-muted-foreground mb-4 uppercase tracking-wider">Scan to pay with PayNow</p>
-
-                  {/* Mock QR Code */}
                   <div className="w-48 h-48 mx-auto mb-4 bg-card border-2 border-border rounded-2xl flex items-center justify-center relative overflow-hidden">
                     <div className="grid grid-cols-8 gap-[2px] w-36 h-36">
                       {Array.from({ length: 64 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className={`rounded-[1px] ${
-                            Math.random() > 0.4 ? 'bg-foreground' : 'bg-transparent'
-                          }`}
-                        />
+                        <div key={i} className={`rounded-[1px] ${Math.random() > 0.4 ? 'bg-foreground' : 'bg-transparent'}`} />
                       ))}
                     </div>
                     <div className="absolute inset-0 flex items-center justify-center">
@@ -408,15 +374,11 @@ export default function BookingFlow() {
                       </div>
                     </div>
                   </div>
-
                   <p className="text-sm font-bold text-foreground mb-1">PayNow to: Korero Studio</p>
                   <p className="text-xs text-muted-foreground">UEN: 202412345A</p>
                   <p className="text-lg font-black text-primary mt-2">$45.00</p>
-
                   <div className="mt-4 p-3 rounded-xl bg-accent">
-                    <p className="text-[11px] text-muted-foreground">
-                      After scanning, tap "Pay Now" below to confirm your booking
-                    </p>
+                    <p className="text-[11px] text-muted-foreground">After scanning, tap "Pay Now" below to confirm your booking</p>
                   </div>
                 </motion.div>
               )}
@@ -452,13 +414,7 @@ export default function BookingFlow() {
                     <motion.div
                       key={i}
                       initial={{ opacity: 1, x: '50vw', y: '40vh', scale: 0 }}
-                      animate={{
-                        opacity: 0,
-                        x: `${Math.random() * 100}vw`,
-                        y: `${Math.random() * 100}vh`,
-                        scale: 1,
-                        rotate: Math.random() * 720,
-                      }}
+                      animate={{ opacity: 0, x: `${Math.random() * 100}vw`, y: `${Math.random() * 100}vh`, scale: 1, rotate: Math.random() * 720 }}
                       transition={{ duration: 1.5 + Math.random(), ease: "easeOut" }}
                       className="absolute w-2 h-2 rounded-full"
                       style={{ background: ['hsl(270 68% 32%)', 'hsl(280 100% 65%)', 'hsl(45 100% 60%)', 'hsl(270 40% 70%)'][i % 4] }}
@@ -486,12 +442,7 @@ export default function BookingFlow() {
                 </p>
               </motion.div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="card-premium p-6 text-left mb-8 relative overflow-hidden"
-              >
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }} className="card-premium p-6 text-left mb-8 relative overflow-hidden">
                 <div className="absolute top-0 left-0 right-0 h-1 gradient-purple" />
                 <p className="text-xs font-black uppercase tracking-wider text-primary mb-5">Your Booking</p>
                 <div className="space-y-3.5 text-sm">
@@ -513,31 +464,15 @@ export default function BookingFlow() {
                 </div>
               </motion.div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="space-y-3"
-              >
-                <Button
-                  onClick={() => navigate('/my-classes')}
-                  className="w-full h-14 rounded-2xl font-black gradient-purple text-primary-foreground btn-press relative overflow-hidden"
-                >
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }} className="space-y-3">
+                <Button onClick={() => navigate('/my-classes')} className="w-full h-14 rounded-2xl font-black gradient-purple text-primary-foreground btn-press relative overflow-hidden">
                   <span className="relative z-10 flex items-center gap-2">View My Classes <BookOpen className="w-4 h-4" /></span>
                   <div className="absolute inset-0 shimmer" />
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => navigate('/feedback')}
-                  className="w-full h-13 rounded-2xl font-bold border-2 btn-press"
-                >
+                <Button variant="outline" onClick={() => navigate('/feedback')} className="w-full h-13 rounded-2xl font-bold border-2 btn-press">
                   <span className="flex items-center gap-2">Quick Feedback <MessageSquare className="w-4 h-4" /></span>
                 </Button>
-                <Button
-                  variant="ghost"
-                  onClick={() => navigate('/')}
-                  className="w-full font-bold text-muted-foreground"
-                >
+                <Button variant="ghost" onClick={() => navigate('/')} className="w-full font-bold text-muted-foreground">
                   Back to Home
                 </Button>
               </motion.div>

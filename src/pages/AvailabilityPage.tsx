@@ -1,11 +1,11 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/context/AppContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   CalendarDays, ChevronLeft, ChevronRight, Plus, Clock,
-  Music, AlertCircle, ArrowRight, Sparkles
+  Music, AlertCircle, ArrowRight, Sparkles, Info, Pencil, Check, X, GripVertical
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, addDays, isSameDay, startOfDay, isToday, isBefore, getDay } from 'date-fns';
@@ -19,12 +19,15 @@ export default function AvailabilityPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = searchParams.get('returnTo');
+  const fromSignup = searchParams.get('fromSignup') === 'true';
   const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
   const [adding, setAdding] = useState(false);
   const [weekOffset, setWeekOffset] = useState(0);
   const [activeTab, setActiveTab] = useState<'template' | 'calendar'>('template');
+  const [showTutorial, setShowTutorial] = useState(true);
+  const [showConfirmBanner, setShowConfirmBanner] = useState(false);
 
-  // Weekly template state: dayIndex (0=Mon, 6=Sun) -> Set of hours
+  // Weekly template state
   const [weeklyTemplate, setWeeklyTemplate] = useState<WeeklyTemplate>({});
 
   if (!student) {
@@ -52,7 +55,6 @@ export default function AvailabilityPage() {
   const confirmedSlotsForDate = slotsForDate.filter(s => s.isConfirmedClass);
   const freeSlotsForDate = slotsForDate.filter(s => !s.isConfirmedClass);
 
-  // Convert JS getDay (0=Sun) to our grid (0=Mon)
   const jsToGridDay = (jsDay: number) => jsDay === 0 ? 6 : jsDay - 1;
 
   const applyTemplate = () => {
@@ -64,10 +66,8 @@ export default function AvailabilityPage() {
       if (!hours || hours.size === 0) return;
 
       const key = format(day, 'yyyy-MM-dd');
-      // Check for confirmed classes on this date
       const confirmedOnDate = availability.filter(s => s.date === key && s.isConfirmedClass);
 
-      // Group contiguous hours into slots
       const sortedHours = Array.from(hours).sort((a, b) => a - b);
       let blockStart = sortedHours[0];
       let blockEnd = sortedHours[0] + 1;
@@ -76,7 +76,6 @@ export default function AvailabilityPage() {
         if (i < sortedHours.length && sortedHours[i] === blockEnd) {
           blockEnd = sortedHours[i] + 1;
         } else {
-          // Check if this block overlaps with any confirmed class
           const overlapsConfirmed = confirmedOnDate.some(c =>
             blockStart < c.endHour && blockEnd > c.startHour
           );
@@ -92,12 +91,21 @@ export default function AvailabilityPage() {
     });
 
     setAvailabilityBatch(slots);
+
+    // Always show confirm banner + switch to calendar so user can review
+    setActiveTab('calendar');
+    setShowConfirmBanner(true);
+    toast.success(`Applied to ${allDays.length} days — review & confirm below 👇`);
+  };
+
+  const handleConfirmAndProceed = () => {
+    setShowConfirmBanner(false);
     if (returnTo) {
-      toast.success('Schedule set! 🎉 Taking you back to join your group…');
-      setTimeout(() => navigate(returnTo), 1500);
-    } else {
-      toast.success(`Applied to ${allDays.length} days`);
-      setActiveTab('calendar');
+      toast.success('You\'re all set! 🎉 Taking you back to join your group…', { duration: 2000 });
+      setTimeout(() => navigate(returnTo), 1200);
+    } else if (fromSignup) {
+      toast.success('Schedule saved! Let\'s find your song 🎶', { duration: 2000 });
+      setTimeout(() => navigate('/groups'), 1200);
     }
   };
 
@@ -111,12 +119,7 @@ export default function AvailabilityPage() {
     }
     addAvailability({ date: dateKey, startHour, endHour });
     setAdding(false);
-    if (returnTo) {
-      toast.success('Availability saved! 🔥 Let\'s get you into that group…');
-      setTimeout(() => navigate(returnTo), 1500);
-    } else {
-      toast.success('Time added');
-    }
+    toast.success('Time added');
   };
 
   const handleRemoveSlot = (slot: AvailabilitySlot) => {
@@ -131,6 +134,9 @@ export default function AvailabilityPage() {
   const totalSlots = availability.filter(s => !s.isConfirmedClass).length;
   const totalConfirmed = availability.filter(s => s.isConfirmedClass).length;
   const hasExistingSlots = totalSlots > 0;
+
+  // Count unique days with availability
+  const daysWithSlots = new Set(availability.filter(s => !s.isConfirmedClass).map(s => s.date)).size;
 
   const dateHasSlots = (date: Date) => {
     const key = format(date, 'yyyy-MM-dd');
@@ -150,12 +156,14 @@ export default function AvailabilityPage() {
             My Schedule <CalendarDays className="w-5 h-5 text-primary" />
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Set when you're free for the next 30 days
+            {fromSignup || returnTo
+              ? 'Share your availability for the next 30 days 🔥'
+              : 'Set when you\'re free for the next 30 days'}
           </p>
-          <div className="flex items-center gap-2.5 mt-4">
+          <div className="flex items-center gap-2.5 mt-4 flex-wrap">
             <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-card border border-border text-xs font-bold text-foreground min-h-[36px]">
               <Clock className="w-3 h-3 text-primary" />
-              {totalSlots} free slot{totalSlots !== 1 ? 's' : ''}
+              {totalSlots} free slot{totalSlots !== 1 ? 's' : ''} across {daysWithSlots} day{daysWithSlots !== 1 ? 's' : ''}
             </div>
             {totalConfirmed > 0 && (
               <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-card border border-border text-xs font-bold text-foreground min-h-[36px]">
@@ -168,6 +176,99 @@ export default function AvailabilityPage() {
       </div>
 
       <div className="px-5 pt-4 max-w-md mx-auto">
+        {/* Tutorial banner */}
+        <AnimatePresence>
+          {showTutorial && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mb-4"
+            >
+              <div className="card-premium p-4 border-primary/20 relative">
+                <button
+                  onClick={() => setShowTutorial(false)}
+                  className="absolute top-3 right-3 p-1 rounded-lg hover:bg-muted btn-press"
+                >
+                  <X className="w-3.5 h-3.5 text-muted-foreground" />
+                </button>
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl gradient-purple flex items-center justify-center flex-shrink-0">
+                    <Info className="w-4 h-4 text-primary-foreground" />
+                  </div>
+                  <div className="pr-6">
+                    <p className="text-xs font-black text-foreground mb-1.5">How to set your schedule ✨</p>
+                    <div className="space-y-2">
+                      <div className="flex items-start gap-2">
+                        <span className="w-5 h-5 rounded-full gradient-purple text-[10px] font-black text-primary-foreground flex items-center justify-center flex-shrink-0 mt-0.5">1</span>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          <span className="font-bold text-foreground">Weekly Pattern:</span> Tap or drag on the grid to mark your typical free hours. This repeats every week.
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="w-5 h-5 rounded-full gradient-purple text-[10px] font-black text-primary-foreground flex items-center justify-center flex-shrink-0 mt-0.5">2</span>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          <span className="font-bold text-foreground">Apply to 30 Days:</span> Hit "Apply" to fill all 30 days with your pattern.
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <span className="w-5 h-5 rounded-full gradient-purple text-[10px] font-black text-primary-foreground flex items-center justify-center flex-shrink-0 mt-0.5">3</span>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">
+                          <span className="font-bold text-foreground">30-Day View:</span> Fine-tune specific days — add extra slots or remove ones you're busy.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Confirm & proceed banner */}
+        <AnimatePresence>
+          {showConfirmBanner && (returnTo || fromSignup) && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-4"
+            >
+              <div className="card-premium p-4 border-primary/30 bg-accent">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-xl gradient-purple flex items-center justify-center flex-shrink-0">
+                    <Check className="w-4 h-4 text-primary-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-black text-foreground mb-1">Schedule applied! 🎉</p>
+                    <p className="text-[11px] text-muted-foreground leading-relaxed mb-3">
+                      Review your availability below. Edit any specific days, then confirm when you're happy!
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={handleConfirmAndProceed}
+                        size="sm"
+                        className="rounded-2xl gradient-purple text-primary-foreground font-bold btn-press h-9 px-4 text-xs"
+                      >
+                        <Check className="w-3.5 h-3.5 mr-1" />
+                        {returnTo ? 'Confirm & Join Group' : 'Confirm & Find Songs'}
+                      </Button>
+                      <Button
+                        onClick={() => setShowConfirmBanner(false)}
+                        variant="outline"
+                        size="sm"
+                        className="rounded-2xl font-bold btn-press h-9 px-3 text-xs border-border"
+                      >
+                        Keep Editing
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Tab switcher */}
         <div className="flex gap-1 p-1 bg-muted rounded-2xl mb-5">
           <button
@@ -214,24 +315,6 @@ export default function AvailabilityPage() {
                 }}
                 hasExistingSlots={hasExistingSlots}
               />
-
-              {/* How it works tip */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="card-premium p-4 mt-5 flex items-start gap-3"
-              >
-                <AlertCircle className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-xs font-bold text-foreground mb-0.5">How it works</p>
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
-                    Set your typical weekly schedule here, then tap "Apply" to fill all 30 days.
-                    Switch to "30-Day View" to adjust specific dates.
-                    Confirmed classes are automatically protected.
-                  </p>
-                </div>
-              </motion.div>
             </motion.div>
           ) : (
             <motion.div
