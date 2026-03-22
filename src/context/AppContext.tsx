@@ -219,11 +219,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAvailability(prev => prev.filter(s => !(s.date === date && s.startHour === startHour && s.endHour === endHour)));
   }, []);
 
+  const setAvailabilityBatch = useCallback((slots: AvailabilitySlot[]) => {
+    setAvailability(prev => {
+      const confirmed = prev.filter(s => s.isConfirmedClass);
+      return [...confirmed, ...slots];
+    });
+  }, []);
+
+  const clearAllAvailability = useCallback(() => {
+    setAvailability(prev => prev.filter(s => s.isConfirmedClass));
+  }, []);
+
   return (
     <AppContext.Provider value={{
       student, groups, bookings, sessions, timeSlots: MOCK_TIME_SLOTS, roles, pendingGroups, isAdmin, isAuthenticated, availability,
       registerStudent, loginStudent, logoutStudent, joinGroup, createGroup, approveGroup, rejectGroup, selectRole,
       createBooking, completePayment, loginAdmin, logoutAdmin, assignSession, addAvailability, removeAvailability,
+      setAvailabilityBatch, clearAllAvailability,
     }}>
       {children}
     </AppContext.Provider>
