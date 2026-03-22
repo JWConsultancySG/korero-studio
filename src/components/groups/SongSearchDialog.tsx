@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Music, Sparkles, Loader2, Disc3, X } from 'lucide-react';
-import { toast } from 'sonner';
 
 interface ITunesResult {
   trackId: number;
@@ -17,7 +16,7 @@ interface ITunesResult {
 interface SongSearchDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (song: string, artist: string) => void;
+  onSubmit: (song: string, artist: string, artworkUrl?: string) => void;
 }
 
 export default function SongSearchDialog({ open, onOpenChange, onSubmit }: SongSearchDialogProps) {
@@ -58,7 +57,8 @@ export default function SongSearchDialog({ open, onOpenChange, onSubmit }: SongS
 
   const handleSubmit = () => {
     if (!selectedSong) return;
-    onSubmit(selectedSong.trackName, selectedSong.artistName);
+    const artworkUrl = selectedSong.artworkUrl100.replace('100x100', '200x200');
+    onSubmit(selectedSong.trackName, selectedSong.artistName, artworkUrl);
     setSelectedSong(null);
     setQuery('');
     setResults([]);
@@ -70,7 +70,6 @@ export default function SongSearchDialog({ open, onOpenChange, onSubmit }: SongS
     setResults([]);
   };
 
-  // Reset state when dialog closes
   useEffect(() => {
     if (!open) {
       setSelectedSong(null);
@@ -81,21 +80,20 @@ export default function SongSearchDialog({ open, onOpenChange, onSubmit }: SongS
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-3xl mx-4 max-w-sm border-border max-h-[85vh] flex flex-col overflow-hidden p-0">
-        <div className="px-6 pt-6 pb-2">
+      <DialogContent className="rounded-3xl border-border max-h-[85vh] flex flex-col overflow-hidden p-0 w-[calc(100vw-2rem)] max-w-[380px] left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+        <div className="px-5 pt-5 pb-2">
           <DialogHeader>
             <DialogTitle className="font-black text-xl flex items-center gap-2">
               Request a Song <Music className="w-5 h-5 text-primary" />
             </DialogTitle>
             <DialogDescription className="text-xs">
-              Search any song from Apple Music — we'll review & add it! 🎶
+              Search any song from Apple Music — pick it and it's added! 🎶
             </DialogDescription>
           </DialogHeader>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-6">
+        <div className="flex-1 overflow-y-auto px-5 pb-5">
           <div className="space-y-4 pt-2">
-            {/* Selected Song Preview */}
             <AnimatePresence mode="wait">
               {selectedSong ? (
                 <motion.div
@@ -143,7 +141,6 @@ export default function SongSearchDialog({ open, onOpenChange, onSubmit }: SongS
               )}
             </AnimatePresence>
 
-            {/* Search Results */}
             {!selectedSong && results.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 5 }}
@@ -171,7 +168,6 @@ export default function SongSearchDialog({ open, onOpenChange, onSubmit }: SongS
               </motion.div>
             )}
 
-            {/* Empty State */}
             {!selectedSong && query.length >= 2 && !loading && results.length === 0 && (
               <div className="text-center py-6">
                 <Music className="w-6 h-6 text-muted-foreground/40 mx-auto mb-2" />
@@ -179,7 +175,6 @@ export default function SongSearchDialog({ open, onOpenChange, onSubmit }: SongS
               </div>
             )}
 
-            {/* Hint */}
             {!selectedSong && !query && results.length === 0 && (
               <div className="text-center py-6">
                 <Disc3 className="w-8 h-8 text-primary/20 mx-auto mb-2 animate-spin" style={{ animationDuration: '3s' }} />
@@ -187,14 +182,13 @@ export default function SongSearchDialog({ open, onOpenChange, onSubmit }: SongS
               </div>
             )}
 
-            {/* Submit Button */}
             <Button
               onClick={handleSubmit}
               disabled={!selectedSong}
               className="w-full h-12 rounded-2xl font-black gradient-purple text-primary-foreground btn-press relative overflow-hidden"
             >
               <span className="relative z-10 flex items-center gap-2">
-                Submit for Approval <Sparkles className="w-4 h-4" />
+                Add to Groups <Sparkles className="w-4 h-4" />
               </span>
               {selectedSong && <div className="absolute inset-0 shimmer" />}
             </Button>
