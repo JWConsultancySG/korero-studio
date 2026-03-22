@@ -111,20 +111,18 @@ export default function GroupsPage() {
                       exit={{ opacity: 0, y: -10 }}
                       transition={{ delay: i * 0.04 }}
                       className={`card-premium p-5 relative overflow-hidden group ${
-                        isAlmostFull ? 'border-destructive/30' : ''
+                        isAlmostFull ? 'border-primary/40' : ''
                       }`}
                     >
                       {isAlmostFull && group.status !== 'pending' && (
-                        <div className="absolute top-0 left-0 right-0 h-0.5 bg-destructive" />
+                        <div className="absolute top-0 left-0 right-0 h-0.5 gradient-purple" />
                       )}
 
                       <div className="flex items-start gap-4">
                         <div className="relative flex-shrink-0">
-                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
-                            isAlmostFull ? 'bg-destructive/10' : 'gradient-purple'
-                          } ${isAlmostFull ? 'pulse-ring' : ''}`}>
+                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center gradient-purple ${isAlmostFull ? 'pulse-ring glow-purple' : ''}`}>
                             {isAlmostFull ? (
-                              <Flame className="w-6 h-6 text-destructive" />
+                              <Zap className="w-6 h-6 text-primary-foreground" />
                             ) : (
                               <Music className="w-5 h-5 text-primary-foreground" />
                             )}
