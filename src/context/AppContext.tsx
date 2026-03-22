@@ -70,6 +70,8 @@ interface AppContextType extends AppState {
   assignSession: (groupId: string, room: 'Room A' | 'Room B', day: string, time: string) => void;
   addAvailability: (slot: AvailabilitySlot) => void;
   removeAvailability: (date: string, startHour: number, endHour: number) => void;
+  setAvailabilityBatch: (slots: AvailabilitySlot[]) => void;
+  clearAllAvailability: () => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
