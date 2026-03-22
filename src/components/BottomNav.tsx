@@ -25,15 +25,16 @@ export default function BottomNav() {
             <NavLink
               key={tab.to}
               to={tab.to}
-              className="flex flex-col items-center justify-center gap-1 relative flex-1"
+              className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-1"
             >
               {isActive && (
-                <motion.div
-                  layoutId="nav-indicator"
-                  className="absolute top-0 h-[3px] w-10 rounded-full gradient-purple"
-                  style={{ left: '50%', transform: 'translateX(-50%)' }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                />
+                <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
+                  <motion.div
+                    layoutId="nav-indicator"
+                    className="h-[3px] w-10 rounded-full bg-primary"
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                  />
+                </div>
               )}
               <div className={`p-2 rounded-xl transition-colors ${isActive ? 'bg-accent' : ''}`}>
                 <tab.icon className={`w-5 h-5 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
