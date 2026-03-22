@@ -82,6 +82,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [roles, setRoles] = useState<Role[]>(DEFAULT_ROLES);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [availability, setAvailability] = useState<AvailabilitySlot[]>([]);
 
   const registerStudent = useCallback((s: Omit<Student, 'id'> & { password: string }): boolean => {
     // Check if email already exists
