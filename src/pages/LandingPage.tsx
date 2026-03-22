@@ -86,8 +86,7 @@ export default function LandingPage() {
             autoPlay muted loop playsInline
             preload="auto"
             className="w-full h-full object-cover"
-            style={{ filter: 'brightness(0.75) saturate(1.1)' }}
-            poster=""
+            style={{ filter: 'brightness(0.8) saturate(1.1)' }}
           >
             <source src="/videos/hero.mp4" type="video/mp4" />
           </video>
