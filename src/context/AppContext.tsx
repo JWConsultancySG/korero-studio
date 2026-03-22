@@ -50,6 +50,7 @@ interface AppState {
   pendingGroups: SongGroup[];
   isAdmin: boolean;
   isAuthenticated: boolean;
+  availability: AvailabilitySlot[];
 }
 
 interface AppContextType extends AppState {
