@@ -174,17 +174,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ));
   }, [student]);
 
-  const createGroup = useCallback((songTitle: string, artist: string) => {
+  const createGroup = useCallback((songTitle: string, artist: string, imageUrl?: string) => {
     const newGroup: SongGroup = {
       id: crypto.randomUUID(),
       songTitle,
       artist,
       interestCount: 1,
-      status: 'pending',
+      status: 'forming',
       members: [student?.id || ''],
       maxMembers: 6,
+      imageUrl,
     };
-    setPendingGroups(prev => [...prev, newGroup]);
+    setGroups(prev => [...prev, newGroup]);
   }, [student]);
 
   const approveGroup = useCallback((groupId: string) => {
