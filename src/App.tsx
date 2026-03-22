@@ -32,6 +32,7 @@ const App = () => (
             <Route path="/groups" element={<GroupsPage />} />
             <Route path="/booking/:groupId" element={<BookingFlow />} />
             <Route path="/my-classes" element={<MyClassesPage />} />
+            <Route path="/schedule" element={<AvailabilityPage />} />
             <Route path="/feedback" element={<FeedbackPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="*" element={<NotFound />} />
