@@ -3,13 +3,31 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '@/context/AppContext';
-import { ArrowLeft, Sparkles, User, Phone, Mail, Lock, Eye, EyeOff, Check, Heart, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Sparkles, User, Phone, Mail, Lock, Eye, EyeOff, Check, AlertCircle } from 'lucide-react';
+
+const COUNTRY_CODES = [
+  { code: '+65', country: 'SG' },
+  { code: '+60', country: 'MY' },
+  { code: '+62', country: 'ID' },
+  { code: '+63', country: 'PH' },
+  { code: '+66', country: 'TH' },
+  { code: '+84', country: 'VN' },
+  { code: '+91', country: 'IN' },
+  { code: '+86', country: 'CN' },
+  { code: '+82', country: 'KR' },
+  { code: '+81', country: 'JP' },
+  { code: '+1', country: 'US' },
+  { code: '+44', country: 'UK' },
+  { code: '+61', country: 'AU' },
+];
 
 export default function RegisterPage() {
   const [name, setName] = useState('');
-  const [whatsapp, setWhatsapp] = useState('');
+  const [countryCode, setCountryCode] = useState('+65');
+  const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -19,8 +37,9 @@ export default function RegisterPage() {
   const navigate = useNavigate();
   const { registerStudent } = useApp();
 
-  const isValid = name.trim() && whatsapp.trim() && email.trim() && password.trim().length >= 6;
-  const filledCount = [name, whatsapp, email, password].filter(v => v.trim()).length;
+  const whatsapp = `${countryCode} ${phone}`.trim();
+  const isValid = name.trim() && phone.trim().length >= 7 && email.trim().includes('@') && password.trim().length >= 6;
+  const filledCount = [name, phone, email, password].filter(v => v.trim()).length;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +47,6 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
 
-    // Simulate network delay
     await new Promise(r => setTimeout(r, 800));
 
     const success = registerStudent({ name, whatsapp, email, password });
@@ -40,12 +58,6 @@ export default function RegisterPage() {
       setError('An account with this email already exists. Try signing in instead.');
     }
   };
-
-  const fields = [
-    { id: 'name', label: 'Full Name', icon: User, value: name, setter: setName, placeholder: 'Your name', type: 'text' },
-    { id: 'email', label: 'Email', icon: Mail, value: email, setter: setEmail, placeholder: 'you@email.com', type: 'email' },
-    { id: 'whatsapp', label: 'WhatsApp', icon: Phone, value: whatsapp, setter: setWhatsapp, placeholder: '+65 9123 4567', type: 'tel' },
-  ];
 
   return (
     <div className="min-h-screen gradient-purple-subtle">
@@ -80,11 +92,11 @@ export default function RegisterPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <h1 className="text-3xl font-black mb-2 text-foreground tracking-tight leading-tight flex items-center gap-2">
-            Create your account <Heart className="w-6 h-6 text-primary" />
+          <h1 className="text-3xl font-black mb-2 text-foreground tracking-tight leading-tight">
+            Create your account
           </h1>
           <p className="text-muted-foreground text-sm mb-8 leading-relaxed">
-            Sign up to join groups, track your classes & more
+            Join song groups, book classes and track your progress
           </p>
         </motion.div>
 
@@ -100,44 +112,117 @@ export default function RegisterPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {fields.map((field, i) => (
-            <motion.div
-              key={field.id}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 + i * 0.08 }}
-              className="space-y-2"
-            >
-              <Label htmlFor={field.id} className="font-bold text-sm flex items-center gap-2">
-                <field.icon className="w-3.5 h-3.5 text-primary" />
-                {field.label}
-              </Label>
-              <div className={`relative rounded-2xl transition-shadow duration-300 ${
-                focusedField === field.id ? 'glow-purple' : ''
-              }`}>
+          {/* Full Name */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="space-y-2"
+          >
+            <Label htmlFor="name" className="font-bold text-sm flex items-center gap-2">
+              <User className="w-3.5 h-3.5 text-primary" />
+              Full Name
+            </Label>
+            <div className={`relative rounded-2xl transition-shadow duration-300 ${
+              focusedField === 'name' ? 'glow-purple' : ''
+            }`}>
+              <Input
+                id="name"
+                type="text"
+                placeholder="e.g. Sarah Tan"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                onFocus={() => setFocusedField('name')}
+                onBlur={() => setFocusedField(null)}
+                className="h-14 rounded-2xl text-base border-2 border-border focus:border-primary transition-colors bg-card px-4"
+              />
+              {name.trim() && (
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-success flex items-center justify-center">
+                  <Check className="w-3 h-3 text-success-foreground" />
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
+
+          {/* Email */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.38 }}
+            className="space-y-2"
+          >
+            <Label htmlFor="email" className="font-bold text-sm flex items-center gap-2">
+              <Mail className="w-3.5 h-3.5 text-primary" />
+              Email Address
+            </Label>
+            <div className={`relative rounded-2xl transition-shadow duration-300 ${
+              focusedField === 'email' ? 'glow-purple' : ''
+            }`}>
+              <Input
+                id="email"
+                type="email"
+                placeholder="e.g. sarah@example.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                onFocus={() => setFocusedField('email')}
+                onBlur={() => setFocusedField(null)}
+                className="h-14 rounded-2xl text-base border-2 border-border focus:border-primary transition-colors bg-card px-4"
+              />
+              {email.trim() && email.includes('@') && (
+                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-success flex items-center justify-center">
+                  <Check className="w-3 h-3 text-success-foreground" />
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
+
+          {/* WhatsApp with Country Code */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.46 }}
+            className="space-y-2"
+          >
+            <Label htmlFor="phone" className="font-bold text-sm flex items-center gap-2">
+              <Phone className="w-3.5 h-3.5 text-primary" />
+              WhatsApp Number
+            </Label>
+            <div className={`relative rounded-2xl transition-shadow duration-300 flex gap-2 ${
+              focusedField === 'phone' ? 'glow-purple' : ''
+            }`}>
+              <Select value={countryCode} onValueChange={setCountryCode}>
+                <SelectTrigger className="h-14 w-[100px] rounded-2xl text-base border-2 border-border bg-card px-3 shrink-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COUNTRY_CODES.map(cc => (
+                    <SelectItem key={cc.code} value={cc.code}>
+                      {cc.country} {cc.code}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="relative flex-1">
                 <Input
-                  id={field.id}
-                  type={field.type}
-                  placeholder={field.placeholder}
-                  value={field.value}
-                  onChange={e => field.setter(e.target.value)}
-                  onFocus={() => setFocusedField(field.id)}
+                  id="phone"
+                  type="tel"
+                  placeholder="9123 4567"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value.replace(/[^\d\s]/g, ''))}
+                  onFocus={() => setFocusedField('phone')}
                   onBlur={() => setFocusedField(null)}
                   className="h-14 rounded-2xl text-base border-2 border-border focus:border-primary transition-colors bg-card px-4"
                 />
-                {field.value.trim() && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-success flex items-center justify-center"
-                  >
+                {phone.trim().length >= 7 && (
+                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-success flex items-center justify-center">
                     <Check className="w-3 h-3 text-success-foreground" />
                   </motion.div>
                 )}
               </div>
-            </motion.div>
-          ))}
+            </div>
+          </motion.div>
 
+          {/* Password */}
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
@@ -154,7 +239,7 @@ export default function RegisterPage() {
               <Input
                 id="password"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Min. 6 characters"
+                placeholder="At least 6 characters"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 onFocus={() => setFocusedField('password')}
@@ -170,10 +255,11 @@ export default function RegisterPage() {
               </button>
             </div>
             {password && password.length < 6 && (
-              <p className="text-[11px] text-destructive font-medium">At least 6 characters needed</p>
+              <p className="text-xs text-destructive font-medium">Must be at least 6 characters</p>
             )}
           </motion.div>
 
+          {/* Submit */}
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
