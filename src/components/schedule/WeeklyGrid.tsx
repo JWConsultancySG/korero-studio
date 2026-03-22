@@ -111,7 +111,7 @@ export default function WeeklyGrid({ template, onChange, onApply, onClear, hasEx
                   }
                 }}
               >
-                <div className="flex min-w-[600px]">
+                <div className="flex">
                   {HOURS.map(h => {
                     const isSelected = daySet.has(h);
                     const isPrevSelected = daySet.has(h - 1);
