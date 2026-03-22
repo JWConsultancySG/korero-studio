@@ -164,9 +164,9 @@ export default function GroupsPage() {
                             <motion.p
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
-                              className="text-[11px] font-bold text-destructive flex items-center gap-1"
+                              className="text-[11px] font-bold text-primary flex items-center gap-1"
                             >
-                              <Flame className="w-3 h-3" />
+                              <Zap className="w-3 h-3" />
                               Last {spotsLeft} spot{spotsLeft !== 1 ? 's' : ''} — claim it before it's gone
                             </motion.p>
                           )}
