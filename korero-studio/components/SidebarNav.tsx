@@ -24,7 +24,7 @@ export default function SidebarNav() {
     return (
       <aside
         className="hidden md:flex fixed left-0 top-0 bottom-0 z-50 w-[4.5rem] lg:w-64 flex-col border-r border-border/60 bg-card/90 backdrop-blur-xl supports-[backdrop-filter]:bg-card/75"
-        aria-label="Staff navigation"
+        aria-label="Admin navigation"
       >
         <div className="h-16 lg:h-[4.25rem] flex items-center justify-center lg:justify-start lg:px-5 border-b border-border/50 shrink-0">
           <Link
@@ -38,7 +38,7 @@ export default function SidebarNav() {
               <span className="font-black text-foreground tracking-tight text-lg leading-tight truncate">
                 Korero
               </span>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Staff</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Admin</span>
             </div>
           </Link>
         </div>

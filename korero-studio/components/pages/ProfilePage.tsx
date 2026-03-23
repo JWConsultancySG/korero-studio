@@ -26,6 +26,7 @@ import type { ClassType } from "@/types";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { CreditsPaymentDialog } from "@/components/CreditsPaymentDialog";
+import { PostPaymentExperienceDialog } from "@/components/PostPaymentExperienceDialog";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -43,6 +44,8 @@ export default function ProfilePage() {
   const [paymentTarget, setPaymentTarget] = useState<
     null | { kind: "plan"; classType: ClassType } | { kind: "topup"; credits: number }
   >(null);
+  const [showFollowUp, setShowFollowUp] = useState(false);
+  const [followUpPaymentRef, setFollowUpPaymentRef] = useState<string | undefined>();
 
   if (!student) {
     return (
@@ -349,10 +352,21 @@ export default function ProfilePage() {
               setTopUpCredits("");
               toast.success(`Added ${paymentTarget.credits} credits`);
             }
+            setFollowUpPaymentRef(meta.paymentRef);
             setPaymentTarget(null);
+            setShowFollowUp(true);
           }}
         />
       )}
+
+      <PostPaymentExperienceDialog
+        open={showFollowUp}
+        onOpenChange={setShowFollowUp}
+        studentId={student.id}
+        studentEmail={student.email}
+        defaultPhone={student.whatsapp}
+        paymentRef={followUpPaymentRef}
+      />
     </div>
   );
 }

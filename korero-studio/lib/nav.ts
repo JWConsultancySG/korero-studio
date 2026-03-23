@@ -20,7 +20,7 @@ export const MAIN_NAV_ITEMS: { href: string; icon: LucideIcon; label: string }[]
   { href: "/profile", icon: User, label: "Profile" },
 ];
 
-/** Staff sidebar / bottom nav — matches Admin dashboard sections. */
+/** Admin sidebar / bottom nav — matches Admin dashboard sections. */
 export type AdminTabId = "overview" | "classes" | "library" | "validate" | "rooms" | "matcher";
 
 export const ADMIN_TAB_IDS: AdminTabId[] = [

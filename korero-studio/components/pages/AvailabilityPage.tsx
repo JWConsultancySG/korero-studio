@@ -144,7 +144,7 @@ export default function AvailabilityPage() {
             ) : (
               <>
                 One timetable: set a recurring week, apply it to the next 30 days, or switch to a specific week and paint
-                your free hours directly. Studio class times are assigned by staff — students only share availability here.
+                your free hours directly. Studio class times are assigned by the admin — students only share availability here.
               </>
             )}
           </p>

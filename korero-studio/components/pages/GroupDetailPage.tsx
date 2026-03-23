@@ -188,7 +188,7 @@ export default function GroupDetailPage() {
 
         <div className="rounded-2xl md:rounded-3xl border border-border/80 bg-muted/30 p-5 md:p-6 max-w-4xl lg:max-w-none mx-auto">
           <p className="text-[11px] md:text-xs text-muted-foreground leading-relaxed">
-            <span className="font-black text-foreground">Studio time & room</span> are scheduled by Korero staff when your
+            <span className="font-black text-foreground">Studio time & room</span> are scheduled by the studio admin when your
             group is ready — students do not book the studio here. Use{" "}
             <Link href="/schedule" className="font-bold text-primary underline-offset-2 hover:underline">
               My Schedule

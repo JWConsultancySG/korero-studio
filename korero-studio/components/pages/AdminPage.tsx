@@ -19,17 +19,14 @@ import {
   Music,
   CheckCircle,
   XCircle,
-  Calendar,
   ArrowLeft,
   AlertTriangle,
-  MessageSquare,
   LogOut,
   TrendingUp,
   Shield,
   Sparkles,
   Zap,
   ClipboardCheck,
-  Trash2,
   ExternalLink,
   Loader2,
   Mail,
@@ -37,7 +34,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { CLASS_LABELS } from "@/lib/credits";
-import type { SongGroup, StudioRoom, ClassSession } from "@/types";
+import type { SongGroup } from "@/types";
 import {
   Dialog,
   DialogContent,
@@ -45,20 +42,29 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SongValidationForm } from "@/components/admin/SongValidationForm";
-
-const STUDIO_ROOMS: StudioRoom[] = ["Farrer Park", "Orchard"];
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+import AdminAvailabilityMatcher from "@/components/admin/AdminAvailabilityMatcher";
+import AdminSongLibraryPanel from "@/components/admin/AdminSongLibraryPanel";
+import AdminClassListingsPanel from "@/components/admin/AdminClassListingsPanel";
+import AdminWhatsAppPanel from "@/components/admin/AdminWhatsAppPanel";
+import { AdminTutorialCallout } from "@/components/admin/AdminTutorialCallout";
+import StudioRoomsTimetable from "@/components/schedule/StudioRoomsTimetable";
 
 const ADMIN_SECTIONS: Record<
   AdminTabId,
   { title: string; subtitle: string }
 > = {
   overview: { title: "Dashboard", subtitle: "Overview, alerts, and quick actions" },
-  classes: { title: "Class listings", subtitle: "Every group, full detail, and legacy approvals" },
+  classes: {
+    title: "Class listings",
+    subtitle: "Full class detail, members, sessions — edit or remove listings as needed",
+  },
   library: { title: "Song library", subtitle: "Validated songs — formation & roles reused for new groups" },
   validate: { title: "Song validation", subtitle: "Complete iTunes profile and activate listings" },
   rooms: { title: "Studio rooms", subtitle: "Farrer Park & Orchard — timetable and assignments" },
-  matcher: { title: "Availability matcher", subtitle: "Best overlap times (demo)" },
+  matcher: {
+    title: "Availability matcher",
+    subtitle: "Heatmap, ranked slots, and per-member availability for each class",
+  },
 };
 
 function AdminDashboardInner() {
@@ -70,13 +76,7 @@ function AdminDashboardInner() {
     syncStudentFromAuth,
     groups,
     pendingGroups,
-    approveGroup,
-    rejectGroup,
-    sessions,
     bookings,
-    assignSession,
-    removeSession,
-    songCatalog,
     adminAlerts,
     validateSong,
     dismissAdminAlert,
@@ -93,18 +93,12 @@ function AdminDashboardInner() {
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
   const [adminSigningIn, setAdminSigningIn] = useState(false);
-  const [newRoom, setNewRoom] = useState<StudioRoom>("Farrer Park");
-  const [newDay, setNewDay] = useState("Monday");
-  const [newTime, setNewTime] = useState("6:00 PM");
-  const [assignGroupId, setAssignGroupId] = useState("");
   const [validatingGroup, setValidatingGroup] = useState<SongGroup | null>(null);
 
   const pendingValidationGroups = useMemo(
     () => groups.filter((g) => g.awaitingSongValidation),
     [groups],
   );
-
-  const catalogList = useMemo(() => Object.values(songCatalog).filter((e) => e.validated), [songCatalog]);
 
   if (!authSessionReady) {
     return (
@@ -128,7 +122,7 @@ function AdminDashboardInner() {
             <h1 className="text-xl font-black text-foreground mb-2">Not an admin account</h1>
             <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
               You&apos;re signed in as <span className="font-mono text-xs">{authUser.email}</span>, which isn&apos;t the
-              shared studio admin. Sign out and use the staff credentials, or open{" "}
+              shared studio admin. Sign out and use the admin account, or open{" "}
               <Link href="/groups" className="text-primary font-bold underline underline-offset-4">
                 Groups
               </Link>{" "}
@@ -165,7 +159,7 @@ function AdminDashboardInner() {
             <Shield className="w-7 h-7 text-primary-foreground" />
           </motion.div>
 
-          <h1 className="text-2xl font-black mb-1.5 text-foreground text-center">Staff sign in</h1>
+          <h1 className="text-2xl font-black mb-1.5 text-foreground text-center">Admin sign in</h1>
           <p className="text-sm text-muted-foreground mb-2 text-center">Use the shared Supabase admin account</p>
           <p className="text-[11px] text-muted-foreground text-center mb-6 leading-relaxed">
             Create a user in Supabase (Authentication → Users) and set{" "}
@@ -202,7 +196,7 @@ function AdminDashboardInner() {
                 }
                 const meta = user.user_metadata as Record<string, unknown> | undefined;
                 const nameFromMeta =
-                  typeof meta?.full_name === "string" ? meta.full_name : (user.email?.split("@")[0] ?? "Staff");
+                  typeof meta?.full_name === "string" ? meta.full_name : (user.email?.split("@")[0] ?? "Admin");
                 const whatsapp = typeof meta?.whatsapp === "string" ? meta.whatsapp : "";
                 syncStudentFromAuth({
                   id: user.id,
@@ -298,13 +292,14 @@ function AdminDashboardInner() {
       <div className="gradient-purple-subtle px-5 pt-5 pb-4 md:px-8 md:pt-8 md:pb-6">
         <div className="content-max flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl md:text-2xl font-black text-foreground">Admin Dashboard</h1>
-            <p className="text-xs md:text-sm text-muted-foreground">Studio, songs, and rooms</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-primary mb-1">Admin console</p>
+            <h1 className="text-xl md:text-2xl font-black text-foreground leading-tight">{section.title}</h1>
+            <p className="text-xs md:text-sm text-muted-foreground mt-1">{section.subtitle}</p>
           </div>
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm" className="rounded-xl font-bold">
               <Link href="/groups/new?asAdmin=1">
-                <ExternalLink className="w-3.5 h-3.5 mr-1" /> New group
+                <ExternalLink className="w-3.5 h-3.5 mr-1" /> New class
               </Link>
             </Button>
             <Button variant="ghost" size="sm" onClick={logoutAdmin} className="btn-press text-muted-foreground">
@@ -317,6 +312,19 @@ function AdminDashboardInner() {
       <div className="px-4 md:px-8 content-max pt-2 md:pt-4">
         {tab === "overview" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            <AdminTutorialCallout title="Welcome to the admin console" defaultOpen>
+              <p>
+                Use the sidebar (or bottom nav on mobile) to move between <strong>Dashboard</strong>,{" "}
+                <strong>Classes</strong>, <strong>Song library</strong>, <strong>Validation</strong>,{" "}
+                <strong>Rooms</strong>, and <strong>Matcher</strong>. Everything here is the local demo state unless you
+                connect a backend.
+              </p>
+              <p>
+                Typical flow: validate new songs under <strong>Validation</strong>, keep the <strong>Song library</strong>{" "}
+                accurate, then use <strong>Classes</strong> and <strong>Matcher</strong> to coordinate members before
+                locking times in <strong>Rooms</strong>.
+              </p>
+            </AdminTutorialCallout>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 md:gap-4">
               {[
                 { label: "Total listings", value: groups.length, icon: Music, color: "text-primary" },
@@ -389,106 +397,35 @@ function AdminDashboardInner() {
               </div>
             )}
 
-            <Button
-              onClick={() => toast.success("WhatsApp blast (demo)")}
-              variant="outline"
-              className="w-full h-12 rounded-2xl font-bold border-2 btn-press"
-            >
-              <MessageSquare className="w-4 h-4 mr-2" /> Send WhatsApp blast
-            </Button>
+            <AdminWhatsAppPanel />
           </motion.div>
         )}
 
         {tab === "classes" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-            <p className="text-sm text-muted-foreground">
-              All class listings — formation, studio class type, validation state, and members.
-            </p>
-            {pendingGroups.length > 0 && (
-              <div>
-                <p className="text-xs font-black uppercase tracking-wider text-primary mb-3">Legacy pending</p>
-                <div className="space-y-2">
-                  {pendingGroups.map((g) => (
-                    <div key={g.id} className="card-premium p-4 flex items-center gap-3">
-                      <Music className="w-5 h-5 text-primary shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-bold text-sm truncate">{g.songTitle}</p>
-                        <p className="text-xs text-muted-foreground">{g.artist}</p>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          approveGroup(g.id);
-                          toast.success("Approved");
-                        }}
-                        className="rounded-xl"
-                      >
-                        <CheckCircle className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          rejectGroup(g.id);
-                          toast.error("Rejected");
-                        }}
-                        className="rounded-xl"
-                      >
-                        <XCircle className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-3">
-              {groups.map((g) => (
-                <ClassListingCard key={g.id} group={g} onValidate={openValidation} />
-              ))}
-            </div>
+            <AdminClassListingsPanel onValidateSong={openValidation} />
           </motion.div>
         )}
 
         {tab === "library" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Validated songs — future groups reuse formation and role names automatically.
-            </p>
-            <div className="rounded-2xl border border-border divide-y divide-border overflow-hidden">
-              {catalogList.length === 0 ? (
-                <p className="p-6 text-sm text-muted-foreground text-center">No validated songs yet.</p>
-              ) : (
-                catalogList.map((e) => (
-                  <div key={e.songKey} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3 bg-card/50">
-                    {e.imageUrl ? (
-                      <img src={e.imageUrl} alt="" className="w-14 h-14 rounded-xl object-cover shrink-0" />
-                    ) : (
-                      <div className="w-14 h-14 rounded-xl bg-muted shrink-0" />
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-black text-sm">{e.songTitle}</p>
-                      <p className="text-xs text-muted-foreground">{e.artist}</p>
-                      <p className="text-[11px] text-muted-foreground mt-1">
-                        {e.formationSize} members · {e.difficulty} · roles: {e.roleNames.join(", ")}
-                      </p>
-                      <div className="flex flex-wrap gap-1 mt-2">
-                        {e.classTypeOptions.map((c) => (
-                          <Badge key={c} variant="secondary" className="text-[9px]">
-                            {CLASS_LABELS[c]}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+            <AdminSongLibraryPanel />
           </motion.div>
         )}
 
         {tab === "validate" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+            <AdminTutorialCallout title="Song validation workflow">
+              <p>
+                When someone lists a <strong>new song</strong>, the class stays hidden until you complete the profile
+                here. iTunes artwork and title come from their draft; you add formation size, role names, difficulty, and
+                allowed class formats.
+              </p>
+              <p>
+                Saving writes to the <strong>Song library</strong> and turns on the public listing for every group with
+                that song key.
+              </p>
+            </AdminTutorialCallout>
             <p className="text-sm text-muted-foreground">
               iTunes title and artwork come from the student listing. Add formation, roles, difficulty, class types, and
               notes — then save to go live.
@@ -559,156 +496,16 @@ function AdminDashboardInner() {
 
         {tab === "rooms" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Two studios: Farrer Park and Orchard. Assign confirmed groups to time slots; remove to free a slot.
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Same timetable as <span className="font-bold text-foreground">My Schedule</span> — choose a studio below, then use the legend and grid to assign or clear slots.
             </p>
-            {STUDIO_ROOMS.map((room, ri) => (
-              <motion.div
-                key={room}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: ri * 0.08 }}
-                className="card-premium p-4 relative overflow-hidden"
-              >
-                <div
-                  className={`absolute top-0 left-0 right-0 h-0.5 ${ri === 0 ? "gradient-purple" : "bg-primary/30"}`}
-                />
-                <p className="font-black text-foreground mb-3 flex items-center gap-2 text-sm">
-                  <Calendar className="w-4 h-4 text-primary" /> {room}
-                </p>
-                <div className="space-y-2">
-                  {sessions
-                    .filter((s) => s.room === room)
-                    .map((s: ClassSession) => {
-                      const g = groups.find((gr) => gr.id === s.groupId);
-                      return (
-                        <div
-                          key={s.id}
-                          className="flex justify-between items-center gap-2 text-sm bg-accent rounded-xl px-3.5 py-2.5"
-                        >
-                          <span className="font-bold text-foreground text-xs truncate">{g?.songTitle ?? "Unknown"}</span>
-                          <span className="text-[11px] text-muted-foreground font-medium shrink-0">
-                            {s.day} · {s.time}
-                          </span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 shrink-0"
-                            onClick={() => {
-                              removeSession(s.id);
-                              toast.success("Slot removed");
-                            }}
-                            aria-label="Remove booking"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  {sessions.filter((s) => s.room === room).length === 0 && (
-                    <p className="text-xs text-muted-foreground py-2">No classes scheduled</p>
-                  )}
-                </div>
-              </motion.div>
-            ))}
-
-            <div className="card-premium p-4">
-              <p className="font-black text-foreground mb-3 text-sm">Assign class to room</p>
-              <div className="space-y-3">
-                <select
-                  value={assignGroupId}
-                  onChange={(e) => setAssignGroupId(e.target.value)}
-                  className="w-full h-11 rounded-xl border-2 border-input bg-background px-3 text-sm font-medium"
-                >
-                  <option value="">Select confirmed group</option>
-                  {groups.filter((g) => g.status === "confirmed").map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.songTitle}
-                    </option>
-                  ))}
-                </select>
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    value={newRoom}
-                    onChange={(e) => setNewRoom(e.target.value as StudioRoom)}
-                    className="h-11 rounded-xl border-2 border-input bg-background px-3 text-sm font-medium"
-                  >
-                    {STUDIO_ROOMS.map((r) => (
-                      <option key={r} value={r}>
-                        {r}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={newDay}
-                    onChange={(e) => setNewDay(e.target.value)}
-                    className="h-11 rounded-xl border-2 border-input bg-background px-3 text-sm font-medium"
-                  >
-                    {DAYS.map((d) => (
-                      <option key={d} value={d}>
-                        {d}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <Input
-                  value={newTime}
-                  onChange={(e) => setNewTime(e.target.value)}
-                  placeholder="6:00 PM"
-                  className="h-11 rounded-xl border-2"
-                />
-                <Button
-                  onClick={() => {
-                    if (!assignGroupId) return;
-                    assignSession(assignGroupId, newRoom, newDay, newTime);
-                    toast.success("Class assigned");
-                    setAssignGroupId("");
-                  }}
-                  disabled={!assignGroupId}
-                  className="w-full h-11 rounded-xl font-black gradient-purple text-primary-foreground btn-press"
-                >
-                  Assign
-                </Button>
-              </div>
-            </div>
+            <StudioRoomsTimetable />
           </motion.div>
         )}
 
         {tab === "matcher" && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3">
-            <div className="mb-4">
-              <p className="text-xs font-black uppercase tracking-wider text-primary mb-1">Availability matcher</p>
-              <p className="text-xs text-muted-foreground">Best class times from overlap (demo)</p>
-            </div>
-            {[
-              { day: "Saturday", time: "2:00 PM", overlap: 8, rank: 1 },
-              { day: "Monday", time: "6:00 PM", overlap: 6, rank: 2 },
-              { day: "Sunday", time: "11:00 AM", overlap: 5, rank: 3 },
-              { day: "Wednesday", time: "7:00 PM", overlap: 4, rank: 4 },
-            ].map((match, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.08 }}
-                className="card-premium p-4 flex items-center gap-3.5"
-              >
-                <div
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-black ${
-                    match.rank === 1 ? "gradient-purple text-primary-foreground" : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  #{match.rank}
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold text-sm text-foreground">
-                    {match.day} at {match.time}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">{match.overlap} students available</p>
-                </div>
-              </motion.div>
-            ))}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            <AdminAvailabilityMatcher />
           </motion.div>
         )}
       </div>
@@ -743,75 +540,5 @@ export default function AdminPage() {
     >
       <AdminDashboardInner />
     </Suspense>
-  );
-}
-
-function ClassListingCard({
-  group,
-  onValidate,
-}: {
-  group: SongGroup;
-  onValidate: (g: SongGroup) => void;
-}) {
-  return (
-    <div className="card-premium p-4 space-y-3">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex gap-3 min-w-0">
-          {group.imageUrl ? (
-            <img src={group.imageUrl} alt="" className="w-16 h-16 rounded-xl object-cover shrink-0" />
-          ) : (
-            <div className="w-16 h-16 rounded-xl bg-muted shrink-0" />
-          )}
-          <div className="min-w-0">
-            <p className="font-black text-foreground">{group.songTitle}</p>
-            <p className="text-sm text-muted-foreground font-bold">{group.artist}</p>
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              <Badge variant="secondary" className="text-[10px]">
-                {group.status}
-              </Badge>
-              {group.classTypeAtCreation && (
-                <Badge className="text-[10px] gradient-purple text-primary-foreground">
-                  {CLASS_LABELS[group.classTypeAtCreation]}
-                </Badge>
-              )}
-              {group.awaitingSongValidation ? (
-                <Badge variant="destructive" className="text-[10px]">
-                  Awaiting song validation
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="text-[10px]">
-                  Live
-                </Badge>
-              )}
-            </div>
-          </div>
-        </div>
-        {group.awaitingSongValidation && (
-          <Button size="sm" className="rounded-xl font-bold shrink-0" onClick={() => onValidate(group)}>
-            Validate
-          </Button>
-        )}
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
-        <div>
-          <p className="text-muted-foreground font-bold uppercase">Members</p>
-          <p className="font-black text-foreground">
-            {group.interestCount} / {group.maxMembers}
-          </p>
-        </div>
-        <div>
-          <p className="text-muted-foreground font-bold uppercase">Slots</p>
-          <p className="font-bold text-foreground truncate">{(group.slotLabels ?? []).join(", ") || "—"}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground font-bold uppercase">Creator</p>
-          <p className="font-bold text-foreground truncate">{group.creatorId?.slice(0, 8) ?? "—"}</p>
-        </div>
-        <div>
-          <p className="text-muted-foreground font-bold uppercase">Credits</p>
-          <p className="font-black text-foreground">{group.creditsCharged ?? "—"}</p>
-        </div>
-      </div>
-    </div>
   );
 }

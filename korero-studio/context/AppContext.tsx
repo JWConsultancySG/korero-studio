@@ -23,8 +23,18 @@ import type {
 import { creditsForClass, sgdForCredits, CLASS_LABELS } from '@/lib/credits';
 import type { User } from '@supabase/supabase-js';
 import { isAdminUser } from '@/lib/admin-auth';
-import { makeSongKey } from '@/lib/song-key';
+import { makeSongKey, groupSongKey } from '@/lib/song-key';
 import { hoursToBlocks, slotsToHoursForDate } from '@/lib/availability-blocks';
+import {
+  RICH_MOCK_GROUPS,
+  RICH_MOCK_SESSIONS,
+  RICH_MOCK_BOOKINGS,
+  RICH_MOCK_ADMIN_ALERTS,
+  STORAGE_KEYS as DEMO_STORAGE,
+  readFullNotifiedIds,
+  markGroupFullNotified,
+} from '@/lib/demo-seed';
+import { notifyClassThresholdReached } from '@/app/actions/notifications';
 
 export type CreateSongGroupPayload = {
   songTitle: string;
@@ -37,7 +47,7 @@ export type CreateSongGroupPayload = {
   /** Clears temporary slot holds for this draft after successful creation. */
   draftId?: string;
   itunesTrackId?: number;
-  /** Admin / staff creating a group — skips pending song validation. */
+  /** Admin creating a group — skips pending song validation. */
   skipSongValidation?: boolean;
 };
 
@@ -70,17 +80,6 @@ export type ValidateSongPayload = {
   teacherNotes: string;
 };
 
-const MOCK_GROUPS: SongGroup[] = [
-  { id: '1', songTitle: 'Super Shy', artist: 'NewJeans', interestCount: 3, status: 'forming', members: [], maxMembers: 5 },
-  { id: '3', songTitle: 'Magnetic', artist: 'ILLIT', interestCount: 4, status: 'forming', members: [], maxMembers: 5 },
-  { id: '5', songTitle: 'Supernova', artist: 'aespa', interestCount: 4, status: 'confirmed', members: [], maxMembers: 4 },
-  { id: '6', songTitle: 'RUDE!', artist: 'Hearts2Hearts', interestCount: 5, status: 'forming', members: [], maxMembers: 8 },
-  { id: '7', songTitle: 'Perfect Night', artist: 'LE SSERAFIM', interestCount: 3, status: 'forming', members: [], maxMembers: 5 },
-  { id: '8', songTitle: 'No Doubt', artist: 'ENHYPEN', interestCount: 6, status: 'forming', members: [], maxMembers: 7 },
-  { id: '9', songTitle: 'BLACKHOLE', artist: 'IVE', interestCount: 4, status: 'forming', members: [], maxMembers: 6 },
-  { id: '10', songTitle: 'This Is For', artist: 'TWICE', interestCount: 7, status: 'forming', members: [], maxMembers: 9 },
-];
-
 const MOCK_TIME_SLOTS: TimeSlot[] = [
   { id: 't1', day: 'Monday', time: '6:00 PM', available: true },
   { id: 't2', day: 'Monday', time: '7:30 PM', available: true },
@@ -102,10 +101,6 @@ const DEFAULT_ROLES: Role[] = [
   { name: 'Center', available: true },
 ];
 
-const MOCK_SESSIONS: ClassSession[] = [
-  { id: 's1', groupId: '5', room: 'Farrer Park', day: 'Wednesday', time: '7:00 PM', confirmed: true },
-];
-
 function seedCatalogFromMockGroups(groups: SongGroup[]): Record<string, SongCatalogEntry> {
   const out: Record<string, SongCatalogEntry> = {};
   for (const g of groups) {
@@ -125,6 +120,28 @@ function seedCatalogFromMockGroups(groups: SongGroup[]): Record<string, SongCata
     };
   }
   return out;
+}
+
+/** When member count reaches max, mark class confirmed and fire WhatsApp (once per group id). */
+function applyFullClassThreshold(prev: SongGroup, next: SongGroup): SongGroup {
+  const headcount = next.enrollments?.length ?? next.interestCount;
+  const isFull = headcount >= next.maxMembers && next.maxMembers > 0;
+  if (!isFull) return next;
+  if (next.status === 'confirmed') return next;
+  const merged = { ...next, status: 'confirmed' as const };
+  if (typeof window === 'undefined') return merged;
+  if (readFullNotifiedIds().has(prev.id)) return merged;
+  markGroupFullNotified(prev.id);
+  queueMicrotask(() => {
+    void notifyClassThresholdReached({
+      groupId: prev.id,
+      songTitle: merged.songTitle,
+      artist: merged.artist,
+      interestCount: headcount,
+      maxMembers: merged.maxMembers,
+    });
+  });
+  return merged;
 }
 
 type RegisteredUserRecord = { email: string; password: string; student: Student };
@@ -240,6 +257,12 @@ interface AppContextType extends AppState {
   purchaseClassPlan: (classType: ClassType, meta?: CreditPurchaseMeta) => void;
   approveGroup: (groupId: string) => void;
   rejectGroup: (groupId: string) => void;
+  /** Admin: merge updates into a class listing (recomputes `songKey`, `members` / `interestCount` when relevant). */
+  updateSongGroup: (groupId: string, patch: Partial<Omit<SongGroup, "id">>) => void;
+  /** Admin: delete a listing and related sessions, bookings, and validation alerts. */
+  deleteSongGroup: (groupId: string) => void;
+  /** Admin: remove one member from a class. */
+  removeSongGroupMember: (groupId: string, studentId: string) => void;
   selectRole: (role: RoleName) => void;
   createBooking: (groupId: string, role: RoleName, timeSlot: TimeSlot) => Booking;
   completePayment: (bookingId: string) => void;
@@ -248,6 +271,10 @@ interface AppContextType extends AppState {
   assignSession: (groupId: string, room: StudioRoom, day: string, time: string) => void;
   removeSession: (sessionId: string) => void;
   validateSong: (payload: ValidateSongPayload) => void;
+  /** Create or update a catalog entry. Pass `previousSongKey` when renaming (title/artist) so groups migrate. */
+  saveSongCatalogEntry: (payload: ValidateSongPayload, previousSongKey?: string) => void;
+  /** Remove a library entry. Fails if any group still references this song key. */
+  deleteSongCatalogEntry: (songKey: string) => { ok: true } | { ok: false; reason: "in_use" };
   getSongCatalogEntry: (songKey: string) => SongCatalogEntry | undefined;
   markNotificationRead: (id: string) => void;
   dismissAdminAlert: (id: string) => void;
@@ -278,10 +305,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
   const studentRef = useRef<Student | null>(student);
   studentRef.current = student;
-  const [groups, setGroups] = useState<SongGroup[]>(MOCK_GROUPS);
+  const [groups, setGroups] = useState<SongGroup[]>(() => {
+    const stored = readStorage<SongGroup[] | null>(DEMO_STORAGE.groups, null);
+    if (stored && stored.length > 0) return stored;
+    return RICH_MOCK_GROUPS;
+  });
   const [pendingGroups, setPendingGroups] = useState<SongGroup[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [sessions, setSessions] = useState<ClassSession[]>(MOCK_SESSIONS);
+  const [bookings, setBookings] = useState<Booking[]>(() =>
+    readStorage<Booking[] | null>(DEMO_STORAGE.bookings, null) ?? RICH_MOCK_BOOKINGS,
+  );
+  const [sessions, setSessions] = useState<ClassSession[]>(() =>
+    readStorage<ClassSession[] | null>(DEMO_STORAGE.sessions, null) ?? RICH_MOCK_SESSIONS,
+  );
   const [roles, setRoles] = useState<Role[]>(DEFAULT_ROLES);
   const [isAdmin, setIsAdmin] = useState(false);
   const [authSessionReady, setAuthSessionReady] = useState(false);
@@ -296,11 +331,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [songCatalog, setSongCatalog] = useState<Record<string, SongCatalogEntry>>(() => {
     const stored = readStorage<Record<string, SongCatalogEntry>>('korero.songCatalog', {});
     if (Object.keys(stored).length > 0) return stored;
-    return seedCatalogFromMockGroups(MOCK_GROUPS);
+    return seedCatalogFromMockGroups(RICH_MOCK_GROUPS.filter((g) => !g.awaitingSongValidation));
   });
-  const [adminAlerts, setAdminAlerts] = useState<AdminAlert[]>(() =>
-    readStorage<AdminAlert[]>('korero.adminAlerts', []),
-  );
+  const [adminAlerts, setAdminAlerts] = useState<AdminAlert[]>(() => {
+    const stored = readStorage<AdminAlert[]>('korero.adminAlerts', []);
+    if (stored.length > 0) return stored;
+    return RICH_MOCK_ADMIN_ALERTS;
+  });
   const [studentNotifications, setStudentNotifications] = useState<StudentNotification[]>(() =>
     readStorage<StudentNotification[]>('korero.studentNotifications', []),
   );
@@ -314,6 +351,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     writeStorage('korero.creditTransactions', creditTransactions);
   }, [creditTransactions]);
+
+  useEffect(() => {
+    writeStorage(DEMO_STORAGE.groups, groups);
+  }, [groups]);
+
+  useEffect(() => {
+    writeStorage(DEMO_STORAGE.sessions, sessions);
+  }, [sessions]);
+
+  useEffect(() => {
+    writeStorage(DEMO_STORAGE.bookings, bookings);
+  }, [bookings]);
 
   useEffect(() => {
     writeStorage('korero.songCatalog', songCatalog);
@@ -432,15 +481,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       slotLabel: 'Member',
       availabilitySlots: snap,
     };
-    setGroups(prev => prev.map(g => {
-      if (g.id !== groupId) return g;
-      return {
-        ...g,
-        interestCount: g.interestCount + 1,
-        members: [...g.members, sid],
-        enrollments: [...(g.enrollments || []), enrollment],
-      };
-    }));
+    setGroups((prev) =>
+      prev.map((g) => {
+        if (g.id !== groupId) return g;
+        const enrollments = [...(g.enrollments || []), enrollment];
+        const members = [...g.members, sid];
+        const interestCount = enrollments.length;
+        const next: SongGroup = {
+          ...g,
+          interestCount,
+          members,
+          enrollments,
+        };
+        return applyFullClassThreshold(g, next);
+      }),
+    );
   }, [student, availability]);
 
   const purchaseCredits = useCallback((credits: number, meta?: CreditPurchaseMeta) => {
@@ -601,7 +656,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, [availability, songCatalog]);
 
-  const validateSong = useCallback((input: ValidateSongPayload) => {
+  const saveSongCatalogEntry = useCallback((input: ValidateSongPayload, previousSongKey?: string) => {
     const roles = input.roleNames
       .map((r) => r.trim())
       .filter(Boolean)
@@ -620,35 +675,94 @@ export function AppProvider({ children }: { children: ReactNode }) {
       teacherNotes: input.teacherNotes,
       validatedAt: new Date().toISOString(),
     };
+
+    const applyAwaitingGroup = (g: SongGroup): SongGroup => {
+      const creatorSlotFrom = (slotList: string[]) => {
+        let creatorSlot = g.creatorSlotLabel ?? '';
+        if (!slotList.includes(creatorSlot)) {
+          creatorSlot = slotList[0] ?? creatorSlot;
+        }
+        return creatorSlot;
+      };
+      const slotList = roles.length > 0 ? roles : g.slotLabels ?? [];
+      const max = Math.max(1, slotList.length);
+      const creatorSlot = creatorSlotFrom(slotList);
+      return {
+        ...g,
+        songTitle: input.songTitle,
+        artist: input.artist,
+        songKey: input.songKey,
+        awaitingSongValidation: false,
+        maxMembers: max,
+        slotLabels: slotList,
+        creatorSlotLabel: creatorSlot,
+        enrollments: g.enrollments?.map((e) => {
+          if (e.studentId !== g.creatorId) return e;
+          const sl = slotList.includes(e.slotLabel) ? e.slotLabel : slotList[0];
+          return { ...e, slotLabel: sl ?? e.slotLabel };
+        }),
+      };
+    };
+
+    if (previousSongKey && previousSongKey !== input.songKey) {
+      setSongCatalog((prev) => {
+        const { [previousSongKey]: _, ...rest } = prev;
+        return { ...rest, [input.songKey]: entry };
+      });
+
+      setGroups((prev) => {
+        const creatorSeen = new Set<string>();
+        const creatorIds: string[] = [];
+        const next = prev.map((g) => {
+          if (groupSongKey(g) !== previousSongKey) return g;
+          if (g.awaitingSongValidation) {
+            if (g.creatorId && !creatorSeen.has(g.creatorId)) {
+              creatorSeen.add(g.creatorId);
+              creatorIds.push(g.creatorId);
+            }
+            return applyAwaitingGroup(g);
+          }
+          return {
+            ...g,
+            songTitle: input.songTitle,
+            artist: input.artist,
+            songKey: input.songKey,
+          };
+        });
+        if (creatorIds.length > 0) {
+          const msg = `Your group for "${input.songTitle}" is now live!`;
+          setStudentNotifications((sn) => [
+            ...sn,
+            ...creatorIds.map((studentId) => ({
+              id: crypto.randomUUID(),
+              studentId,
+              message: msg,
+              read: false,
+              createdAt: new Date().toISOString(),
+            })),
+          ]);
+        }
+        return next;
+      });
+
+      setAdminAlerts((prev) =>
+        prev.filter((a) => a.songKey !== previousSongKey && a.songKey !== input.songKey),
+      );
+      return;
+    }
+
     setSongCatalog((prev) => ({ ...prev, [input.songKey]: entry }));
 
     setGroups((prev) => {
       const creatorSeen = new Set<string>();
       const creatorIds: string[] = [];
       const next = prev.map((g) => {
-        if (g.songKey !== input.songKey || !g.awaitingSongValidation) return g;
+        if (groupSongKey(g) !== input.songKey || !g.awaitingSongValidation) return g;
         if (g.creatorId && !creatorSeen.has(g.creatorId)) {
           creatorSeen.add(g.creatorId);
           creatorIds.push(g.creatorId);
         }
-        const slotList = roles.length > 0 ? roles : g.slotLabels ?? [];
-        const max = Math.max(1, slotList.length);
-        let creatorSlot = g.creatorSlotLabel ?? '';
-        if (!slotList.includes(creatorSlot)) {
-          creatorSlot = slotList[0] ?? creatorSlot;
-        }
-        return {
-          ...g,
-          awaitingSongValidation: false,
-          maxMembers: max,
-          slotLabels: slotList,
-          creatorSlotLabel: creatorSlot,
-          enrollments: g.enrollments?.map((e) => {
-            if (e.studentId !== g.creatorId) return e;
-            const sl = slotList.includes(e.slotLabel) ? e.slotLabel : slotList[0];
-            return { ...e, slotLabel: sl ?? e.slotLabel };
-          }),
-        };
+        return applyAwaitingGroup(g);
       });
       if (creatorIds.length > 0) {
         const msg = `Your group for "${input.songTitle}" is now live!`;
@@ -668,6 +782,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     setAdminAlerts((prev) => prev.filter((a) => a.songKey !== input.songKey));
   }, []);
+
+  const validateSong = useCallback((input: ValidateSongPayload) => {
+    saveSongCatalogEntry(input);
+  }, [saveSongCatalogEntry]);
+
+  const deleteSongCatalogEntry = useCallback(
+    (songKey: string): { ok: true } | { ok: false; reason: "in_use" } => {
+      if (groups.some((g) => groupSongKey(g) === songKey)) {
+        return { ok: false, reason: "in_use" };
+      }
+      setSongCatalog((prev) => {
+        const { [songKey]: _, ...rest } = prev;
+        return rest;
+      });
+      setAdminAlerts((prev) => prev.filter((a) => a.songKey !== songKey));
+      return { ok: true };
+    },
+    [groups],
+  );
 
   const getSongCatalogEntry = useCallback(
     (songKey: string) => songCatalog[songKey],
@@ -694,6 +827,44 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const rejectGroup = useCallback((groupId: string) => {
     setPendingGroups(prev => prev.filter(g => g.id !== groupId));
+  }, []);
+
+  const updateSongGroup = useCallback((groupId: string, patch: Partial<Omit<SongGroup, "id">>) => {
+    setGroups((prev) =>
+      prev.map((g) => {
+        if (g.id !== groupId) return g;
+        const merged: SongGroup = { ...g, ...patch };
+        if (patch.songTitle !== undefined || patch.artist !== undefined) {
+          merged.songKey = makeSongKey(merged.songTitle, merged.artist);
+        }
+        if (patch.enrollments !== undefined) {
+          merged.members = patch.enrollments.map((e) => e.studentId);
+          merged.interestCount = patch.enrollments.length;
+        }
+        const headcount = merged.enrollments?.length ?? merged.interestCount;
+        if (merged.maxMembers < headcount) merged.maxMembers = headcount;
+        return applyFullClassThreshold(g, merged);
+      }),
+    );
+  }, []);
+
+  const deleteSongGroup = useCallback((groupId: string) => {
+    setGroups((prev) => prev.filter((g) => g.id !== groupId));
+    setSessions((prev) => prev.filter((s) => s.groupId !== groupId));
+    setBookings((prev) => prev.filter((b) => b.groupId !== groupId));
+    setAdminAlerts((prev) => prev.filter((a) => a.groupId !== groupId));
+  }, []);
+
+  const removeSongGroupMember = useCallback((groupId: string, studentId: string) => {
+    setGroups((prev) =>
+      prev.map((g) => {
+        if (g.id !== groupId) return g;
+        const enrollments = (g.enrollments ?? []).filter((e) => e.studentId !== studentId);
+        const members = g.members.filter((id) => id !== studentId);
+        const interestCount = Math.max(0, enrollments.length);
+        return { ...g, enrollments, members, interestCount };
+      }),
+    );
   }, []);
 
   const selectRole = useCallback((roleName: RoleName) => {
@@ -861,8 +1032,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{
       student, groups, bookings, sessions, timeSlots: MOCK_TIME_SLOTS, roles, pendingGroups, isAdmin, authSessionReady, authUser, isAuthenticated, availability,
       creditTransactions, songCatalog, adminAlerts, studentNotifications,
-      registerStudent, syncStudentFromAuth, loginStudent, logoutStudent, joinGroup, createSongGroup, purchaseCredits, purchaseClassPlan, approveGroup, rejectGroup, selectRole,
-      createBooking, completePayment, logoutAdmin, assignSession, removeSession, validateSong, getSongCatalogEntry, markNotificationRead, dismissAdminAlert,
+      registerStudent, syncStudentFromAuth, loginStudent, logoutStudent, joinGroup, createSongGroup, purchaseCredits, purchaseClassPlan, approveGroup, rejectGroup, updateSongGroup, deleteSongGroup, removeSongGroupMember, selectRole,
+      createBooking, completePayment, logoutAdmin, assignSession, removeSession, validateSong, saveSongCatalogEntry, deleteSongCatalogEntry, getSongCatalogEntry, markNotificationRead, dismissAdminAlert,
       addAvailability, removeAvailability,
       setAvailabilityBatch, setFreeSlotsForDate, toggleFreeHour, clearAllAvailability, setClassPreference,
       claimSlotHold, releaseSlotHold, clearDraftSlotHolds, getSlotHoldsForDraft,

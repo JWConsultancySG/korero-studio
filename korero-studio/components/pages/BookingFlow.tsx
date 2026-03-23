@@ -49,7 +49,7 @@ export default function BookingFlow({ groupId }: { groupId: string }) {
     if (!student) router.push('/register');
   }, [student, router]);
 
-  /** Preference first, then at least one free schedule slot — only then role / pay steps (staff booking flow). */
+  /** Preference first, then at least one free schedule slot — only then role / pay steps (admin booking flow). */
   useEffect(() => {
     if (!student || !isAdmin) return;
     if (!student.classPreference) {
@@ -87,10 +87,10 @@ export default function BookingFlow({ groupId }: { groupId: string }) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center px-6 pb-24 text-center bg-background">
         <Shield className="w-12 h-12 text-primary mb-4" />
-        <h1 className="text-xl font-black text-foreground mb-2">Staff only</h1>
+        <h1 className="text-xl font-black text-foreground mb-2">Admin only</h1>
         <p className="text-sm text-muted-foreground max-w-md mb-6 leading-relaxed">
           Studio sessions and rehearsal bookings are created by Korero admin only. Students coordinate availability in My
-          Schedule; staff assign rooms and times.
+          Schedule; admins assign rooms and times.
         </p>
         <Button onClick={() => router.push('/groups')} className="rounded-2xl font-bold gradient-purple text-primary-foreground">
           Back to groups

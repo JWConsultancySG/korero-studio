@@ -5,7 +5,7 @@ export function normalizeAdminEmail(email: string): string {
 }
 
 /**
- * Email of the single shared staff account — set in `.env.local` as `NEXT_PUBLIC_ADMIN_EMAIL`.
+ * Email of the single shared admin account — set in `.env.local` as `NEXT_PUBLIC_ADMIN_EMAIL`.
  * Must match the Supabase Auth user you create for admin (Authentication → Users).
  */
 export function getConfiguredAdminEmail(): string | null {
@@ -14,7 +14,7 @@ export function getConfiguredAdminEmail(): string | null {
 }
 
 /**
- * Whether this Supabase user is allowed to use `/admin` and staff-only flows.
+ * Whether this Supabase user is allowed to use `/admin` and admin-only flows.
  * - Matches `NEXT_PUBLIC_ADMIN_EMAIL`, or
  * - `app_metadata.korero_admin === true`, or
  * - `app_metadata.role === "admin"` (set in Supabase Dashboard → User → App Metadata).

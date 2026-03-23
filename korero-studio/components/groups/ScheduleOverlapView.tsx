@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type KeyboardEvent } from "react";
 import type { GroupMemberEnrollment } from "@/types";
 import { expandSlotsToWeekdayHourKeys, maxOverlapCount } from "@/lib/schedule-overlap";
 import { cn } from "@/lib/utils";
@@ -18,9 +18,11 @@ const formatHour = (h: number) => {
 type Props = {
   enrollments: GroupMemberEnrollment[];
   maxMembers: number;
+  /** When set, cells are tappable (e.g. admin matcher detail). */
+  onCellClick?: (detail: { dayIndex: number; hour: number; count: number }) => void;
 };
 
-export default function ScheduleOverlapView({ enrollments, maxMembers }: Props) {
+export default function ScheduleOverlapView({ enrollments, maxMembers, onCellClick }: Props) {
   const members = useMemo(
     () => enrollments.map((e) => ({ studentId: e.studentId, slots: e.availabilitySlots })),
     [enrollments],
@@ -85,15 +87,35 @@ export default function ScheduleOverlapView({ enrollments, maxMembers }: Props) 
                   const count = members.filter((m) =>
                     expandSlotsToWeekdayHourKeys(m.slots).has(key),
                   ).length;
+                  const interactive = Boolean(onCellClick);
+                  const inner = (
+                    <>
+                      {count > 0 ? count : "·"}
+                    </>
+                  );
                   return (
                     <div
                       key={`${hour}-${dayIdx}`}
                       className={cn(
                         "min-h-0 flex items-center justify-center border-r border-border last:border-r-0 text-[8px] sm:text-[9px] tabular-nums px-0.5",
                         cellClass(count),
+                        interactive && "cursor-pointer btn-press focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset",
                       )}
+                      {...(interactive
+                        ? {
+                            role: "button" as const,
+                            tabIndex: 0,
+                            onClick: () => onCellClick?.({ dayIndex: dayIdx, hour, count }),
+                            onKeyDown: (e: KeyboardEvent) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                onCellClick?.({ dayIndex: dayIdx, hour, count });
+                              }
+                            },
+                          }
+                        : {})}
                     >
-                      {count > 0 ? count : "·"}
+                      {inner}
                     </div>
                   );
                 })}

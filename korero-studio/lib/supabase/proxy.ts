@@ -56,7 +56,7 @@ export async function updateSession(request: NextRequest) {
     path.startsWith("/forgot-password") ||
     path.startsWith("/feedback") ||
     path.startsWith("/auth") ||
-    /** Staff dashboard: sign-in form uses Supabase; unauthenticated users must still load the page. */
+    /** Admin dashboard: sign-in form uses Supabase; unauthenticated users must still load the page. */
     path.startsWith("/admin");
 
   if (!isPublicAuth && !user) {
