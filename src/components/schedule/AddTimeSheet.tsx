@@ -2,9 +2,18 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Clock, Check, X } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const HOURS = Array.from({ length: 15 }, (_, i) => i + 8); // 8am-10pm
+const END_HOURS = Array.from({ length: 16 }, (_, i) => i + 8); // 8am-11pm (includes 23)
 
+const formatHour24 = (h: number) => `${h.toString().padStart(2, '0')}:00`;
 const formatHour = (h: number) => {
   if (h === 0 || h === 24) return '12 AM';
   if (h === 12) return '12 PM';
@@ -25,13 +34,14 @@ export default function AddTimeSheet({ dateLabel, onAdd, onClose, existingSlots 
 
   const isOccupied = (h: number) => existingSlots.some(s => h >= s.startHour && h < s.endHour);
 
+  const availableStartHours = HOURS.filter(h => !isOccupied(h));
+  const availableEndHours = END_HOURS.filter(h => h > startHour);
+
   const handleAdd = () => {
     if (endHour > startHour) {
       onAdd(startHour, endHour);
     }
   };
-
-  const endOptions = HOURS.filter(h => h > startHour).concat([23]);
 
   return (
     <motion.div
@@ -41,7 +51,6 @@ export default function AddTimeSheet({ dateLabel, onAdd, onClose, existingSlots 
       className="fixed inset-0 z-50 flex items-end justify-center"
       onClick={onClose}
     >
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-foreground/40" />
 
       <motion.div
@@ -67,55 +76,44 @@ export default function AddTimeSheet({ dateLabel, onAdd, onClose, existingSlots 
           </button>
         </div>
 
-        {/* Scrollable content */}
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pb-[max(5rem,calc(env(safe-area-inset-bottom)+4rem))]">
-          <div className="space-y-4">
-            {/* Start time */}
-            <div>
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 block">From</label>
-              <div className="grid grid-cols-5 gap-1.5">
-                {HOURS.map(h => {
-                  const occupied = isOccupied(h);
-                  return (
-                    <button
-                      key={`s-${h}`}
-                      disabled={occupied}
-                      onClick={() => {
-                        setStartHour(h);
-                        if (endHour <= h) setEndHour(h + 1);
-                      }}
-                      className={`py-2 rounded-xl text-[11px] font-bold transition-all btn-press ${
-                        occupied
-                          ? 'bg-muted/50 text-muted-foreground/40 cursor-not-allowed'
-                          : startHour === h
-                          ? 'gradient-purple text-primary-foreground glow-purple'
-                          : 'bg-muted text-foreground hover:bg-accent'
-                      }`}
-                    >
-                      {formatHour(h)}
-                    </button>
-                  );
-                })}
+        {/* Content */}
+        <div className="px-6 pb-[max(5rem,calc(env(safe-area-inset-bottom)+4rem))]">
+          <div className="space-y-5">
+            {/* Time selects */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 block">From</label>
+                <Select value={String(startHour)} onValueChange={(v) => {
+                  const h = Number(v);
+                  setStartHour(h);
+                  if (endHour <= h) setEndHour(h + 1);
+                }}>
+                  <SelectTrigger className="h-12 rounded-xl font-bold text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableStartHours.map(h => (
+                      <SelectItem key={h} value={String(h)}>
+                        {formatHour24(h)} ({formatHour(h)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </div>
-
-            {/* End time */}
-            <div>
-              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 block">To</label>
-              <div className="grid grid-cols-5 gap-1.5">
-                {endOptions.map(h => (
-                  <button
-                    key={`e-${h}`}
-                    onClick={() => setEndHour(h)}
-                    className={`py-2 rounded-xl text-[11px] font-bold transition-all btn-press ${
-                      endHour === h
-                        ? 'gradient-purple text-primary-foreground glow-purple'
-                        : 'bg-muted text-foreground hover:bg-accent'
-                    }`}
-                  >
-                    {formatHour(h)}
-                  </button>
-                ))}
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 block">To</label>
+                <Select value={String(endHour)} onValueChange={(v) => setEndHour(Number(v))}>
+                  <SelectTrigger className="h-12 rounded-xl font-bold text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableEndHours.map(h => (
+                      <SelectItem key={h} value={String(h)}>
+                        {formatHour24(h)} ({formatHour(h)})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -124,7 +122,7 @@ export default function AddTimeSheet({ dateLabel, onAdd, onClose, existingSlots 
               <Clock className="w-4 h-4 text-primary" />
               <div>
                 <p className="font-black text-sm text-foreground">
-                  {formatHour(startHour)} — {formatHour(endHour)}
+                  {formatHour24(startHour)} — {formatHour24(endHour)}
                 </p>
                 <p className="text-[10px] text-muted-foreground">
                   {endHour - startHour} hour{endHour - startHour !== 1 ? 's' : ''}
