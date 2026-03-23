@@ -325,69 +325,28 @@ export default function AvailabilityPage() {
               exit={{ opacity: 0, x: 20 }}
               transition={{ duration: 0.2 }}
             >
-              {/* Week navigation */}
-              <div className="flex items-center justify-between mb-3">
-                <button
-                  onClick={() => setWeekOffset(Math.max(0, weekOffset - 1))}
-                  disabled={weekOffset === 0}
-                  className="p-2 rounded-xl btn-press disabled:opacity-30"
-                >
-                  <ChevronLeft className="w-5 h-5 text-foreground" />
-                </button>
-                <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">
-                  {format(visibleDays[0], 'MMM d')} — {format(visibleDays[visibleDays.length - 1], 'MMM d')}
-                </p>
-                <button
-                  onClick={() => setWeekOffset(Math.min(maxWeekOffset, weekOffset + 1))}
-                  disabled={weekOffset >= maxWeekOffset}
-                  className="p-2 rounded-xl btn-press disabled:opacity-30"
-                >
-                  <ChevronRight className="w-5 h-5 text-foreground" />
-                </button>
-              </div>
-
-              {/* Day selector */}
-              <div className="grid grid-cols-7 gap-1.5 mb-5">
-                {visibleDays.map((day, i) => {
-                  const isSelected = isSameDay(day, selectedDate);
-                  const hasSlots = dateHasSlots(day);
-                  const hasConfirmed = dateHasConfirmed(day);
-                  const isPast = isBefore(day, today) && !isToday(day);
-
-                  return (
-                    <motion.button
-                      key={day.toISOString()}
-                      initial={{ opacity: 0, scale: 0.9 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: i * 0.03 }}
-                      onClick={() => !isPast && setSelectedDate(day)}
-                      disabled={isPast}
-                      className={`flex flex-col items-center py-2.5 px-1 rounded-2xl transition-all btn-press min-h-[72px] ${
-                        isSelected
-                          ? 'gradient-purple glow-purple'
-                          : isPast
-                          ? 'opacity-30'
-                          : 'bg-card border border-border hover:border-primary/30'
-                      }`}
-                    >
-                      <span className={`text-[10px] font-bold uppercase ${isSelected ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                        {format(day, 'EEE')}
-                      </span>
-                      <span className={`text-lg font-black ${isSelected ? 'text-primary-foreground' : 'text-foreground'}`}>
-                        {format(day, 'd')}
-                      </span>
-                      <div className="flex gap-0.5 mt-1">
-                        {hasSlots && (
-                          <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-primary-foreground' : 'bg-primary'}`} />
-                        )}
-                        {hasConfirmed && (
-                          <div className={`w-1.5 h-1.5 rounded-full ${isSelected ? 'bg-primary-foreground/60' : 'bg-primary/40'}`} />
-                        )}
-                      </div>
-                    </motion.button>
-                  );
-                })}
-              </div>
+              {/* Calendar date picker */}
+              <div className="flex justify-center mb-5">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(startOfDay(date))}
+                  disabled={(date) => {
+                    const d = startOfDay(date);
+                    return isBefore(d, today) && !isToday(d) || d > addDays(today, 29);
+                  }}
+                  modifiers={{
+                    hasSlots: allDays.filter(dateHasSlots),
+                    hasConfirmed: allDays.filter(dateHasConfirmed),
+                  }}
+                  modifiersClassNames={{
+                    hasSlots: 'ring-2 ring-primary ring-offset-1 ring-offset-background',
+                    hasConfirmed: 'ring-2 ring-primary/40 ring-offset-1 ring-offset-background',
+                  }}
+                  fromDate={today}
+                  toDate={addDays(today, 29)}
+                  className="p-3 pointer-events-auto rounded-2xl border border-border bg-card"
+                />
 
               {/* Selected day detail */}
               <AnimatePresence mode="wait">
