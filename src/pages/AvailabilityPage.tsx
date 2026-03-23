@@ -347,8 +347,8 @@ export default function AvailabilityPage() {
                   toDate={addDays(today, 29)}
                   className="p-3 pointer-events-auto rounded-2xl border border-border bg-card"
                 />
+              </div>
 
-              {/* Selected day detail */}
               <AnimatePresence mode="wait">
                 <motion.div
                   key={dateKey}
