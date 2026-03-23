@@ -4,11 +4,12 @@ import { Button } from '@/components/ui/button';
 import { useApp } from '@/context/AppContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  CalendarDays, ChevronLeft, ChevronRight, Plus, Clock,
-  Music, AlertCircle, ArrowRight, Sparkles, Info, Pencil, Check, X, GripVertical
+  CalendarDays, Plus, Clock,
+  Music, ArrowRight, Sparkles, Info, Check, X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, addDays, isSameDay, startOfDay, isToday, isBefore, getDay } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
 import type { AvailabilitySlot } from '@/types';
 import WeeklyGrid, { type WeeklyTemplate } from '@/components/schedule/WeeklyGrid';
 import DayTimeline from '@/components/schedule/DayTimeline';
