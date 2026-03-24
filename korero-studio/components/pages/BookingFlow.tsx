@@ -122,10 +122,10 @@ export default function BookingFlow({ groupId }: { groupId: string }) {
     if (!selectedRole || !groupId) return;
     setProcessing(true);
     const defaultSlot = timeSlots[0];
-    const b = createBooking(groupId, selectedRole, defaultSlot);
+    const b = await createBooking(groupId, selectedRole, defaultSlot);
     setBooking(b);
     await new Promise(r => setTimeout(r, 2500));
-    completePayment(b.id);
+    await completePayment(b.id);
     setBooking(prev => prev ? { ...prev, paymentStatus: 'paid' } : null);
     setProcessing(false);
     setShowConfetti(true);

@@ -10,6 +10,7 @@ import {
   Users,
   Calendar,
   User,
+  UserCog,
 } from "lucide-react";
 
 export const MAIN_NAV_ITEMS: { href: string; icon: LucideIcon; label: string }[] = [
@@ -21,10 +22,11 @@ export const MAIN_NAV_ITEMS: { href: string; icon: LucideIcon; label: string }[]
 ];
 
 /** Admin sidebar / bottom nav — matches Admin dashboard sections. */
-export type AdminTabId = "overview" | "classes" | "library" | "validate" | "rooms" | "matcher";
+export type AdminTabId = "overview" | "users" | "classes" | "library" | "validate" | "rooms" | "matcher";
 
 export const ADMIN_TAB_IDS: AdminTabId[] = [
   "overview",
+  "users",
   "classes",
   "library",
   "validate",
@@ -39,6 +41,7 @@ export const ADMIN_NAV_ITEMS: {
   label: string;
 }[] = [
   { href: "/admin?tab=overview", tab: "overview", icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/admin?tab=users", tab: "users", icon: UserCog, label: "Users" },
   { href: "/admin?tab=classes", tab: "classes", icon: Music, label: "Classes" },
   { href: "/admin?tab=library", tab: "library", icon: Library, label: "Song library" },
   { href: "/admin?tab=validate", tab: "validate", icon: ClipboardCheck, label: "Validation" },

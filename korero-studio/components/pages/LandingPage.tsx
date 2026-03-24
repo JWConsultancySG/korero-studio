@@ -61,7 +61,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col overflow-x-hidden">
+    <div className="relative min-h-screen flex flex-col overflow-x-hidden">
       {/* Hero Section */}
       <section ref={heroRef} className="relative min-h-[100svh] flex flex-col items-center justify-center overflow-hidden lg:items-stretch lg:justify-center">
         {/* Top Auth Bar */}

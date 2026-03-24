@@ -344,11 +344,11 @@ export default function ProfilePage() {
           creditsLine={paymentDialogProps.creditsLine}
           onPaymentConfirmed={async (meta) => {
             if (paymentTarget.kind === "plan") {
-              purchaseClassPlan(paymentTarget.classType, meta);
+              await purchaseClassPlan(paymentTarget.classType, meta);
               const cr = creditsForClass(paymentTarget.classType);
               toast.success(`${CLASS_LABELS[paymentTarget.classType]} plan added (+${cr} credits)`);
             } else {
-              purchaseCredits(paymentTarget.credits, meta);
+              await purchaseCredits(paymentTarget.credits, meta);
               setTopUpCredits("");
               toast.success(`Added ${paymentTarget.credits} credits`);
             }

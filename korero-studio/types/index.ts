@@ -1,5 +1,8 @@
 export type ClassType = 'no-filming' | 'half-song' | 'full-song';
 
+/** Studio account role — stored on `profiles.app_role` (authoritative). */
+export type AppRole = 'student' | 'instructor' | 'admin';
+
 export interface Student {
   id: string;
   name: string;
@@ -8,6 +11,8 @@ export interface Student {
   classPreference?: ClassType;
   /** Credits balance for booking / creating groups (1 credit = SGD 20). */
   credits?: number;
+  /** From `profiles.app_role`. */
+  appRole?: AppRole;
 }
 
 export type GroupStatus = 'forming' | 'confirmed' | 'pending';
@@ -53,6 +58,8 @@ export interface SongGroup {
   itunesTrackId?: number;
   /** True until admin validates the song profile — hidden from public group browse. */
   awaitingSongValidation?: boolean;
+  /** Set after class-full WhatsApp notification (DB: full_notified_at). */
+  fullNotifiedAt?: string;
 }
 
 export type RoleName = 'Main Vocal' | 'Sub Vocal' | 'Main Dancer' | 'Sub Dancer' | 'Rapper' | 'Center';

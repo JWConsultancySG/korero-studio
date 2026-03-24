@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,18 +10,19 @@ import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { Plus, Users, Music, Search, Sparkles, TrendingUp, Zap, Lock, CircleDot, ArrowRight } from 'lucide-react';
 
-// Fetch iTunes artwork for a song
+// iTunes Search has no CORS for browsers and can redirect to musics:// — use same-origin API route.
 const fetchArtwork = async (songTitle: string, artist: string): Promise<string | null> => {
   try {
-    const res = await fetch(
-      `https://itunes.apple.com/search?term=${encodeURIComponent(`${songTitle} ${artist}`)}&media=music&entity=song&limit=1`
-    );
-    const data = await res.json();
-    if (data.results?.[0]?.artworkUrl100) {
-      return data.results[0].artworkUrl100.replace('100x100', '200x200');
-    }
-  } catch { /* ignore */ }
-  return null;
+    const q = `${songTitle} ${artist}`.trim();
+    const res = await fetch(`/api/itunes/search?q=${encodeURIComponent(q)}&limit=1`);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { results?: Array<{ artworkUrl100?: string }> };
+    const raw = data.results?.[0]?.artworkUrl100;
+    if (typeof raw !== "string") return null;
+    return raw.replace("100x100", "200x200");
+  } catch {
+    return null;
+  }
 };
 
 export default function GroupsPage() {
@@ -29,22 +30,37 @@ export default function GroupsPage() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [artworkMap, setArtworkMap] = useState<Record<string, string>>({});
+  const artworkAttemptedRef = useRef<Set<string>>(new Set());
 
-  // Fetch artwork for all groups on mount
+  // Fetch artwork for groups without images (sequential + small delay to avoid iTunes rate limits)
   useEffect(() => {
-    const allGroups = groups.filter(g => !g.imageUrl);
-    allGroups.forEach(async (group) => {
-      if (artworkMap[group.id]) return;
-      const url = await fetchArtwork(group.songTitle, group.artist);
-      if (url) {
-        setArtworkMap(prev => ({ ...prev, [group.id]: url }));
+    let cancelled = false;
+    const pending = groups.filter(
+      g => !g.imageUrl && !artworkAttemptedRef.current.has(g.id),
+    );
+    if (pending.length === 0) return;
+
+    (async () => {
+      for (const group of pending) {
+        if (cancelled) return;
+        artworkAttemptedRef.current.add(group.id);
+        const url = await fetchArtwork(group.songTitle, group.artist);
+        if (cancelled) return;
+        if (url) {
+          setArtworkMap(prev => ({ ...prev, [group.id]: url }));
+        }
+        await new Promise(r => setTimeout(r, 250));
       }
-    });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [groups]);
 
-  const handleJoin = (groupId: string) => {
+  const handleJoin = async (groupId: string) => {
     if (!student) { router.push('/register'); return; }
-    joinGroup(groupId);
+    await joinGroup(groupId);
     router.push(`/groups/${groupId}`);
   };
 

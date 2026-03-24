@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -62,7 +63,9 @@ export function CreditsPaymentDialog({
       <DialogContent className="rounded-2xl sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-xl font-black">{title}</DialogTitle>
-          {subtitle ? <p className="text-sm text-muted-foreground leading-relaxed">{subtitle}</p> : null}
+          <DialogDescription className={subtitle ? "text-sm text-muted-foreground leading-relaxed" : "sr-only"}>
+            {subtitle ?? "Review your purchase and confirm demo payment."}
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 py-1">
           <div className="rounded-2xl border border-border bg-muted/40 px-4 py-3 space-y-1">

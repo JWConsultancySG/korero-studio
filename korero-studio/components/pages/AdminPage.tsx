@@ -13,7 +13,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import type { AdminTabId } from "@/lib/nav";
 import { parseAdminTab } from "@/lib/nav";
 import { createClient } from "@/lib/supabase/client";
-import { isAdminUser } from "@/lib/admin-auth";
 import {
   Users,
   Music,
@@ -48,12 +47,14 @@ import AdminClassListingsPanel from "@/components/admin/AdminClassListingsPanel"
 import AdminWhatsAppPanel from "@/components/admin/AdminWhatsAppPanel";
 import { AdminTutorialCallout } from "@/components/admin/AdminTutorialCallout";
 import StudioRoomsTimetable from "@/components/schedule/StudioRoomsTimetable";
+import AdminUserManagementPanel from "@/components/admin/AdminUserManagementPanel";
 
 const ADMIN_SECTIONS: Record<
   AdminTabId,
   { title: string; subtitle: string }
 > = {
   overview: { title: "Dashboard", subtitle: "Overview, alerts, and quick actions" },
+  users: { title: "Users", subtitle: "Assign student, instructor, or admin roles" },
   classes: {
     title: "Class listings",
     subtitle: "Full class detail, members, sessions — edit or remove listings as needed",
@@ -160,12 +161,11 @@ function AdminDashboardInner() {
           </motion.div>
 
           <h1 className="text-2xl font-black mb-1.5 text-foreground text-center">Admin sign in</h1>
-          <p className="text-sm text-muted-foreground mb-2 text-center">Use the shared Supabase admin account</p>
+            <p className="text-sm text-muted-foreground mb-2 text-center">Sign in with an account that has admin access</p>
           <p className="text-[11px] text-muted-foreground text-center mb-6 leading-relaxed">
-            Create a user in Supabase (Authentication → Users) and set{" "}
-            <span className="font-mono text-[10px]">NEXT_PUBLIC_ADMIN_EMAIL</span> in{" "}
-            <span className="font-mono text-[10px]">.env.local</span> to that user&apos;s email, or set{" "}
-            <span className="font-mono text-[10px]">app_metadata.korero_admin: true</span> on the user.
+            Admin access is controlled by <span className="font-mono text-[10px]">profiles.app_role = &apos;admin&apos;</span> in the database.
+            Bootstrap: run in Supabase SQL —{" "}
+            <span className="font-mono text-[10px]">UPDATE profiles SET app_role = &apos;admin&apos; WHERE email = &apos;your@email&apos;;</span>
           </p>
 
           <form
@@ -189,9 +189,10 @@ function AdminDashboardInner() {
                   toast.error("Could not sign in");
                   return;
                 }
-                if (!isAdminUser(user)) {
+                const { data: prof } = await supabase.from("profiles").select("app_role").eq("id", user.id).maybeSingle();
+                if (prof?.app_role !== "admin") {
                   await supabase.auth.signOut();
-                  toast.error("This account is not configured as studio admin");
+                  toast.error("This account does not have admin access (profiles.app_role).");
                   return;
                 }
                 const meta = user.user_metadata as Record<string, unknown> | undefined;
@@ -203,6 +204,7 @@ function AdminDashboardInner() {
                   name: nameFromMeta,
                   whatsapp,
                   email: user.email ?? email,
+                  appRole: "admin",
                 });
                 router.replace("/admin?tab=overview");
                 toast.success("Welcome back");
@@ -279,8 +281,8 @@ function AdminDashboardInner() {
 
   const section = ADMIN_SECTIONS[tab];
 
-  const handleValidateSubmit = (payload: ValidateSongPayload) => {
-    validateSong(payload);
+  const handleValidateSubmit = async (payload: ValidateSongPayload) => {
+    await validateSong(payload);
     toast.success(`Song validated — "${payload.songTitle}" is live for students.`);
     setValidatingGroup(null);
   };
@@ -401,6 +403,12 @@ function AdminDashboardInner() {
           </motion.div>
         )}
 
+        {tab === "users" && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            <AdminUserManagementPanel />
+          </motion.div>
+        )}
+
         {tab === "classes" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
             <AdminClassListingsPanel onValidateSong={openValidation} />
@@ -451,7 +459,7 @@ function AdminDashboardInner() {
                   >
                     Validate
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => dismissAdminAlert(a.id)}>
+                  <Button size="sm" variant="ghost" onClick={() => void dismissAdminAlert(a.id)}>
                     Dismiss
                   </Button>
                 </div>

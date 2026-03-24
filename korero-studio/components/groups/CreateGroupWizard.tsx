@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { flushSync } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -128,7 +127,7 @@ export default function CreateGroupWizard() {
     setLoading(true);
     try {
       const res = await fetch(
-        `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=8`,
+        `/api/itunes/search?q=${encodeURIComponent(term)}&limit=8`,
       );
       const data = await res.json();
       setResults(data.results || []);
@@ -198,11 +197,11 @@ export default function CreateGroupWizard() {
     if (step < TOTAL_STEPS) setStep((s) => s + 1);
   };
 
-  const finalizeGroupCreation = useCallback(() => {
+  const finalizeGroupCreation = useCallback(async () => {
     if (!student || !selectedSong || !resolvedClass) return null;
     const imageUrl = selectedSong.artworkUrl100.replace("100x100", "200x200");
     if (classType && classType !== student.classPreference) {
-      setClassPreference(classType);
+      await setClassPreference(classType);
     }
     return createSongGroup({
       songTitle: selectedSong.trackName,
@@ -242,7 +241,7 @@ export default function CreateGroupWizard() {
     setSubmitting(true);
     await new Promise((r) => setTimeout(r, 600));
     try {
-      const result = finalizeGroupCreation();
+      const result = await finalizeGroupCreation();
       if (!result || !result.ok) {
         toast.error("Could not create group");
         return;
@@ -711,14 +710,12 @@ export default function CreateGroupWizard() {
           onPaymentConfirmed={async (meta) => {
             if (!student || !selectedSong || !resolvedClass || !shortfallPayment) return;
             const creditsPaid = shortfallPayment.credits;
-            flushSync(() => {
-              purchaseCredits(creditsPaid, meta);
-            });
+            await purchaseCredits(creditsPaid, meta);
             setShortfallPayment(null);
             setSubmitting(true);
             await new Promise((r) => setTimeout(r, 600));
             try {
-              const result = finalizeGroupCreation();
+              const result = await finalizeGroupCreation();
               if (!result || !result.ok) {
                 if (result?.reason === "insufficient_credits") {
                   toast.error("Not enough credits after payment — try again");

@@ -31,7 +31,7 @@ export default function SongSearchDialog({ open, onOpenChange, onSubmit }: SongS
     setLoading(true);
     try {
       const res = await fetch(
-        `https://itunes.apple.com/search?term=${encodeURIComponent(term)}&media=music&entity=song&limit=8`
+        `/api/itunes/search?q=${encodeURIComponent(term)}&limit=8`,
       );
       const data = await res.json();
       setResults(data.results || []);

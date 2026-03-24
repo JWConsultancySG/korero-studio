@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { createClient } from '@/lib/supabase/client';
-import { isAdminUser } from '@/lib/admin-auth';
+import type { AppRole } from '@/types';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, LogIn } from 'lucide-react';
 
 export default function LoginPage() {
@@ -50,14 +50,21 @@ export default function LoginPage() {
           : (user.email?.split('@')[0] ?? 'Student');
       const whatsapp =
         typeof meta?.whatsapp === 'string' ? meta.whatsapp : '';
+      const { data: prof } = await supabase
+        .from('profiles')
+        .select('app_role')
+        .eq('id', user.id)
+        .maybeSingle();
+      const appRole = (prof?.app_role as AppRole | undefined) ?? 'student';
       syncStudentFromAuth({
         id: user.id,
         name: nameFromMeta,
         whatsapp,
         email: user.email ?? emailNorm,
+        appRole,
       });
-      if (isAdminUser(user)) {
-        router.push("/admin?tab=overview");
+      if (appRole === 'admin') {
+        router.push('/admin?tab=overview');
       } else {
         router.push('/groups');
       }

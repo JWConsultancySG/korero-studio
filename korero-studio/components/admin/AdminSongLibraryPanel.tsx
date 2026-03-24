@@ -65,22 +65,22 @@ export default function AdminSongLibraryPanel() {
     setEditorOpen(true);
   };
 
-  const handleSave = (payload: ValidateSongPayload, previousSongKey?: string) => {
+  const handleSave = async (payload: ValidateSongPayload, previousSongKey?: string) => {
     if (editorMode === "create") {
       if (songCatalog[payload.songKey]) {
         toast.error("That song title + artist is already in the library.");
         return;
       }
     }
-    saveSongCatalogEntry(payload, previousSongKey);
+    await saveSongCatalogEntry(payload, previousSongKey);
     toast.success(editorMode === "create" ? "Song added to library." : "Library entry saved.");
     setEditorOpen(false);
     setEditEntry(null);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteEntry) return;
-    const result = deleteSongCatalogEntry(deleteEntry.songKey);
+    const result = await deleteSongCatalogEntry(deleteEntry.songKey);
     if (!result.ok) {
       toast.error("Cannot delete — a class listing still uses this song. Remove or reassign groups first.");
     } else {

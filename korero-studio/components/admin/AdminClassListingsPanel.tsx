@@ -135,12 +135,12 @@ export default function AdminClassListingsPanel({ onValidateSong }: Props) {
     return m;
   }, [bookings]);
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editGroup) return;
     const g = editGroup;
     setSaving(true);
     try {
-      updateSongGroup(g.id, {
+      await updateSongGroup(g.id, {
         songTitle: g.songTitle.trim(),
         artist: g.artist.trim(),
         status: g.status,
@@ -159,17 +159,17 @@ export default function AdminClassListingsPanel({ onValidateSong }: Props) {
     }
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!deleteGroup) return;
-    deleteSongGroup(deleteGroup.id);
+    await deleteSongGroup(deleteGroup.id);
     toast.success("Listing removed.");
     setDeleteGroup(null);
   };
 
-  const confirmRemoveMember = () => {
+  const confirmRemoveMember = async () => {
     if (!removeMember) return;
     const { groupId, studentId } = removeMember;
-    removeSongGroupMember(groupId, studentId);
+    await removeSongGroupMember(groupId, studentId);
     toast.success("Member removed from class.");
     setRemoveMember(null);
     setEditGroup((prev) => {

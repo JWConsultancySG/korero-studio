@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { useApp } from '@/context/AppContext';
 import { useRouter } from 'next/navigation';
-import { Music, ArrowRight, BookOpen, Hourglass, CalendarCheck, Sparkles } from 'lucide-react';
+import { Music, ArrowRight, BookOpen, Hourglass, CalendarCheck, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { SongGroup } from '@/types';
 import FormationCard from '@/components/classes/FormationCard';
@@ -13,11 +13,25 @@ function isFormed(g: SongGroup): boolean {
   return g.status === 'confirmed' || g.interestCount >= g.maxMembers;
 }
 
+function userIsInGroup(g: SongGroup, studentId: string): boolean {
+  if ((g.members ?? []).includes(studentId)) return true;
+  return (g.enrollments ?? []).some((e) => e.studentId === studentId);
+}
+
 export default function MyClassesPage() {
-  const { bookings, groups, sessions, student } = useApp();
+  const { bookings, groups, sessions, student, authSessionReady, dataLoading, authUser, refreshApp } = useApp();
   const router = useRouter();
 
-  if (!student) {
+  if (!authSessionReady || dataLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3 px-6 pb-28">
+        <Loader2 className="w-10 h-10 text-primary animate-spin" aria-hidden />
+        <p className="text-sm text-muted-foreground">Loading your classes…</p>
+      </div>
+    );
+  }
+
+  if (!authUser) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6 pb-28">
         <Button onClick={() => router.push('/login')} className="rounded-2xl font-bold gradient-purple text-primary-foreground">
@@ -27,9 +41,26 @@ export default function MyClassesPage() {
     );
   }
 
+  if (!student) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-6 pb-28">
+        <p className="text-sm text-muted-foreground text-center max-w-sm">We couldn&apos;t load your profile. Try again.</p>
+        <Button
+          variant="outline"
+          className="rounded-2xl"
+          onClick={() => {
+            void refreshApp();
+          }}
+        >
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
   const paidBookings = bookings.filter((b) => b.paymentStatus === 'paid' && b.studentId === student.id);
 
-  const joined = groups.filter((g) => g.members.includes(student.id) && g.creatorId !== student.id);
+  const joined = groups.filter((g) => userIsInGroup(g, student.id) && g.creatorId !== student.id);
   const joinedPending = joined.filter((g) => !isFormed(g));
   const joinedFormed = joined.filter((g) => isFormed(g));
 

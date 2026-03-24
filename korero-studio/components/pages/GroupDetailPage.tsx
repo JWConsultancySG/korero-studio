@@ -13,17 +13,16 @@ import { cn } from "@/lib/utils";
 
 const fetchArtwork = async (songTitle: string, artist: string): Promise<string | null> => {
   try {
-    const res = await fetch(
-      `https://itunes.apple.com/search?term=${encodeURIComponent(`${songTitle} ${artist}`)}&media=music&entity=song&limit=1`,
-    );
-    const data = await res.json();
-    if (data.results?.[0]?.artworkUrl100) {
-      return data.results[0].artworkUrl100.replace("100x100", "200x200");
-    }
+    const q = `${songTitle} ${artist}`.trim();
+    const res = await fetch(`/api/itunes/search?q=${encodeURIComponent(q)}&limit=1`);
+    if (!res.ok) return null;
+    const data = (await res.json()) as { results?: Array<{ artworkUrl100?: string }> };
+    const raw = data.results?.[0]?.artworkUrl100;
+    if (typeof raw !== "string") return null;
+    return raw.replace("100x100", "200x200");
   } catch {
-    /* ignore */
+    return null;
   }
-  return null;
 };
 
 export default function GroupDetailPage() {

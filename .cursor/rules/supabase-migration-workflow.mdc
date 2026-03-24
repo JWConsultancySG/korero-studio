@@ -1,0 +1,18 @@
+---
+description: Enforce Supabase migration creation and push workflow
+alwaysApply: true
+---
+
+# Supabase Migration Workflow
+
+When creating a new Supabase migration in this project:
+
+1. Run exactly:
+   `supabase migration new add_users_index`
+2. Then write migration SQL in the generated file.
+3. After all code changes and inspections are complete, run:
+   `supabase db push`
+
+Please make sure you are in /korero-studio/korero-studio before running commands
+
+Do not use alternative migration-file creation commands unless explicitly requested by the user.

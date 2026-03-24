@@ -54,7 +54,7 @@ export default function PreferencesPage() {
     if (!selected) return;
     setLoading(true);
     await new Promise(r => setTimeout(r, 400));
-    setClassPreference(selected);
+    await setClassPreference(selected);
     setLoading(false);
 
     /** Always set availability on the schedule next; preserve deep-link return (e.g. booking) after schedule is done. */
