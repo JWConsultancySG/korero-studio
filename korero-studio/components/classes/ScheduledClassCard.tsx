@@ -68,7 +68,7 @@ export default function ScheduledClassCard({ group, sessions, booking }: Props) 
       </div>
 
       <Link
-        href={`/groups/${group.id}`}
+        href={`/browse/${group.id}`}
         className="text-xs font-bold text-primary underline-offset-2 hover:underline inline-block"
       >
         View group

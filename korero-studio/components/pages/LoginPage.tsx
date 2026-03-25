@@ -66,7 +66,7 @@ export default function LoginPage() {
       if (appRole === 'admin') {
         router.push('/admin?tab=overview');
       } else {
-        router.push('/groups');
+        router.push('/browse');
       }
     } catch (err: unknown) {
       setError(

@@ -1,4 +1,6 @@
 export type ClassType = 'no-filming' | 'half-song' | 'full-song';
+export type MatchingState = 'forming' | 'matching' | 'golden' | 'fixed';
+export type AssignmentStatus = 'pending' | 'confirmed' | 'rejected';
 
 /** Studio account role — stored on `profiles.app_role` (authoritative). */
 export type AppRole = 'student' | 'instructor' | 'admin';
@@ -60,7 +62,20 @@ export interface SongGroup {
   awaitingSongValidation?: boolean;
   /** Set after class-full WhatsApp notification (DB: full_notified_at). */
   fullNotifiedAt?: string;
+  matchingState?: MatchingState;
+  goldenAt?: string;
+  fixedAt?: string;
+  requiredMatchHours?: number;
+  acceptedByStudents?: string[];
+  acceptedByInstructor?: boolean;
+  finalizedSlotBlocks?: MatchedHourSlot[];
+  finalPaymentStatus?: 'pending' | 'paid';
+  studioSelection?: GroupStudioSelection;
+  instructorAssignment?: GroupInstructorAssignment;
 }
+
+/** Domain rename alias: classes are the canonical concept. */
+export type ProposedClass = SongGroup;
 
 export type RoleName = 'Main Vocal' | 'Sub Vocal' | 'Main Dancer' | 'Sub Dancer' | 'Rapper' | 'Center';
 
@@ -99,6 +114,43 @@ export interface AvailabilitySlot {
   confirmedGroupId?: string;
 }
 
+export interface MatchedHourSlot {
+  date: string;
+  hour: number;
+}
+
+export interface Studio {
+  id: string;
+  name: string;
+  isActive: boolean;
+  location: string;
+  address: string;
+  timezone: string;
+  capacity: number;
+  notes: string;
+}
+
+export interface GroupStudioSelection {
+  groupId: string;
+  studioId: string;
+  selectedBy?: string;
+  selectedAt: string;
+}
+
+export type ClassStudioSelection = GroupStudioSelection;
+
+export interface GroupInstructorAssignment {
+  id: string;
+  groupId: string;
+  instructorId: string;
+  status: AssignmentStatus;
+  requestedAt: string;
+  decidedAt?: string;
+  decidedBy?: string;
+}
+
+export type ClassInstructorAssignment = GroupInstructorAssignment;
+
 /** A member in a song group with their chosen slot name and availability snapshot. */
 export interface GroupMemberEnrollment {
   studentId: string;
@@ -106,6 +158,8 @@ export interface GroupMemberEnrollment {
   slotLabel: string;
   availabilitySlots: AvailabilitySlot[];
 }
+
+export type ClassEnrollment = GroupMemberEnrollment;
 
 export type PaymentMethod = 'stripe' | 'paynow';
 
@@ -129,8 +183,13 @@ export interface ClassSession {
   id: string;
   groupId: string;
   room: StudioRoom;
-  day: string;
-  time: string;
+  studioId?: string;
+  /** Legacy display fields kept for compatibility. */
+  day?: string;
+  time?: string;
+  /** Canonical schedule fields. */
+  startAt?: string;
+  endAt?: string;
   confirmed: boolean;
 }
 

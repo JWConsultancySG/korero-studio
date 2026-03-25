@@ -30,8 +30,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistSans.className} antialiased`} suppressHydrationWarning>
+    <html lang="en" className="relative" suppressHydrationWarning>
+      <body className={`${geistSans.variable} ${geistSans.className} relative antialiased`} suppressHydrationWarning>
         <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
         <ThemeProvider
           attribute="class"

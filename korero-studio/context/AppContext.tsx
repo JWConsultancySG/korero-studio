@@ -21,15 +21,16 @@ import type {
   Role,
   AvailabilitySlot,
   ClassType,
-  GroupMemberEnrollment,
   CreditTransaction,
   SongCatalogEntry,
   StudioRoom,
   AdminAlert,
   StudentNotification,
+  Studio,
 } from '@/types';
-import { creditsForClass, sgdForCredits, CLASS_LABELS } from '@/lib/credits';
+import { creditsForClass, CLASS_LABELS } from '@/lib/credits';
 import type { User } from '@supabase/supabase-js';
+import { format } from 'date-fns';
 import { isAdminFromAppRole } from '@/lib/admin-auth';
 import { makeSongKey, groupSongKey } from '@/lib/song-key';
 import { hoursToBlocks, slotsToHoursForDate } from '@/lib/availability-blocks';
@@ -49,6 +50,15 @@ import type {
   CreateSongGroupResult,
   ValidateSongPayload,
 } from '@/lib/korero-types';
+import {
+  confirmInstructorAssignment,
+  finalizeGroupClass,
+  precheckGroupStudioOverlap,
+  recomputeGroupMatchingState,
+  requestInstructorAssignment,
+  selectGroupStudio,
+  submitFinalAcceptance,
+} from '@/app/actions/matching';
 
 export type {
   CreateSongGroupPayload,
@@ -129,6 +139,7 @@ interface AppState {
   adminAlerts: AdminAlert[];
   studentNotifications: StudentNotification[];
   dataLoading: boolean;
+  studios: Studio[];
 }
 
 interface AppContextType extends AppState {
@@ -136,7 +147,7 @@ interface AppContextType extends AppState {
   refreshApp: () => Promise<void>;
   syncStudentFromAuth: (student: Student) => void;
   logoutStudent: () => void;
-  joinGroup: (groupId: string) => Promise<void>;
+  joinGroup: (groupId: string, slotLabel?: string) => Promise<void>;
   createSongGroup: (payload: CreateSongGroupPayload) => Promise<CreateSongGroupResult>;
   purchaseCredits: (credits: number, meta?: CreditPurchaseMeta) => Promise<void>;
   purchaseClassPlan: (classType: ClassType, meta?: CreditPurchaseMeta) => Promise<void>;
@@ -149,7 +160,13 @@ interface AppContextType extends AppState {
   createBooking: (groupId: string, role: RoleName, timeSlot: TimeSlot) => Promise<Booking>;
   completePayment: (bookingId: string) => Promise<void>;
   logoutAdmin: () => void;
-  assignSession: (groupId: string, room: StudioRoom, day: string, time: string) => Promise<void>;
+  assignSession: (groupId: string, room: StudioRoom, startAt: string, endAt: string) => Promise<void>;
+  chooseStudioForGroup: (groupId: string, studioId: string) => Promise<{ ok: boolean; overlapHours?: number }>;
+  requestInstructorForGroup: (groupId: string) => Promise<void>;
+  confirmInstructorForGroup: (groupId: string, assignmentId: string) => Promise<void>;
+  recomputeGroupMatching: (groupId: string) => Promise<void>;
+  submitGroupFinalAcceptance: (groupId: string) => Promise<void>;
+  finalizeGroupLesson: (groupId: string) => Promise<void>;
   removeSession: (sessionId: string) => Promise<void>;
   validateSong: (payload: ValidateSongPayload) => Promise<void>;
   saveSongCatalogEntry: (payload: ValidateSongPayload, previousSongKey?: string) => Promise<void>;
@@ -190,6 +207,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [adminAlerts, setAdminAlerts] = useState<AdminAlert[]>([]);
   const [studentNotifications, setStudentNotifications] = useState<StudentNotification[]>([]);
   const [dataLoading, setDataLoading] = useState(true);
+  const [studios, setStudios] = useState<Studio[]>([]);
 
   const studentRef = useRef<Student | null>(null);
   studentRef.current = student;
@@ -209,6 +227,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setAdminAlerts(data.adminAlerts);
     setStudentNotifications(data.studentNotifications);
     setAvailability(data.availability);
+    setStudios(data.studios);
     availabilityHydratedRef.current = true;
     if (data.student) setStudent(data.student);
     else setStudent(null);
@@ -301,12 +320,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const joinGroup = useCallback(
-    async (groupId: string) => {
+    async (groupId: string, slotLabel?: string) => {
       const st = studentRef.current;
       if (!st) return;
+      if (st.appRole === 'instructor') {
+        await requestInstructorAssignment(groupId);
+        await refresh();
+        return;
+      }
       const supabase = createClient();
       const prevGroup = groups.find((g) => g.id === groupId);
-      const res = await joinGroupInDb(supabase, st, groupId, availability);
+      const res = await joinGroupInDb(supabase, st, groupId, availability, slotLabel);
       if (!res.ok) return;
       const data = await refresh();
       const nextG = data.groups.find((g) => g.id === groupId);
@@ -330,7 +354,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!result.ok) return result;
       if (payload.draftId) {
         setDraftSlotHolds((prev) => {
-          const { [payload.draftId!]: _, ...rest } = prev;
+          const rest = { ...prev };
+          delete rest[payload.draftId!];
           return rest;
         });
       }
@@ -469,14 +494,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (patch.classTypeAtCreation !== undefined) row.class_type_at_creation = patch.classTypeAtCreation;
 
       if (Object.keys(row).length > 0) {
-        await supabase.from('song_groups').update(row).eq('id', groupId);
+        await supabase.from('classes').update(row).eq('id', groupId);
       }
 
       if (patch.enrollments !== undefined) {
-        await supabase.from('group_enrollments').delete().eq('group_id', groupId);
+        await supabase.from('class_enrollments').delete().eq('class_id', groupId);
         for (const e of patch.enrollments) {
-          await supabase.from('group_enrollments').insert({
-            group_id: groupId,
+          await supabase.from('class_enrollments').insert({
+            class_id: groupId,
             student_id: e.studentId,
             student_name: e.studentName,
             slot_label: e.slotLabel,
@@ -498,7 +523,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const deleteSongGroup = useCallback(
     async (groupId: string) => {
       const supabase = createClient();
-      await supabase.from('song_groups').delete().eq('id', groupId);
+      await supabase.from('classes').delete().eq('id', groupId);
       await refresh();
     },
     [refresh],
@@ -507,7 +532,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const removeSongGroupMember = useCallback(
     async (groupId: string, memberId: string) => {
       const supabase = createClient();
-      await supabase.from('group_enrollments').delete().eq('group_id', groupId).eq('student_id', memberId);
+      await supabase.from('class_enrollments').delete().eq('class_id', groupId).eq('student_id', memberId);
       await refresh();
     },
     [refresh],
@@ -541,7 +566,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         .from('bookings')
         .insert({
           student_id: st.id,
-          group_id: groupId,
+          class_id: groupId,
           role,
           time_slot: timeSlot,
           payment_status: 'pending',
@@ -554,7 +579,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const row = data as {
         id: string;
         student_id: string;
-        group_id: string;
+        class_id: string;
         role: RoleName;
         time_slot: TimeSlot;
         payment_status: string;
@@ -564,7 +589,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return {
         id: row.id,
         studentId: row.student_id,
-        groupId: row.group_id,
+        groupId: row.class_id,
         role: row.role,
         timeSlot: row.time_slot,
         paymentStatus: row.payment_status as Booking['paymentStatus'],
@@ -598,19 +623,55 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const assignSession = useCallback(
-    async (groupId: string, room: StudioRoom, day: string, time: string) => {
+    async (groupId: string, room: StudioRoom, startAt: string, endAt: string) => {
       const supabase = createClient();
+      const start = new Date(startAt);
       await supabase.from('class_sessions').insert({
-        group_id: groupId,
+        class_id: groupId,
         room,
-        day,
-        time,
+        day: format(start, 'EEEE'),
+        time: format(start, 'h:mm a'),
+        start_at: startAt,
+        end_at: endAt,
         confirmed: true,
       });
       await refresh();
     },
     [refresh],
   );
+
+  const chooseStudioForGroup = useCallback(async (groupId: string, studioId: string) => {
+    const selected = await selectGroupStudio(groupId, studioId);
+    if (!selected.ok) return { ok: false };
+    const precheck = await precheckGroupStudioOverlap(groupId, studioId);
+    await refresh();
+    return { ok: true, overlapHours: precheck.ok ? precheck.overlapHours : 0 };
+  }, [refresh]);
+
+  const requestInstructorForGroup = useCallback(async (groupId: string) => {
+    await requestInstructorAssignment(groupId);
+    await refresh();
+  }, [refresh]);
+
+  const confirmInstructorForGroup = useCallback(async (groupId: string, assignmentId: string) => {
+    await confirmInstructorAssignment(groupId, assignmentId);
+    await refresh();
+  }, [refresh]);
+
+  const recomputeGroupMatching = useCallback(async (groupId: string) => {
+    await recomputeGroupMatchingState(groupId);
+    await refresh();
+  }, [refresh]);
+
+  const submitGroupFinalAcceptance = useCallback(async (groupId: string) => {
+    await submitFinalAcceptance(groupId);
+    await refresh();
+  }, [refresh]);
+
+  const finalizeGroupLesson = useCallback(async (groupId: string) => {
+    await finalizeGroupClass(groupId);
+    await refresh();
+  }, [refresh]);
 
   const removeSession = useCallback(
     async (sessionId: string) => {
@@ -700,7 +761,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const draft = { ...(prev[draftId] || {}) };
       delete draft[slotLabel];
       if (Object.keys(draft).length === 0) {
-        const { [draftId]: _, ...rest } = prev;
+        const rest = { ...prev };
+        delete rest[draftId];
         return rest;
       }
       return { ...prev, [draftId]: draft };
@@ -709,7 +771,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const clearDraftSlotHolds = useCallback((draftId: string) => {
     setDraftSlotHolds((prev) => {
-      const { [draftId]: _, ...rest } = prev;
+      const rest = { ...prev };
+      delete rest[draftId];
       return rest;
     });
   }, []);
@@ -747,6 +810,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         adminAlerts,
         studentNotifications,
         dataLoading,
+        studios,
         refreshApp,
         syncStudentFromAuth,
         logoutStudent,
@@ -764,6 +828,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         completePayment,
         logoutAdmin,
         assignSession,
+        chooseStudioForGroup,
+        requestInstructorForGroup,
+        confirmInstructorForGroup,
+        recomputeGroupMatching,
+        submitGroupFinalAcceptance,
+        finalizeGroupLesson,
         removeSession,
         validateSong,
         saveSongCatalogEntry,

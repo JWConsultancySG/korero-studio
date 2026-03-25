@@ -72,7 +72,7 @@ export default function AdminUserManagementPanel() {
 
     if (targetId === student?.id && prev === "admin" && role !== "admin") {
       await refreshApp();
-      router.push("/groups");
+      router.push("/browse");
       return;
     }
     if (targetId === student?.id) {

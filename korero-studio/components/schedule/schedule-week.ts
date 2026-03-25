@@ -5,6 +5,7 @@ export type WeekColumn = {
   dateKey: string;
   inWindow: boolean;
   label: string;
+  isToday?: boolean;
 };
 
 export function enumerateWeekMondays(today0: Date, horizonEnd: Date): Date[] {

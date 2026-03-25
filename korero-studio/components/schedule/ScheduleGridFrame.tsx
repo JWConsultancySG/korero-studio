@@ -29,6 +29,8 @@ type Props = {
   patternFooter?: React.ReactNode;
   /** e.g. studio room toggle — same width row as mode switch */
   leadingControls?: React.ReactNode;
+  showModeTabs?: boolean;
+  weekControls?: React.ReactNode;
 };
 
 export function ScheduleGridFrame({
@@ -46,36 +48,45 @@ export function ScheduleGridFrame({
   renderWeekCell,
   patternFooter,
   leadingControls,
+  showModeTabs = true,
+  weekControls,
 }: Props) {
   return (
     <div className="space-y-4">
       {leadingControls}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex gap-1 p-1 bg-muted rounded-2xl w-full sm:w-auto">
-          <button
-            type="button"
-            onClick={() => setMode("pattern")}
-            className={cn(
-              "flex-1 sm:flex-none min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-black transition-all btn-press",
-              mode === "pattern" ? "gradient-purple text-primary-foreground glow-purple" : "text-muted-foreground",
-            )}
-          >
-            Recurring week
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("week")}
-            className={cn(
-              "flex-1 sm:flex-none min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-black transition-all btn-press",
-              mode === "week" ? "gradient-purple text-primary-foreground glow-purple" : "text-muted-foreground",
-            )}
-          >
-            Specific week (30 days)
-          </button>
-        </div>
+        {showModeTabs ? (
+          <div className="flex gap-1 p-1 bg-muted rounded-2xl w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setMode("pattern")}
+              className={cn(
+                "flex-1 sm:flex-none min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-black transition-all btn-press",
+                mode === "pattern" ? "gradient-purple text-primary-foreground glow-purple" : "text-muted-foreground",
+              )}
+            >
+              Recurring week
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("week")}
+              className={cn(
+                "flex-1 sm:flex-none min-h-[44px] px-4 py-2.5 rounded-xl text-xs font-black transition-all btn-press",
+                mode === "week" ? "gradient-purple text-primary-foreground glow-purple" : "text-muted-foreground",
+              )}
+            >
+              Specific week (30 days)
+            </button>
+          </div>
+        ) : (
+          <div />
+        )}
 
-        {mode === "week" && weekMondays.length > 0 && (
+        {mode === "week" && weekControls ? (
+          weekControls
+        ) : (
+        mode === "week" && weekMondays.length > 0 && (
           <div className="flex items-center gap-2 justify-center sm:justify-end">
             <button
               type="button"
@@ -99,7 +110,7 @@ export function ScheduleGridFrame({
               <ChevronRight className="w-5 h-5" />
             </button>
           </div>
-        )}
+        ))}
       </div>
 
       <p className="text-[11px] text-muted-foreground leading-relaxed">{mode === "pattern" ? hintPattern : hintWeek}</p>
@@ -119,7 +130,16 @@ export function ScheduleGridFrame({
             >
               <span className="text-[8px] font-black text-muted-foreground uppercase leading-none">{day}</span>
               {mode === "week" && weekColumns[i] && (
-                <span className="text-[9px] font-black text-foreground leading-none">{weekColumns[i].label}</span>
+                <span
+                  className={cn(
+                    "text-[9px] font-black leading-none px-1.5 py-0.5 rounded-full",
+                    weekColumns[i].isToday
+                      ? "text-primary-foreground bg-primary"
+                      : "text-foreground",
+                  )}
+                >
+                  {weekColumns[i].label}
+                </span>
               )}
             </div>
           ))}

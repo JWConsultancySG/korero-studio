@@ -85,6 +85,8 @@ export default function AdminClassListingsPanel({ onValidateSong }: Props) {
     updateSongGroup,
     deleteSongGroup,
     removeSongGroupMember,
+    confirmInstructorForGroup,
+    recomputeGroupMatching,
   } = useApp();
 
   const [query, setQuery] = useState("");
@@ -210,7 +212,7 @@ export default function AdminClassListingsPanel({ onValidateSong }: Props) {
           />
         </div>
         <Button asChild variant="outline" className="rounded-xl font-bold shrink-0">
-          <Link href="/groups/new?asAdmin=1">
+          <Link href="/browse/new?asAdmin=1">
             <ExternalLink className="w-4 h-4 mr-2" /> New class
           </Link>
         </Button>
@@ -354,7 +356,7 @@ export default function AdminClassListingsPanel({ onValidateSong }: Props) {
                           Delete
                         </Button>
                         <Button asChild size="sm" variant="ghost" className="rounded-xl font-bold ml-auto">
-                          <Link href={`/groups/${g.id}`}>
+                          <Link href={`/browse/${g.id}`}>
                             <ExternalLink className="w-4 h-4 mr-1.5" />
                             Public page
                           </Link>
@@ -470,7 +472,32 @@ export default function AdminClassListingsPanel({ onValidateSong }: Props) {
                           <span className="font-bold text-foreground">Formation slots: </span>
                           {(g.slotLabels ?? []).join(", ") || "—"}
                         </div>
+                        <div>
+                          <span className="font-bold text-foreground">Matching state: </span>
+                          {g.matchingState ?? "forming"}
+                        </div>
+                        <div>
+                          <span className="font-bold text-foreground">Instructor: </span>
+                          {g.instructorAssignment
+                            ? `${g.instructorAssignment.instructorId} (${g.instructorAssignment.status})`
+                            : "none"}
+                        </div>
                       </div>
+                      {g.instructorAssignment?.status === "pending" && (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() =>
+                              void confirmInstructorForGroup(g.id, g.instructorAssignment ? g.instructorAssignment.id : "")
+                            }
+                          >
+                            Confirm instructor
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => void recomputeGroupMatching(g.id)}>
+                            Recompute matching
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </AccordionContent>
                 </AccordionItem>

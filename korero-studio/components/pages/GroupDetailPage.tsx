@@ -5,9 +5,9 @@ import { useParams, useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useApp } from "@/context/AppContext";
-import ScheduleOverlapView from "@/components/groups/ScheduleOverlapView";
+import DateTimeOverlapView from "@/components/groups/DateTimeOverlapView";
 import { CLASS_LABELS } from "@/lib/credits";
-import { ArrowLeft, Music, Users, Sparkles, CalendarDays, AlertCircle } from "lucide-react";
+import { ArrowLeft, Music, Users, Sparkles, CalendarDays, AlertCircle, CheckCircle2, MapPin } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +29,15 @@ export default function GroupDetailPage() {
   const params = useParams();
   const groupId = typeof params.groupId === "string" ? params.groupId : "";
   const router = useRouter();
-  const { groups, student } = useApp();
+  const {
+    groups,
+    student,
+    studios,
+    requestInstructorForGroup,
+    submitGroupFinalAcceptance,
+    finalizeGroupLesson,
+    recomputeGroupMatching,
+  } = useApp();
   const [artwork, setArtwork] = useState<string | null>(null);
 
   const group = useMemo(() => groups.find((g) => g.id === groupId), [groups, groupId]);
@@ -45,7 +53,7 @@ export default function GroupDetailPage() {
   useEffect(() => {
     if (!groupId) return;
     if (!groups.some((g) => g.id === groupId)) {
-      router.replace("/groups");
+      router.replace("/browse");
     }
   }, [groupId, groups, router]);
 
@@ -60,6 +68,8 @@ export default function GroupDetailPage() {
   const fill = group.maxMembers > 0 ? (group.interestCount / group.maxMembers) * 100 : 0;
   const enrollments = group.enrollments ?? [];
   const isCreator = student?.id === group.creatorId;
+  const selectedStudio = studios.find((s) => s.id === group.studioSelection?.studioId);
+  const matchedSlots = group.finalizedSlotBlocks ?? [];
 
   return (
     <div className="min-h-screen pb-28 md:pb-10 bg-background">
@@ -67,10 +77,10 @@ export default function GroupDetailPage() {
         <div className="content-max">
           <button
             type="button"
-            onClick={() => router.push("/groups")}
+            onClick={() => router.push("/browse")}
             className="flex items-center gap-2 text-muted-foreground text-sm md:text-base font-bold btn-press mb-6 min-h-[44px]"
           >
-            <ArrowLeft className="w-4 h-4" /> Back to groups
+            <ArrowLeft className="w-4 h-4" /> Back to browse
           </button>
 
           <div className="flex flex-col md:flex-row gap-6 md:gap-10 lg:gap-12 items-start">
@@ -171,17 +181,29 @@ export default function GroupDetailPage() {
         >
           <h2 className="text-lg md:text-xl font-black text-foreground mb-1 flex items-center gap-2">
             <CalendarDays className="w-5 h-5 md:w-6 md:h-6 text-primary shrink-0" />
-            Schedule overlap
+            Class availability
           </h2>
           <p className="text-sm md:text-base text-muted-foreground mb-4 md:mb-5 leading-relaxed max-w-prose">
-            See when members are free at the same time. If a column looks strong, consider aligning your availability
-            in{" "}
+            Date-time class availability only. Switch dates and view only slots where everyone in this group is free at the same
+            time. Need to open more options? Update your availability in{" "}
             <Link href="/schedule" className="font-bold text-primary underline-offset-2 hover:underline">
               Schedule
             </Link>
             .
           </p>
-          <ScheduleOverlapView enrollments={enrollments} maxMembers={group.maxMembers} />
+          <DateTimeOverlapView enrollments={enrollments} />
+          {matchedSlots.length > 0 && (
+            <div className="mt-5 rounded-2xl border border-border p-4 bg-card/50">
+              <p className="text-xs font-black uppercase tracking-wider text-primary mb-2">Matched 1-hour slots</p>
+              <div className="flex flex-wrap gap-2">
+                {matchedSlots.slice(0, 16).map((slot) => (
+                  <Badge key={`${slot.date}-${slot.hour}`} variant="outline">
+                    {slot.date} · {slot.hour}:00-{slot.hour + 1}:00
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
         </div>
 
@@ -192,8 +214,54 @@ export default function GroupDetailPage() {
             <Link href="/schedule" className="font-bold text-primary underline-offset-2 hover:underline">
               My Schedule
             </Link>{" "}
-            so everyone can align availability for overlap.
+            so everyone can align class availability.
           </p>
+        </div>
+        <div className="rounded-2xl border border-border p-5 space-y-3">
+          <p className="font-black text-foreground flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-primary" />
+            Matching lifecycle
+          </p>
+          <p className="text-sm text-muted-foreground">
+            State: <span className="font-bold text-foreground">{group.matchingState ?? "forming"}</span>
+            {group.requiredMatchHours ? ` · Golden target: ${group.requiredMatchHours}h on distinct days` : ""}
+          </p>
+          {selectedStudio && (
+            <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-primary" />
+              Studio: <span className="font-bold text-foreground">{selectedStudio.name}</span>
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void requestInstructorForGroup(group.id)}
+              className="rounded-xl border px-3 py-2 text-xs font-bold"
+            >
+              Instructor: request join
+            </button>
+            <button
+              type="button"
+              onClick={() => void recomputeGroupMatching(group.id)}
+              className="rounded-xl border px-3 py-2 text-xs font-bold"
+            >
+              Recompute matching
+            </button>
+            <button
+              type="button"
+              onClick={() => void submitGroupFinalAcceptance(group.id)}
+              className="rounded-xl border px-3 py-2 text-xs font-bold"
+            >
+              Accept final lesson
+            </button>
+            <button
+              type="button"
+              onClick={() => void finalizeGroupLesson(group.id)}
+              className="rounded-xl border border-primary bg-primary text-primary-foreground px-3 py-2 text-xs font-bold"
+            >
+              Finalize & fix lesson
+            </button>
+          </div>
         </div>
       </div>
     </div>

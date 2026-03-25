@@ -36,7 +36,7 @@ export async function persistSongCatalogEntry(
     { onConflict: 'song_key' },
   );
 
-  const { data: rows } = await supabase.from('song_groups').select('*');
+  const { data: rows } = await supabase.from('classes').select('*');
   const groupRows = (rows ?? []) as SongGroupRow[];
 
   const applyAwaitingPatch = (g: SongGroupRow) => {
@@ -58,7 +58,7 @@ export async function persistSongCatalogEntry(
       if (g.awaiting_song_validation) {
         const { slotList, max, creatorSlot } = applyAwaitingPatch(g);
         await supabase
-          .from('song_groups')
+          .from('classes')
           .update({
             song_title: input.songTitle,
             artist: input.artist,
@@ -73,9 +73,9 @@ export async function persistSongCatalogEntry(
         if (g.creator_id) {
           const sl = slotList.includes(g.creator_slot_label ?? '') ? g.creator_slot_label : slotList[0];
           await supabase
-            .from('group_enrollments')
+            .from('class_enrollments')
             .update({ slot_label: sl ?? g.creator_slot_label ?? '' })
-            .eq('group_id', g.id)
+            .eq('class_id', g.id)
             .eq('student_id', g.creator_id);
 
           if (!creatorIdsNotified.has(g.creator_id)) {
@@ -89,7 +89,7 @@ export async function persistSongCatalogEntry(
         }
       } else {
         await supabase
-          .from('song_groups')
+          .from('classes')
           .update({
             song_title: input.songTitle,
             artist: input.artist,
@@ -111,7 +111,7 @@ export async function persistSongCatalogEntry(
 
     const { slotList, max, creatorSlot } = applyAwaitingPatch(g);
     await supabase
-      .from('song_groups')
+      .from('classes')
       .update({
         song_title: input.songTitle,
         artist: input.artist,
@@ -126,9 +126,9 @@ export async function persistSongCatalogEntry(
     if (g.creator_id) {
       const sl = slotList.includes(g.creator_slot_label ?? '') ? g.creator_slot_label : slotList[0];
       await supabase
-        .from('group_enrollments')
+        .from('class_enrollments')
         .update({ slot_label: sl ?? g.creator_slot_label ?? '' })
-        .eq('group_id', g.id)
+        .eq('class_id', g.id)
         .eq('student_id', g.creator_id);
 
       if (!creatorIdsNotified.has(g.creator_id)) {

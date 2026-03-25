@@ -10,6 +10,9 @@ import type {
   RoleName,
   SongCatalogEntry,
   SongGroup,
+  GroupStudioSelection,
+  GroupInstructorAssignment,
+  MatchedHourSlot,
   Student,
   StudentNotification,
   StudioRoom,
@@ -73,11 +76,19 @@ export type SongGroupRow = {
   itunes_track_id: number | null;
   awaiting_song_validation: boolean;
   full_notified_at: string | null;
+  matching_state?: SongGroup['matchingState'] | null;
+  golden_at?: string | null;
+  fixed_at?: string | null;
+  required_match_hours?: number | null;
+  accepted_by_students?: unknown;
+  accepted_by_instructor?: boolean | null;
+  finalized_slot_blocks?: unknown;
+  final_payment_status?: SongGroup['finalPaymentStatus'] | null;
 };
 
 export type GroupEnrollmentRow = {
   id: string;
-  group_id: string;
+  class_id: string;
   student_id: string;
   student_name: string;
   slot_label: string;
@@ -97,6 +108,8 @@ export function mapEnrollmentRow(row: GroupEnrollmentRow): GroupMemberEnrollment
 export function mergeSongGroup(
   row: SongGroupRow,
   enrollments: GroupMemberEnrollment[],
+  studioSelection?: GroupStudioSelection,
+  instructorAssignment?: GroupInstructorAssignment,
 ): SongGroup {
   const members = enrollments.map((e) => e.studentId);
   return {
@@ -116,6 +129,18 @@ export function mergeSongGroup(
     itunesTrackId: row.itunes_track_id ?? undefined,
     awaitingSongValidation: row.awaiting_song_validation,
     fullNotifiedAt: row.full_notified_at ?? undefined,
+    matchingState: row.matching_state ?? undefined,
+    goldenAt: row.golden_at ?? undefined,
+    fixedAt: row.fixed_at ?? undefined,
+    requiredMatchHours: row.required_match_hours ?? undefined,
+    acceptedByStudents: Array.isArray(row.accepted_by_students) ? (row.accepted_by_students as string[]) : [],
+    acceptedByInstructor: row.accepted_by_instructor ?? false,
+    finalizedSlotBlocks: Array.isArray(row.finalized_slot_blocks)
+      ? (row.finalized_slot_blocks as MatchedHourSlot[])
+      : [],
+    finalPaymentStatus: row.final_payment_status ?? 'pending',
+    studioSelection,
+    instructorAssignment,
     enrollments,
     members,
   };
@@ -156,7 +181,7 @@ export function mapSongCatalogRow(row: SongCatalogRow): SongCatalogEntry {
 export type BookingRow = {
   id: string;
   student_id: string;
-  group_id: string;
+  class_id: string;
   role: RoleName;
   time_slot: unknown;
   payment_status: string;
@@ -169,7 +194,7 @@ export function mapBookingRow(row: BookingRow): Booking {
   return {
     id: row.id,
     studentId: row.student_id,
-    groupId: row.group_id,
+    groupId: row.class_id,
     role: row.role,
     timeSlot: ts,
     paymentStatus: row.payment_status as Booking['paymentStatus'],
@@ -180,21 +205,51 @@ export function mapBookingRow(row: BookingRow): Booking {
 
 export type ClassSessionRow = {
   id: string;
-  group_id: string;
+  class_id: string;
   room: StudioRoom;
-  day: string;
-  time: string;
+  day?: string | null;
+  time?: string | null;
+  start_at?: string | null;
+  end_at?: string | null;
   confirmed: boolean;
+  studio_id?: string | null;
 };
 
 export function mapClassSessionRow(row: ClassSessionRow): ClassSession {
   return {
     id: row.id,
-    groupId: row.group_id,
+    groupId: row.class_id,
     room: row.room,
-    day: row.day,
-    time: row.time,
+    day: row.day ?? undefined,
+    time: row.time ?? undefined,
+    startAt: row.start_at ?? undefined,
+    endAt: row.end_at ?? undefined,
     confirmed: row.confirmed,
+    studioId: row.studio_id ?? undefined,
+  };
+}
+
+export type StudioRow = {
+  id: string;
+  name: string;
+  is_active: boolean;
+  location: string;
+  address: string;
+  timezone: string;
+  capacity: number;
+  notes: string;
+};
+
+export function mapStudioRow(row: StudioRow) {
+  return {
+    id: row.id,
+    name: row.name,
+    isActive: row.is_active,
+    location: row.location,
+    address: row.address,
+    timezone: row.timezone,
+    capacity: row.capacity,
+    notes: row.notes,
   };
 }
 
@@ -206,7 +261,7 @@ export type CreditTransactionRow = {
   credits_delta: number;
   sgd_delta: string | number | null;
   label: string;
-  group_id: string | null;
+  class_id: string | null;
   class_type: ClassType | null;
   payment_ref: string | null;
 };
@@ -225,7 +280,7 @@ export function mapCreditTransactionRow(row: CreditTransactionRow): CreditTransa
     creditsDelta: row.credits_delta,
     sgdDelta: sgd,
     label: row.label,
-    groupId: row.group_id ?? undefined,
+    groupId: row.class_id ?? undefined,
     classType: row.class_type ?? undefined,
     paymentRef: row.payment_ref ?? undefined,
   };
@@ -235,7 +290,7 @@ export type AdminAlertRow = {
   id: string;
   kind: 'song_validation';
   message: string;
-  group_id: string;
+  class_id: string;
   song_key: string;
   created_at: string;
   dismissed_at: string | null;
@@ -247,7 +302,7 @@ export function mapAdminAlertRow(row: AdminAlertRow): AdminAlert | null {
     id: row.id,
     kind: row.kind,
     message: row.message,
-    groupId: row.group_id,
+    groupId: row.class_id,
     songKey: row.song_key,
     createdAt: row.created_at,
   };
@@ -278,7 +333,7 @@ export type StudentAvailabilityRow = {
   start_hour: number;
   end_hour: number;
   is_confirmed_class: boolean;
-  confirmed_group_id: string | null;
+  confirmed_class_id: string | null;
 };
 
 export function mapStudentAvailabilityRow(row: StudentAvailabilityRow): AvailabilitySlot {
@@ -287,6 +342,6 @@ export function mapStudentAvailabilityRow(row: StudentAvailabilityRow): Availabi
     startHour: row.start_hour,
     endHour: row.end_hour,
     isConfirmedClass: row.is_confirmed_class,
-    confirmedGroupId: row.confirmed_group_id ?? undefined,
+    confirmedGroupId: row.confirmed_class_id ?? undefined,
   };
 }

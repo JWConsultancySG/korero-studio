@@ -1,28 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/context/AppContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   CalendarDays, Clock,
-  Music, ArrowRight, Info, Check, X
+  Music, ArrowRight, Info, X, Save
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { format, addDays, startOfDay, getDay } from 'date-fns';
+import { addDays, format, getDay } from 'date-fns';
 import type { AvailabilitySlot } from '@/types';
 import ScheduleTimetable from '@/components/schedule/ScheduleTimetable';
 import type { WeeklyTemplate } from '@/components/schedule/WeeklyGrid';
 import { cn } from '@/lib/utils';
+import { hoursToBlocks, slotsToHoursForDate } from '@/lib/availability-blocks';
 
 export default function AvailabilityPage() {
   const {
     student,
     availability,
     setAvailabilityBatch,
-    clearAllAvailability,
-    toggleFreeHour,
   } = useApp();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -30,9 +29,24 @@ export default function AvailabilityPage() {
   const fromSignup = searchParams.get('fromSignup') === 'true';
   const onboardingExit = fromSignup || Boolean(returnTo);
   const [showTutorial, setShowTutorial] = useState(true);
-  const [showConfirmBanner, setShowConfirmBanner] = useState(false);
-
   const [weeklyTemplate, setWeeklyTemplate] = useState<WeeklyTemplate>({});
+  const [draftAvailability, setDraftAvailability] = useState<AvailabilitySlot[]>(availability);
+
+  useEffect(() => {
+    setDraftAvailability(availability);
+  }, [availability]);
+
+  const freeSlotsSignature = (slots: AvailabilitySlot[]) =>
+    slots
+      .filter((s) => !s.isConfirmedClass)
+      .map((s) => `${s.date}|${s.startHour}|${s.endHour}`)
+      .sort()
+      .join('||');
+
+  const hasUnsavedChanges = useMemo(
+    () => freeSlotsSignature(draftAvailability) !== freeSlotsSignature(availability),
+    [draftAvailability, availability],
+  );
 
   if (!student) {
     return (
@@ -49,58 +63,101 @@ export default function AvailabilityPage() {
     );
   }
 
-  const today = startOfDay(new Date());
-  const allDays = Array.from({ length: 30 }, (_, i) => addDays(today, i));
-
+  const today = new Date();
+  const todayKey = format(today, 'yyyy-MM-dd');
   const jsToGridDay = (jsDay: number) => jsDay === 0 ? 6 : jsDay - 1;
 
-  const applyTemplate = () => {
+  const applyRecurring = (range: 'this' | 'next' | 'next4' | 'next8', selectedWeekMonday: Date) => {
+    const weekCount = range === 'this' ? 1 : range === 'next' ? 1 : range === 'next4' ? 4 : 8;
+    const firstWeekMonday = range === 'this' ? selectedWeekMonday : addDays(selectedWeekMonday, 7);
     const slots: AvailabilitySlot[] = [];
+    const targetDateKeys = new Set<string>();
+    const existingConfirmed = draftAvailability.filter((s) => s.isConfirmedClass);
 
-    allDays.forEach(day => {
+    Array.from({ length: weekCount * 7 }, (_, i) => addDays(firstWeekMonday, i)).forEach(day => {
       const gridDay = jsToGridDay(getDay(day));
       const hours = weeklyTemplate[gridDay];
       if (!hours || hours.size === 0) return;
 
       const key = format(day, 'yyyy-MM-dd');
-      const confirmedOnDate = availability.filter(s => s.date === key && s.isConfirmedClass);
+      targetDateKeys.add(key);
+      const confirmedHours = new Set<number>();
+      for (const s of existingConfirmed) {
+        if (s.date !== key) continue;
+        for (let h = s.startHour; h < s.endHour; h++) confirmedHours.add(h);
+      }
 
-      const sortedHours = Array.from(hours).sort((a, b) => a - b);
-      let blockStart = sortedHours[0];
-      let blockEnd = sortedHours[0] + 1;
+      const filteredHours = Array.from(hours).filter((h) => !confirmedHours.has(h)).sort((a, b) => a - b);
+      if (filteredHours.length === 0) return;
 
-      for (let i = 1; i <= sortedHours.length; i++) {
-        if (i < sortedHours.length && sortedHours[i] === blockEnd) {
-          blockEnd = sortedHours[i] + 1;
+      let blockStart = filteredHours[0];
+      let blockEnd = filteredHours[0] + 1;
+      for (let i = 1; i <= filteredHours.length; i++) {
+        if (i < filteredHours.length && filteredHours[i] === blockEnd) {
+          blockEnd = filteredHours[i] + 1;
         } else {
-          const overlapsConfirmed = confirmedOnDate.some(c =>
-            blockStart < c.endHour && blockEnd > c.startHour
-          );
-          if (!overlapsConfirmed) {
-            slots.push({ date: key, startHour: blockStart, endHour: blockEnd });
-          }
-          if (i < sortedHours.length) {
-            blockStart = sortedHours[i];
-            blockEnd = sortedHours[i] + 1;
+          slots.push({ date: key, startHour: blockStart, endHour: blockEnd });
+          if (i < filteredHours.length) {
+            blockStart = filteredHours[i];
+            blockEnd = filteredHours[i] + 1;
           }
         }
       }
     });
 
-    setAvailabilityBatch(slots);
-
-    if (onboardingExit) {
-      toast.success('Pattern applied — add more free hours or tap Continue below when you are ready.');
-    } else {
-      setShowConfirmBanner(true);
-      toast.success('Pattern applied to the next 30 days.');
-    }
+    setDraftAvailability(prev => {
+      const confirmed = prev.filter((s) => s.isConfirmedClass);
+      const untouchedFree = prev.filter((s) => !s.isConfirmedClass && !targetDateKeys.has(s.date));
+      return [...confirmed, ...untouchedFree, ...slots];
+    });
+    toast.success('Recurring pattern updated in draft. Press Save changes when you are ready.');
   };
 
-  const freeSlotCount = availability.filter((s) => !s.isConfirmedClass).length;
+  const toggleDraftFreeHour = (dateKey: string, hour: number) => {
+    setDraftAvailability((prev) => {
+      const current = slotsToHoursForDate(prev, dateKey);
+      const next = new Set(current);
+      if (next.has(hour)) next.delete(hour);
+      else next.add(hour);
+      const confirmedHours = new Set<number>();
+      for (const s of prev) {
+        if (!s.isConfirmedClass || s.date !== dateKey) continue;
+        for (let h = s.startHour; h < s.endHour; h++) confirmedHours.add(h);
+      }
+      for (const h of confirmedHours) next.delete(h);
+      const blocks = hoursToBlocks(next);
+      const confirmed = prev.filter((s) => s.isConfirmedClass);
+      const rest = prev.filter((s) => !s.isConfirmedClass && s.date !== dateKey);
+      const nextSlots: AvailabilitySlot[] = blocks.map((b) => ({
+        date: dateKey,
+        startHour: b.startHour,
+        endHour: b.endHour,
+      }));
+      return [...confirmed, ...rest, ...nextSlots];
+    });
+  };
+
+  const clearDraftAvailability = () => {
+    setDraftAvailability((prev) =>
+      prev.filter((s) => s.isConfirmedClass || s.date < todayKey),
+    );
+    toast.success('Future draft availability cleared');
+  };
+
+  const saveChanges = () => {
+    const freeSlots = draftAvailability.filter((s) => !s.isConfirmedClass);
+    setAvailabilityBatch(freeSlots);
+    toast.success('Schedule changes saved');
+  };
+
+  const freeSlotCount = draftAvailability.filter((s) => !s.isConfirmedClass).length;
   const canProceedOnboarding = freeSlotCount > 0;
 
   const navigateAfterSchedule = () => {
+    if (hasUnsavedChanges) {
+      toast.error('Save changes first so your latest schedule is stored.');
+      return;
+    }
     if (!canProceedOnboarding) {
       toast.error('Add at least one free hour so we can match you with classes and groups.');
       return;
@@ -112,16 +169,13 @@ export default function AvailabilityPage() {
     }
     if (fromSignup) {
       toast.success("Schedule saved — let's find your song.", { duration: 2000 });
-      setTimeout(() => router.push('/groups'), 400);
+      setTimeout(() => router.push('/browse'), 400);
     }
   };
 
   const totalSlots = freeSlotCount;
-  const totalConfirmed = availability.filter(s => s.isConfirmedClass).length;
-  const hasExistingSlots = totalSlots > 0;
-
-  const daysWithSlots = new Set(availability.filter(s => !s.isConfirmedClass).map(s => s.date)).size;
-
+  const totalConfirmed = draftAvailability.filter(s => s.isConfirmedClass).length;
+  const daysWithSlots = new Set(draftAvailability.filter(s => !s.isConfirmedClass).map(s => s.date)).size;
   return (
     <div
       className={cn(
@@ -129,32 +183,36 @@ export default function AvailabilityPage() {
         onboardingExit ? 'pb-48 md:pb-40' : 'pb-28',
       )}
     >
-      <div className="gradient-purple-subtle px-6 pt-7 pb-5 md:pt-10 md:pb-8">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="content-max">
-          <h1 className="text-2xl md:text-3xl font-black mb-1 text-foreground tracking-tight flex items-center gap-2">
+      <div className="gradient-purple-subtle">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="content-max pt-5 pb-3 md:pt-10 md:pb-8"
+        >
+          <h1 className="text-xl md:text-3xl font-black mb-1 text-foreground tracking-tight flex items-center gap-2">
             My Schedule <CalendarDays className="w-5 h-5 md:w-6 md:h-6 text-primary shrink-0" />
           </h1>
-          <p className="text-sm md:text-base text-muted-foreground leading-relaxed max-w-3xl">
+          <p className="text-xs md:text-base text-muted-foreground leading-relaxed max-w-3xl">
             {fromSignup ? (
               <>
                 <span className="font-bold text-foreground">Almost there — </span>
-                mark when you&apos;re free (at least one hour) so we can match you with song groups and classes. Use a
-                recurring week, apply to 30 days, or paint a specific week.
+                mark at least one free hour so we can match you into classes and song groups. Edit any week directly, then
+                save when you are done.
               </>
             ) : (
               <>
-                One timetable: set a recurring week, apply it to the next 30 days, or switch to a specific week and paint
-                your free hours directly. Studio class times are assigned by the admin — students only share availability here.
+                Paint free hours on any week, jump with the date picker, and optionally apply your recurring week from the
+                popup. Changes stay in draft until you press Save changes. Studio class times are assigned by the admin.
               </>
             )}
           </p>
-          <div className="flex items-center gap-2.5 mt-4 flex-wrap">
-            <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-card border border-border text-xs font-bold text-foreground min-h-[36px]">
+          <div className="flex items-center gap-2 mt-3 flex-wrap">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border text-[11px] md:text-xs font-bold text-foreground min-h-[32px] md:min-h-[36px]">
               <Clock className="w-3 h-3 text-primary" />
               {totalSlots} free slot{totalSlots !== 1 ? 's' : ''} across {daysWithSlots} day{daysWithSlots !== 1 ? 's' : ''}
             </div>
             {totalConfirmed > 0 && (
-              <div className="flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-card border border-border text-xs font-bold text-foreground min-h-[36px]">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-card border border-border text-[11px] md:text-xs font-bold text-foreground min-h-[32px] md:min-h-[36px]">
                 <Music className="w-3 h-3 text-primary" />
                 {totalConfirmed} class{totalConfirmed !== 1 ? 'es' : ''} (studio)
               </div>
@@ -183,45 +241,12 @@ export default function AvailabilityPage() {
                     <Info className="w-4 h-4 text-primary-foreground" />
                   </div>
                   <div className="pr-6">
-                    <p className="text-xs font-black text-foreground mb-1.5">Drag on the grid</p>
+                    <p className="text-xs font-black text-foreground mb-1.5">How to use this page</p>
                     <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      <span className="font-bold text-foreground">Recurring week</span> defines your usual pattern — use
-                      &quot;Apply to next 30 days&quot; to copy it forward.{' '}
-                      <span className="font-bold text-foreground">Specific week</span> edits one calendar week inside the
-                      30-day window (tap arrows to change week).
+                      Drag across the grid to add or remove free hours. Use the date picker to jump to any week.
+                      Press{' '}
+                      <span className="font-bold text-foreground">Save changes</span> to sync everything to your schedule.
                     </p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {showConfirmBanner && !onboardingExit && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-            >
-              <div className="card-premium p-4 border-primary/30 bg-accent">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-xl gradient-purple flex items-center justify-center flex-shrink-0">
-                    <Check className="w-4 h-4 text-primary-foreground" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-xs font-black text-foreground mb-1">Pattern applied</p>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed mb-3">
-                      Continue editing or dismiss this note.
-                    </p>
-                    <Button
-                      onClick={() => setShowConfirmBanner(false)}
-                      variant="outline"
-                      size="sm"
-                      className="rounded-2xl font-bold btn-press h-9 px-3 text-xs border-border"
-                    >
-                      Dismiss
-                    </Button>
                   </div>
                 </div>
               </div>
@@ -232,17 +257,30 @@ export default function AvailabilityPage() {
         <ScheduleTimetable
           weeklyTemplate={weeklyTemplate}
           onTemplateChange={setWeeklyTemplate}
-          onApplyPatternTo30Days={applyTemplate}
-          onClearPatternAndAvailability={() => {
-            setWeeklyTemplate({});
-            clearAllAvailability();
-            toast.success('Pattern and availability cleared');
-          }}
-          hasExistingSlots={hasExistingSlots}
-          availability={availability}
-          toggleFreeHour={toggleFreeHour}
+          onApplyRecurring={applyRecurring}
+          onClearAllAvailability={clearDraftAvailability}
+          availability={draftAvailability}
+          toggleFreeHour={toggleDraftFreeHour}
           today={today}
         />
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 card-premium p-4">
+          <p className="text-xs text-muted-foreground">
+            {hasUnsavedChanges
+              ? 'Draft changes are ready. Press Save changes to update your schedule.'
+              : 'All changes are saved.'}
+          </p>
+          {hasUnsavedChanges && (
+            <Button
+              type="button"
+              onClick={saveChanges}
+              className="rounded-2xl gradient-purple text-primary-foreground font-bold btn-press h-11 px-5"
+            >
+              <Save className="w-4 h-4 mr-1.5" />
+              Save changes
+            </Button>
+          )}
+        </div>
       </div>
 
       {onboardingExit && (
@@ -262,7 +300,7 @@ export default function AvailabilityPage() {
             </div>
             <Button
               type="button"
-              disabled={!canProceedOnboarding}
+              disabled={!canProceedOnboarding || hasUnsavedChanges}
               onClick={navigateAfterSchedule}
               className="rounded-2xl font-black gradient-purple text-primary-foreground btn-press h-12 px-8 shrink-0 w-full sm:w-auto disabled:opacity-50"
             >

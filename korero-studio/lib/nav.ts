@@ -15,7 +15,7 @@ import {
 
 export const MAIN_NAV_ITEMS: { href: string; icon: LucideIcon; label: string }[] = [
   { href: "/", icon: Home, label: "Home" },
-  { href: "/groups", icon: Music, label: "Groups" },
+  { href: "/browse", icon: Music, label: "Browse" },
   { href: "/schedule", icon: CalendarDays, label: "Schedule" },
   { href: "/my-classes", icon: BookOpen, label: "Classes" },
   { href: "/profile", icon: User, label: "Profile" },
@@ -81,6 +81,7 @@ export function shouldShowAppNav(pathname: string, opts: NavGateOpts): boolean {
 export function isMainNavHidden(pathname: string): boolean {
   return (
     pathname === "/groups/new" ||
+    pathname === "/browse/new" ||
     pathname.startsWith("/booking") ||
     pathname === "/register" ||
     pathname === "/login" ||

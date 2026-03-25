@@ -1,37 +1,33 @@
 import type { AvailabilitySlot, GroupMemberEnrollment } from "@/types";
+import { addDays, format, startOfDay } from "date-fns";
 
-const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
-
-/** Full weekday names (Monday = index 0), aligned with grid day index. */
-export const WEEKDAY_FULL_NAMES = [
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-] as const;
+/** Retained for legacy UI labels; scheduling logic is date-time based. */
+export const WEEKDAY_FULL_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] as const;
 
 /** Same hour range as My Schedule (8:00–22:00). */
 export const SCHEDULE_GRID_HOURS = Array.from({ length: 15 }, (_, i) => i + 8);
 
-/** JS getDay() Mon=1..Sun=0 → grid index Mon=0..Sun=6 */
-export function dateToGridDayIndex(isoDate: string): number {
-  const d = new Date(`${isoDate}T12:00:00`);
-  const js = d.getDay();
-  return js === 0 ? 6 : js - 1;
+/** Keys like "2026-03-24-18" for one date-time hour block. */
+export function expandSlotsToDateHourKeys(slots: AvailabilitySlot[]): Set<string> {
+  const keys = new Set<string>();
+  for (const s of slots) {
+    if (s.isConfirmedClass) continue;
+    for (let h = s.startHour; h < s.endHour; h++) {
+      keys.add(`${s.date}-${h}`);
+    }
+  }
+  return keys;
 }
 
-/** Keys like "3-18" for Wed 6pm — one hour block */
+/** Backward-compatible helper; now derived from date-time keys. */
 export function expandSlotsToWeekdayHourKeys(slots: AvailabilitySlot[]): Set<string> {
   const keys = new Set<string>();
   for (const s of slots) {
     if (s.isConfirmedClass) continue;
-    const dayIdx = dateToGridDayIndex(s.date);
-    for (let h = s.startHour; h < s.endHour; h++) {
-      keys.add(`${dayIdx}-${h}`);
-    }
+    const d = new Date(`${s.date}T12:00:00`);
+    const js = d.getDay();
+    const dayIdx = js === 0 ? 6 : js - 1;
+    for (let h = s.startHour; h < s.endHour; h++) keys.add(`${dayIdx}-${h}`);
   }
   return keys;
 }
@@ -41,25 +37,31 @@ export type OverlapCell = {
   memberIds: string[];
 };
 
-/** For each weekday + hour, how many distinct members are free (union of their slots). */
+/** For each date + hour in window, how many distinct members are free. */
 export function buildOverlapGrid(
   members: { studentId: string; slots: AvailabilitySlot[] }[],
   hours: readonly number[],
-): { dayIndex: number; dayLabel: string; hour: number; count: number; memberIds: string[] }[] {
-  const cells: { dayIndex: number; dayLabel: string; hour: number; count: number; memberIds: string[] }[] = [];
+  opts?: { startDate?: Date; days?: number },
+): { dateKey: string; dateLabel: string; hour: number; count: number; memberIds: string[] }[] {
+  const cells: { dateKey: string; dateLabel: string; hour: number; count: number; memberIds: string[] }[] = [];
+  const base = startOfDay(opts?.startDate ?? new Date());
+  const days = opts?.days ?? 30;
 
-  for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+  for (let offset = 0; offset < days; offset++) {
+    const d = addDays(base, offset);
+    const dateKey = format(d, "yyyy-MM-dd");
+    const dateLabel = format(d, "EEE, MMM d");
     for (const hour of hours) {
       const memberIds: string[] = [];
       for (const m of members) {
-        const keys = expandSlotsToWeekdayHourKeys(m.slots);
-        if (keys.has(`${dayIdx}-${hour}`)) {
+        const keys = expandSlotsToDateHourKeys(m.slots);
+        if (keys.has(`${dateKey}-${hour}`)) {
           memberIds.push(m.studentId);
         }
       }
       cells.push({
-        dayIndex: dayIdx,
-        dayLabel: DAYS[dayIdx],
+        dateKey,
+        dateLabel,
         hour,
         count: memberIds.length,
         memberIds,
@@ -72,19 +74,10 @@ export function buildOverlapGrid(
 export function maxOverlapCount(
   members: { studentId: string; slots: AvailabilitySlot[] }[],
   hours: readonly number[],
+  opts?: { startDate?: Date; days?: number },
 ): number {
-  let max = 0;
-  for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
-    for (const hour of hours) {
-      let c = 0;
-      for (const m of members) {
-        const keys = expandSlotsToWeekdayHourKeys(m.slots);
-        if (keys.has(`${dayIdx}-${hour}`)) c++;
-      }
-      if (c > max) max = c;
-    }
-  }
-  return max;
+  const grid = buildOverlapGrid(members, hours, opts);
+  return grid.reduce((acc, c) => Math.max(acc, c.count), 0);
 }
 
 const HOURS_DEFAULT = SCHEDULE_GRID_HOURS;
@@ -101,24 +94,23 @@ export function rankOverlapSlots(
   members: { studentId: string; slots: AvailabilitySlot[] }[],
   hours: readonly number[] = HOURS_DEFAULT,
   limit = 24,
+  opts?: { startDate?: Date; days?: number },
 ): {
-  dayIndex: number;
-  dayLabelShort: string;
-  dayLabelFull: string;
+  dateKey: string;
+  dateLabel: string;
   hour: number;
   timeLabel: string;
   count: number;
   memberIds: string[];
 }[] {
-  const grid = buildOverlapGrid(members, hours);
+  const grid = buildOverlapGrid(members, hours, opts);
   return grid
     .filter((c) => c.count > 0)
-    .sort((a, b) => b.count - a.count || a.dayIndex - b.dayIndex || a.hour - b.hour)
+    .sort((a, b) => b.count - a.count || a.dateKey.localeCompare(b.dateKey) || a.hour - b.hour)
     .slice(0, limit)
     .map((c) => ({
-      dayIndex: c.dayIndex,
-      dayLabelShort: c.dayLabel,
-      dayLabelFull: WEEKDAY_FULL_NAMES[c.dayIndex],
+      dateKey: c.dateKey,
+      dateLabel: c.dateLabel,
       hour: c.hour,
       timeLabel: formatOverlapHourLabel(c.hour),
       count: c.count,
@@ -130,24 +122,25 @@ export function rankOverlapSlots(
 export function countFullConsensusCells(
   members: { studentId: string; slots: AvailabilitySlot[] }[],
   hours: readonly number[] = HOURS_DEFAULT,
+  opts?: { startDate?: Date; days?: number },
 ): number {
   const n = members.length;
   if (n === 0) return 0;
-  const grid = buildOverlapGrid(members, hours);
+  const grid = buildOverlapGrid(members, hours, opts);
   return grid.filter((c) => c.count === n).length;
 }
 
-/** Who is free vs not at a specific weekday index + hour. */
+/** Who is free vs not at a specific date + hour. */
 export function splitMembersAtCell(
   enrollments: GroupMemberEnrollment[],
-  dayIdx: number,
+  dateKey: string,
   hour: number,
 ): { free: GroupMemberEnrollment[]; notFree: GroupMemberEnrollment[] } {
   const free: GroupMemberEnrollment[] = [];
   const notFree: GroupMemberEnrollment[] = [];
   for (const e of enrollments) {
-    const keys = expandSlotsToWeekdayHourKeys(e.availabilitySlots);
-    if (keys.has(`${dayIdx}-${hour}`)) free.push(e);
+    const keys = expandSlotsToDateHourKeys(e.availabilitySlots);
+    if (keys.has(`${dateKey}-${hour}`)) free.push(e);
     else notFree.push(e);
   }
   return { free, notFree };
@@ -182,10 +175,10 @@ export function getMajorityOverlapSuggestion(
   }
   if (best.count < 2) return null;
   const studentFree = best.memberIds.includes(studentId);
-  const label = `${best.dayLabel} ${formatHourLabel(best.hour)}`;
+  const label = `${best.dateLabel} ${formatHourLabel(best.hour)}`;
   return {
     label,
-    dayLabel: best.dayLabel,
+    dayLabel: best.dateLabel,
     hour: best.hour,
     count: best.count,
     memberTotal: enrollments.length,

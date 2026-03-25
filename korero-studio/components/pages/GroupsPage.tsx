@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
+import DateTimeOverlapView from '@/components/groups/DateTimeOverlapView';
 import { Plus, Users, Music, Search, Sparkles, TrendingUp, Zap, Lock, CircleDot, ArrowRight } from 'lucide-react';
 
 // iTunes Search has no CORS for browsers and can redirect to musics:// — use same-origin API route.
@@ -26,11 +27,15 @@ const fetchArtwork = async (songTitle: string, artist: string): Promise<string |
 };
 
 export default function GroupsPage() {
-  const { groups, student, joinGroup } = useApp();
+  const { groups, student, joinGroup, requestInstructorForGroup, chooseStudioForGroup, studios } = useApp();
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [artworkMap, setArtworkMap] = useState<Record<string, string>>({});
   const artworkAttemptedRef = useRef<Set<string>>(new Set());
+  const [joinTarget, setJoinTarget] = useState<(typeof groups)[number] | null>(null);
+  const [selectedJoinSlot, setSelectedJoinSlot] = useState<string | null>(null);
+  const [selectedStudioId, setSelectedStudioId] = useState<string | null>(null);
+  const [joining, setJoining] = useState(false);
 
   // Fetch artwork for groups without images (sequential + small delay to avoid iTunes rate limits)
   useEffect(() => {
@@ -58,16 +63,67 @@ export default function GroupsPage() {
     };
   }, [groups]);
 
+  const isInstructor = student?.appRole === 'instructor';
+
   const handleJoin = async (groupId: string) => {
     if (!student) { router.push('/register'); return; }
-    await joinGroup(groupId);
-    router.push(`/groups/${groupId}`);
+    const group = groups.find((g) => g.id === groupId);
+    const alreadyJoined = Boolean(group?.members?.includes(student.id));
+    if (alreadyJoined) {
+      router.push(`/browse/${groupId}`);
+      return;
+    }
+    if (isInstructor) {
+      if (!group) return;
+      setSelectedStudioId(group.studioSelection?.studioId ?? studios[0]?.id ?? null);
+      setJoinTarget(group);
+      return;
+    }
+    if (!group) return;
+    const slotOptions = group.slotLabels?.length ? group.slotLabels : ['Member'];
+    const enrollments = group.enrollments ?? [];
+    const firstOpen = slotOptions.find((slot) => !enrollments.some((e) => e.slotLabel === slot));
+    setSelectedJoinSlot(firstOpen ?? slotOptions[0] ?? null);
+    setJoinTarget(group);
   };
 
-  const joinableGroups = groups.filter(
-    g => g.status === 'forming' && g.interestCount < g.maxMembers && !g.awaitingSongValidation,
-  );
-  const fullGroups = groups.filter(g => g.status === 'confirmed' || g.interestCount >= g.maxMembers);
+  const handleConfirmJoin = async () => {
+    if (!joinTarget || !student || joining) return;
+    const modalInstructorAssignment = joinTarget.instructorAssignment;
+    const modalIsMyInstructorAssignment = Boolean(
+      isInstructor && student && modalInstructorAssignment?.instructorId === student.id,
+    );
+    setJoining(true);
+    try {
+      if (isInstructor) {
+        if (modalIsMyInstructorAssignment) {
+          setJoinTarget(null);
+          router.push(`/browse/${joinTarget.id}`);
+          return;
+        }
+        if (selectedStudioId) {
+          await chooseStudioForGroup(joinTarget.id, selectedStudioId);
+        }
+        await requestInstructorForGroup(joinTarget.id);
+      } else {
+        await joinGroup(joinTarget.id, selectedJoinSlot ?? 'Member');
+      }
+      setJoinTarget(null);
+      router.push(`/browse/${joinTarget.id}`);
+    } finally {
+      setJoining(false);
+    }
+  };
+
+  const joinableGroups = groups.filter((g) => {
+    if (g.awaitingSongValidation) return false;
+    if (isInstructor) return g.status === 'forming';
+    return g.status === 'forming' && g.interestCount < g.maxMembers;
+  });
+  const fullGroups = groups.filter((g) => {
+    if (isInstructor) return g.status === 'confirmed';
+    return g.status === 'confirmed' || g.interestCount >= g.maxMembers;
+  });
 
   const filteredJoinable = search
     ? joinableGroups.filter(g => g.songTitle.toLowerCase().includes(search.toLowerCase()) || g.artist.toLowerCase().includes(search.toLowerCase()))
@@ -93,7 +149,7 @@ export default function GroupsPage() {
       router.push('/register');
       return;
     }
-    router.push('/groups/new');
+    router.push('/browse/new');
   };
 
   const hasAnyGroups = joinableGroups.length + fullGroups.length > 0;
@@ -135,22 +191,8 @@ export default function GroupsPage() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="pl-11 h-12 rounded-2xl bg-card border-border text-sm"
-              aria-describedby="groups-request-song-hint"
             />
           </div>
-          <p id="groups-request-song-hint" className="mt-2 text-xs text-muted-foreground leading-relaxed">
-            <span className="font-semibold text-foreground/90">Don&apos;t see your track?</span>{' '}
-            Use{' '}
-            <button
-              type="button"
-              onClick={openRequestSong}
-              className="font-bold text-primary underline-offset-2 hover:underline btn-press"
-            >
-              Request a Song
-            </button>{' '}
-            to create a new song group — others can join when they&apos;re ready.
-          </p>
-
           <div className="mt-5 rounded-2xl border border-primary/25 bg-gradient-to-br from-primary/[0.07] to-accent/40 p-4 md:p-5 flex flex-col tablet:flex-row tablet:items-center tablet:justify-between gap-4">
             <div className="flex gap-3 min-w-0">
               <div className="w-11 h-11 rounded-2xl gradient-purple flex items-center justify-center shrink-0">
@@ -195,6 +237,11 @@ export default function GroupsPage() {
                     const BadgeIcon = badge.icon;
                     const spotsLeft = group.maxMembers - group.interestCount;
                     const artwork = getArtwork(group);
+                    const alreadyJoined = Boolean(student && group.members.includes(student.id));
+                    const instructorAssignment = group.instructorAssignment;
+                    const myInstructorAssignment = Boolean(student && instructorAssignment?.instructorId === student.id);
+                    const instructorTakenByOther =
+                      Boolean(instructorAssignment?.status === 'confirmed' && instructorAssignment.instructorId !== student?.id);
 
                     return (
                       <motion.div
@@ -279,26 +326,52 @@ export default function GroupsPage() {
 
                         <motion.div className="mt-3 space-y-2">
                           <Link
-                            href={`/groups/${group.id}`}
+                            href={`/browse/${group.id}`}
                             className="block text-center text-xs font-bold text-primary py-1.5 hover:underline"
                           >
-                            View group status & overlap →
+                            View group status & class availability →
                           </Link>
-                          <Button
-                            onClick={() => handleJoin(group.id)}
-                            className={`w-full rounded-2xl font-black text-sm btn-press h-11 relative overflow-hidden gradient-purple text-primary-foreground ${
-                              isAlmostFull ? 'shadow-[0_4px_15px_-3px_hsl(var(--primary)/0.4)]' : ''
-                            }`}
-                          >
-                            <span className="relative z-10 flex items-center gap-2">
-                              {isAlmostFull ? (
-                                <>Grab Last Spot <Zap className="w-4 h-4" /></>
-                              ) : (
-                                <>Join This Group <Sparkles className="w-4 h-4" /></>
-                              )}
-                            </span>
-                            {isAlmostFull && <div className="absolute inset-0 shimmer" />}
-                          </Button>
+                          {alreadyJoined ? (
+                            <Button
+                              disabled
+                              className="w-full rounded-2xl font-black text-sm h-11 bg-muted text-muted-foreground cursor-not-allowed"
+                            >
+                              Joined
+                            </Button>
+                          ) : isInstructor ? (
+                            <Button
+                              onClick={() => handleJoin(group.id)}
+                              disabled={instructorTakenByOther}
+                              className={`w-full rounded-2xl font-black text-sm btn-press h-11 relative overflow-hidden gradient-purple text-primary-foreground ${
+                                isAlmostFull ? 'shadow-[0_4px_15px_-3px_hsl(var(--primary)/0.4)]' : ''
+                              }`}
+                            >
+                              <span className="relative z-10 flex items-center gap-2">
+                                {instructorTakenByOther
+                                  ? 'Instructor slot filled'
+                                  : myInstructorAssignment
+                                  ? 'View instructor setup'
+                                  : 'Join as Instructor'}
+                              </span>
+                              {!instructorTakenByOther && <div className="absolute inset-0 shimmer" />}
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={() => handleJoin(group.id)}
+                              className={`w-full rounded-2xl font-black text-sm btn-press h-11 relative overflow-hidden gradient-purple text-primary-foreground ${
+                                isAlmostFull ? 'shadow-[0_4px_15px_-3px_hsl(var(--primary)/0.4)]' : ''
+                              }`}
+                            >
+                              <span className="relative z-10 flex items-center gap-2">
+                                {isAlmostFull ? (
+                                  <>Grab Last Spot <Zap className="w-4 h-4" /></>
+                                ) : (
+                                  <>Join This Group <Sparkles className="w-4 h-4" /></>
+                                )}
+                              </span>
+                              {isAlmostFull && <div className="absolute inset-0 shimmer" />}
+                            </Button>
+                          )}
                         </motion.div>
 
                         {/* Next class note for full groups */}
@@ -373,6 +446,11 @@ export default function GroupsPage() {
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 md:gap-4">
               {filteredFull.map((group, i) => {
                 const artwork = getArtwork(group);
+                const alreadyJoined = Boolean(student && group.members.includes(student.id));
+                const instructorAssignment = group.instructorAssignment;
+                const myInstructorAssignment = Boolean(student && instructorAssignment?.instructorId === student.id);
+                const instructorTakenByOther =
+                  Boolean(instructorAssignment?.status === 'confirmed' && instructorAssignment.instructorId !== student?.id);
                 return (
                   <motion.div
                     key={group.id}
@@ -399,13 +477,36 @@ export default function GroupsPage() {
                         </Badge>
                       </div>
                     </div>
-                    <Button
-                      onClick={() => handleJoin(group.id)}
-                      variant="outline"
-                      className="w-full mt-3 rounded-2xl font-bold text-xs h-9 border-primary/20 text-primary hover:bg-primary/5"
-                    >
-                      Join Waitlist for Next Class <ArrowRight className="w-3 h-3 ml-1" />
-                    </Button>
+                    {alreadyJoined ? (
+                      <Button
+                        disabled
+                        variant="outline"
+                        className="w-full mt-3 rounded-2xl font-bold text-xs h-9 border-border text-muted-foreground cursor-not-allowed"
+                      >
+                        Joined
+                      </Button>
+                    ) : isInstructor ? (
+                      <Button
+                        onClick={() => handleJoin(group.id)}
+                        disabled={instructorTakenByOther}
+                        variant="outline"
+                        className="w-full mt-3 rounded-2xl font-bold text-xs h-9 border-primary/20 text-primary hover:bg-primary/5"
+                      >
+                        {instructorTakenByOther
+                          ? "Instructor slot filled"
+                          : myInstructorAssignment
+                          ? "View instructor setup"
+                          : "Join as Instructor"}
+                      </Button>
+                    ) : (
+                      <Button
+                        onClick={() => handleJoin(group.id)}
+                        variant="outline"
+                        className="w-full mt-3 rounded-2xl font-bold text-xs h-9 border-primary/20 text-primary hover:bg-primary/5"
+                      >
+                        Join Waitlist for Next Class <ArrowRight className="w-3 h-3 ml-1" />
+                      </Button>
+                    )}
                   </motion.div>
                 );
               })}
@@ -426,6 +527,173 @@ export default function GroupsPage() {
       >
         <Plus className="w-6 h-6 text-primary-foreground" />
       </motion.button>
+
+      {joinTarget && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center">
+          <div className="w-full md:max-w-3xl bg-background border border-border rounded-t-3xl md:rounded-3xl p-5 md:p-6 max-h-[88vh] overflow-y-auto">
+            {(() => {
+              const modalInstructorAssignment = joinTarget.instructorAssignment;
+              const modalIsMyInstructorAssignment = Boolean(
+                isInstructor && student && modalInstructorAssignment?.instructorId === student.id,
+              );
+              const modalInstructorTakenByOther = Boolean(
+                isInstructor &&
+                modalInstructorAssignment?.status === 'confirmed' &&
+                modalInstructorAssignment.instructorId !== student?.id,
+              );
+              const modalCanSubmitInstructorJoin = !modalIsMyInstructorAssignment && !modalInstructorTakenByOther;
+
+              return (
+                <>
+            <div className="flex items-start justify-between gap-4 mb-4">
+              <div>
+                <h3 className="text-lg md:text-xl font-black text-foreground">
+                  {isInstructor ? "Instructor setup" : "Confirm your join"}
+                </h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {isInstructor
+                    ? "Review class overlap and confirm your studio before requesting the instructor slot."
+                    : "View overlap first, then pick your position before joining this class."}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                className="rounded-xl"
+                onClick={() => setJoinTarget(null)}
+                disabled={joining}
+              >
+                Close
+              </Button>
+            </div>
+
+            {isInstructor && modalIsMyInstructorAssignment && (
+              <div className="mb-4 rounded-2xl border border-primary/30 bg-primary/10 p-3">
+                <p className="text-sm font-bold text-foreground">
+                  You already requested this instructor slot ({modalInstructorAssignment?.status ?? "pending"}).
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Next step: admin confirms assignment in Admin panel. You can still review schedule details now.
+                </p>
+              </div>
+            )}
+
+            {isInstructor && modalInstructorTakenByOther && (
+              <div className="mb-4 rounded-2xl border border-border bg-muted/40 p-3">
+                <p className="text-sm font-bold text-foreground">Instructor slot is already confirmed for this class.</p>
+              </div>
+            )}
+
+            <div className="rounded-2xl border border-border p-4 mb-5">
+              <p className="text-sm font-black text-foreground">{joinTarget.songTitle}</p>
+              <p className="text-xs text-muted-foreground">{joinTarget.artist}</p>
+            </div>
+
+            <div className="mb-5">
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground mb-2">
+                Class availability
+              </p>
+              <DateTimeOverlapView enrollments={joinTarget.enrollments ?? []} />
+            </div>
+
+            {isInstructor ? (
+              <div className="mb-6">
+                <p className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground mb-2">
+                  Confirm studio
+                </p>
+                {studios.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No studios configured yet. Ask admin to add one.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {studios.map((studio) => {
+                      const selected = selectedStudioId === studio.id;
+                      return (
+                        <button
+                          key={studio.id}
+                          type="button"
+                          onClick={() => setSelectedStudioId(studio.id)}
+                          className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                            selected
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-card text-foreground border-border hover:border-primary/40'
+                          }`}
+                        >
+                          {studio.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="mb-6">
+                <p className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground mb-2">
+                  Choose your position
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {(joinTarget.slotLabels?.length ? joinTarget.slotLabels : ['Member']).map((slot) => {
+                    const taken = (joinTarget.enrollments ?? []).some((e) => e.slotLabel === slot);
+                    const isSelected = selectedJoinSlot === slot;
+                    return (
+                      <button
+                        key={slot}
+                        type="button"
+                        disabled={taken}
+                        onClick={() => setSelectedJoinSlot(slot)}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
+                          taken
+                            ? 'bg-muted text-muted-foreground border-border opacity-60 cursor-not-allowed'
+                            : isSelected
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-card text-foreground border-border hover:border-primary/40'
+                        }`}
+                      >
+                        {slot} {taken ? '· taken' : '· open'}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 rounded-2xl"
+                onClick={() => setJoinTarget(null)}
+                disabled={joining}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="flex-1 rounded-2xl gradient-purple text-primary-foreground font-black"
+                onClick={handleConfirmJoin}
+                disabled={
+                  joining ||
+                  (!isInstructor && !selectedJoinSlot) ||
+                  (isInstructor && !modalCanSubmitInstructorJoin) ||
+                  (isInstructor && studios.length > 0 && !selectedStudioId)
+                }
+              >
+                {joining
+                  ? 'Joining...'
+                  : isInstructor
+                  ? modalIsMyInstructorAssignment
+                    ? 'Already requested'
+                    : modalInstructorTakenByOther
+                    ? 'Instructor slot filled'
+                    : 'Confirm instructor join'
+                  : 'Join class'}
+              </Button>
+            </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
     </div>
   );

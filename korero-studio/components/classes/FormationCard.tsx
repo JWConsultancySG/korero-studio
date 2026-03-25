@@ -6,10 +6,9 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { SongGroup } from "@/types";
-import ScheduleOverlapView from "@/components/groups/ScheduleOverlapView";
 import { getMajorityOverlapSuggestion } from "@/lib/schedule-overlap";
 import { CLASS_LABELS } from "@/lib/credits";
-import { Users, CalendarDays, ArrowRight, Lightbulb } from "lucide-react";
+import { Users, ArrowRight, Lightbulb } from "lucide-react";
 
 type Props = {
   group: SongGroup;
@@ -60,20 +59,12 @@ export default function FormationCard({ group, studentId, variant = "joined" }: 
         </p>
       </div>
 
-      <div>
-        <h3 className="text-sm font-black text-foreground mb-2 flex items-center gap-2">
-          <CalendarDays className="w-4 h-4 text-primary" />
-          Member availability overlap
-        </h3>
-        <ScheduleOverlapView enrollments={enrollments} maxMembers={group.maxMembers} />
-      </div>
-
       {suggestion && !suggestion.studentFree && (
         <div className="rounded-2xl border border-amber-500/35 bg-amber-500/10 px-4 py-3 space-y-2">
           <div className="flex items-start gap-2">
             <Lightbulb className="w-4 h-4 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
             <div className="space-y-1 min-w-0">
-              <p className="text-xs font-black text-foreground">Majority overlap</p>
+              <p className="text-xs font-black text-foreground">Class availability (majority)</p>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
                 The strongest shared slot so far is <span className="font-bold text-foreground">{suggestion.label}</span>{" "}
                 ({suggestion.count}/{suggestion.memberTotal} members free). If you add that window to{" "}
@@ -92,13 +83,13 @@ export default function FormationCard({ group, studentId, variant = "joined" }: 
 
       {suggestion?.studentFree && (
         <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
-          You&apos;re already free at the group&apos;s strongest overlap ({suggestion.label}). Nice — that helps
+          You&apos;re already free at the group&apos;s strongest class-availability window ({suggestion.label}). Nice — that helps
           formation.
         </p>
       )}
 
       <Button asChild variant="outline" className="w-full rounded-2xl font-bold">
-        <Link href={`/groups/${group.id}`}>
+        <Link href={`/browse/${group.id}`}>
           {variant === "created" ? "Manage group" : "Group details"}{" "}
           <ArrowRight className="w-4 h-4 ml-1 inline" />
         </Link>

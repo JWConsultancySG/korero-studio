@@ -48,6 +48,7 @@ import AdminWhatsAppPanel from "@/components/admin/AdminWhatsAppPanel";
 import { AdminTutorialCallout } from "@/components/admin/AdminTutorialCallout";
 import StudioRoomsTimetable from "@/components/schedule/StudioRoomsTimetable";
 import AdminUserManagementPanel from "@/components/admin/AdminUserManagementPanel";
+import AdminStudiosPanel from "@/components/admin/AdminStudiosPanel";
 
 const ADMIN_SECTIONS: Record<
   AdminTabId,
@@ -124,8 +125,8 @@ function AdminDashboardInner() {
             <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
               You&apos;re signed in as <span className="font-mono text-xs">{authUser.email}</span>, which isn&apos;t the
               shared studio admin. Sign out and use the admin account, or open{" "}
-              <Link href="/groups" className="text-primary font-bold underline underline-offset-4">
-                Groups
+              <Link href="/browse" className="text-primary font-bold underline underline-offset-4">
+                Browse
               </Link>{" "}
               as a student.
             </p>
@@ -300,7 +301,7 @@ function AdminDashboardInner() {
           </div>
           <div className="flex items-center gap-2">
             <Button asChild variant="outline" size="sm" className="rounded-xl font-bold">
-              <Link href="/groups/new?asAdmin=1">
+              <Link href="/browse/new?asAdmin=1">
                 <ExternalLink className="w-3.5 h-3.5 mr-1" /> New class
               </Link>
             </Button>
@@ -504,6 +505,7 @@ function AdminDashboardInner() {
 
         {tab === "rooms" && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+            <AdminStudiosPanel />
             <p className="text-sm text-muted-foreground leading-relaxed">
               Same timetable as <span className="font-bold text-foreground">My Schedule</span> — choose a studio below, then use the legend and grid to assign or clear slots.
             </p>

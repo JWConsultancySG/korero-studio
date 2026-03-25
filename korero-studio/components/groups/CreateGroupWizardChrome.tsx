@@ -9,12 +9,13 @@ export type StepInfo = {
   caption: string;
 };
 
-/** Default copy for the create-group flow (4 steps). */
+/** Default copy for the create-group flow (5 steps). */
 export const WIZARD_STEPS: readonly StepInfo[] = [
   { id: 1, label: "Song", caption: "Search and pick the track" },
   { id: 2, label: "Members", caption: "Name everyone in the line-up" },
   { id: 3, label: "Your slot", caption: "Which part are you?" },
-  { id: 4, label: "Credits", caption: "Class format & payment" },
+  { id: 4, label: "Studio", caption: "Choose location and schedule fit" },
+  { id: 5, label: "Credits", caption: "Class format & payment" },
 ] as const;
 
 type ChromeProps = {
@@ -56,7 +57,7 @@ export function MobileStepRail({ steps, currentStep }: ChromeProps) {
   );
 }
 
-/** Tablet: 4-column grid with numbered states (readable at arm’s length). */
+/** Tablet: responsive step grid with numbered states. */
 export function TabletHorizontalStepper({
   steps,
   currentStep,
@@ -64,7 +65,8 @@ export function TabletHorizontalStepper({
 }: ChromeProps) {
   return (
     <nav
-      className="hidden md:grid lg:hidden grid-cols-4 gap-2 w-full max-w-2xl mx-auto"
+      className="hidden md:grid lg:hidden gap-2 w-full max-w-2xl mx-auto"
+      style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}
       aria-label="Steps"
     >
       {steps.map((s) => {

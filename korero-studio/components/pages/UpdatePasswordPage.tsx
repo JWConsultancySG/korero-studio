@@ -34,7 +34,7 @@ export default function UpdatePasswordPage() {
         password,
       });
       if (updateError) throw updateError;
-      router.push('/groups');
+      router.push('/browse');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Could not update password');
     } finally {

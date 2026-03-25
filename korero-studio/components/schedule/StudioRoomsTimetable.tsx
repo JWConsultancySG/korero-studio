@@ -16,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useApp } from "@/context/AppContext";
 import type { ClassSession, StudioRoom } from "@/types";
-import { ScheduleGridFrame, type ScheduleMode } from "@/components/schedule/ScheduleGridFrame";
+import { ScheduleGridFrame } from "@/components/schedule/ScheduleGridFrame";
 import { buildWeekColumns, enumerateWeekMondays } from "@/components/schedule/schedule-week";
 import { hourNumberToTimeLabel, parseTimeLabelToHour } from "@/lib/schedule-time";
 import { Button } from "@/components/ui/button";
@@ -44,25 +44,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 
 const STUDIO_ROOMS: StudioRoom[] = ["Farrer Park", "Orchard"];
-const PATTERN_DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-
 function sessionAt(
   sessions: ClassSession[],
   room: StudioRoom,
-  dayName: string,
+  dateKey: string,
   hour: number,
 ): ClassSession | undefined {
   return sessions.find((s) => {
-    if (s.room !== room || s.day !== dayName) return false;
+    if (s.room !== room) return false;
+    if (s.startAt) {
+      const d = new Date(s.startAt);
+      return format(d, "yyyy-MM-dd") === dateKey && d.getHours() === hour;
+    }
+    if (!s.day || !s.time) return false;
+    const dayName = format(new Date(`${dateKey}T12:00:00`), "EEEE");
     const h = parseTimeLabelToHour(s.time);
-    return h === hour;
+    return s.day === dayName && h === hour;
   });
 }
 
 export default function StudioRoomsTimetable() {
   const { sessions, groups, assignSession, removeSession } = useApp();
   const [room, setRoom] = useState<StudioRoom>("Farrer Park");
-  const [mode, setMode] = useState<ScheduleMode>("week");
   const [weekIndex, setWeekIndex] = useState(0);
 
   const today0 = startOfDay(new Date());
@@ -76,7 +79,7 @@ export default function StudioRoomsTimetable() {
   );
 
   const [assignOpen, setAssignOpen] = useState(false);
-  const [pending, setPending] = useState<{ dayName: string; hour: number } | null>(null);
+  const [pending, setPending] = useState<{ dateKey: string; dayName: string; hour: number } | null>(null);
   const [pickGroupId, setPickGroupId] = useState("");
   const [removeTarget, setRemoveTarget] = useState<ClassSession | null>(null);
 
@@ -88,9 +91,9 @@ export default function StudioRoomsTimetable() {
   );
 
   const openAssign = useCallback(
-    (dayName: string, hour: number) => {
-      if (sessionAt(sessions, room, dayName, hour)) return;
-      setPending({ dayName, hour });
+    (dateKey: string, dayName: string, hour: number) => {
+      if (sessionAt(sessions, room, dateKey, hour)) return;
+      setPending({ dateKey, dayName, hour });
       setPickGroupId("");
       setAssignOpen(true);
     },
@@ -99,21 +102,38 @@ export default function StudioRoomsTimetable() {
 
   const confirmAssign = useCallback(() => {
     if (!pending || !pickGroupId) return;
-    const exists = sessionAt(sessions, room, pending.dayName, pending.hour);
+    const exists = sessionAt(sessions, room, pending.dateKey, pending.hour);
     if (exists) {
       toast.error("This slot is already booked.");
       setAssignOpen(false);
       return;
     }
-    assignSession(pickGroupId, room, pending.dayName, hourNumberToTimeLabel(pending.hour));
+    const groupAlreadyBookedAtTime = sessions.some((s) => {
+      if (s.groupId !== pickGroupId) return false;
+      if (s.startAt) {
+        const d = new Date(s.startAt);
+        return format(d, "yyyy-MM-dd") === pending.dateKey && d.getHours() === pending.hour;
+      }
+      if (!s.day || !s.time) return false;
+      return s.day === pending.dayName && parseTimeLabelToHour(s.time) === pending.hour;
+    });
+    if (groupAlreadyBookedAtTime) {
+      toast.error("This group already has a class at this date and time.");
+      return;
+    }
+    const startAt = new Date(`${pending.dateKey}T00:00:00`);
+    startAt.setHours(pending.hour, 0, 0, 0);
+    const endAt = new Date(startAt);
+    endAt.setHours(startAt.getHours() + 1, 0, 0, 0);
+    assignSession(pickGroupId, room, startAt.toISOString(), endAt.toISOString());
     toast.success("Class assigned to timetable");
     setAssignOpen(false);
     setPending(null);
   }, [pending, pickGroupId, sessions, room, assignSession]);
 
   const renderCell = useCallback(
-    (dayName: string, hour: number, disabled: boolean) => {
-      const sess = disabled ? undefined : sessionAt(sessions, room, dayName, hour);
+    (dateKey: string, dayName: string, hour: number, disabled: boolean) => {
+      const sess = disabled ? undefined : sessionAt(sessions, room, dateKey, hour);
       const title = sess ? groupTitle(sess.groupId) : "";
 
       if (disabled) {
@@ -151,8 +171,8 @@ export default function StudioRoomsTimetable() {
       return (
         <button
           type="button"
-          onClick={() => openAssign(dayName, hour)}
-          title={`Add class — ${dayName} ${hourNumberToTimeLabel(hour)}`}
+          onClick={() => openAssign(dateKey, dayName, hour)}
+          title={`Add class — ${dateKey} ${hourNumberToTimeLabel(hour)}`}
           className={cn(
             "group relative min-h-0 h-full w-full border-r border-border/40 btn-press",
             "bg-background/40 hover:bg-primary/10 active:bg-primary/15",
@@ -169,19 +189,21 @@ export default function StudioRoomsTimetable() {
 
   const renderPatternCell = useCallback(
     (dayIdx: number, hour: number) => {
-      const dayName = PATTERN_DAY_NAMES[dayIdx];
-      return renderCell(dayName, hour, false);
+      const col = weekColumns[dayIdx];
+      if (!col) return null;
+      return renderCell(col.dateKey, format(col.date, "EEEE"), hour, !col.inWindow);
     },
-    [renderCell],
+    [renderCell, weekColumns],
   );
 
   const renderWeekCell = useCallback(
     (dayIdx: number, hour: number, col: (typeof weekColumns)[0] | undefined) => {
       const disabled = !col?.inWindow;
-      const dayName = col ? format(col.date, "EEEE") : PATTERN_DAY_NAMES[dayIdx];
-      return renderCell(dayName, hour, disabled);
+      const dayName = col ? format(col.date, "EEEE") : format(addDays(weekMonday, dayIdx), "EEEE");
+      const dateKey = col?.dateKey ?? format(addDays(weekMonday, dayIdx), "yyyy-MM-dd");
+      return renderCell(dateKey, dayName, hour, disabled);
     },
-    [renderCell, weekColumns],
+    [renderCell, weekColumns, weekMonday],
   );
 
   const legend = (
@@ -247,18 +269,19 @@ export default function StudioRoomsTimetable() {
             </div>
           </div>
         }
-        mode={mode}
-        setMode={setMode}
+        mode="week"
+        setMode={() => undefined}
         weekIndex={weekIndex}
         setWeekIndex={setWeekIndex}
         weekMondays={weekMondays}
         weekMonday={weekMonday}
         weekColumns={weekColumns}
-        hintPattern="Same grid as My Schedule (recurring week): bookings repeat every week by weekday. Tap + to assign; tap a green cell to remove."
-        hintWeek="Same 30-day window as students: move between weeks, then tap + on an open slot. Grey cells are outside the window."
+        hintPattern=""
+        hintWeek="Date-time room scheduler for the next 30 days: move between weeks, then tap + on an open slot."
         onGridPointerEnd={() => {}}
         renderPatternCell={renderPatternCell}
         renderWeekCell={renderWeekCell}
+        showModeTabs={false}
       />
 
       <Dialog open={assignOpen} onOpenChange={setAssignOpen}>

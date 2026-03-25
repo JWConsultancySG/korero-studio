@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { CreditsPaymentDialog } from "@/components/CreditsPaymentDialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
   MobileStepRail,
   TabletHorizontalStepper,
@@ -50,7 +51,7 @@ interface ITunesResult {
 
 const MIN_MEMBERS = 2;
 const MAX_MEMBERS = 15;
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 
 const CLASS_ICONS: Record<ClassType, typeof Video> = {
   "no-filming": VideoOff,
@@ -68,7 +69,7 @@ function formatHoldCountdown(expiresAt: number, now: number) {
 export default function CreateGroupWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  /** Admin flow from /groups/new?asAdmin=1 — no song-validation hold. */
+  /** Admin flow from /browse/new?asAdmin=1 — no song-validation hold. */
   const skipSongValidation = searchParams.get("asAdmin") === "1";
   const {
     student,
@@ -78,6 +79,8 @@ export default function CreateGroupWizard() {
     clearDraftSlotHolds,
     getSlotHoldsForDraft,
     purchaseCredits,
+    studios,
+    chooseStudioForGroup,
   } = useApp();
 
   const draftIdRef = useRef<string | null>(null);
@@ -98,6 +101,7 @@ export default function CreateGroupWizard() {
   const [classType, setClassType] = useState<ClassType | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [shortfallPayment, setShortfallPayment] = useState<null | { credits: number; sgd: number }>(null);
+  const [selectedStudioId, setSelectedStudioId] = useState("");
 
   useEffect(() => {
     if (!student) router.replace("/login");
@@ -173,6 +177,7 @@ export default function CreateGroupWizard() {
   const canNextMembers =
     memberNames.length >= MIN_MEMBERS && memberNames.length <= MAX_MEMBERS;
   const canNextSlot = Boolean(mySlot && slotLabels.includes(mySlot));
+  const canNextStudio = Boolean(selectedStudioId);
   const resolvedClass = classType ?? student?.classPreference ?? null;
 
   const cost = resolvedClass ? creditsForClass(resolvedClass) : 0;
@@ -181,7 +186,7 @@ export default function CreateGroupWizard() {
 
   const handleBack = () => {
     if (step <= 1) {
-      router.push("/groups");
+      router.push("/browse");
       return;
     }
     setStep((s) => s - 1);
@@ -253,7 +258,13 @@ export default function CreateGroupWizard() {
       } else {
         toast.success(`Used ${result.creditsCharged} credits · Group created`);
       }
-      router.push(`/groups/${result.groupId}`);
+      if (selectedStudioId) {
+        const selected = await chooseStudioForGroup(result.groupId, selectedStudioId);
+        if (selected.ok && (selected.overlapHours ?? 0) < 2) {
+          toast.warning("Your current class has less than 2 hours overlap with this studio.");
+        }
+      }
+      router.push(`/browse/${result.groupId}`);
     } finally {
       setSubmitting(false);
     }
@@ -600,7 +611,71 @@ export default function CreateGroupWizard() {
 
           {step === 4 && (
             <motion.div
-              key="s4-credits"
+              key="s4-studio"
+              initial={{ opacity: 0, x: 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -12 }}
+              className="space-y-5"
+            >
+              <div>
+                <h1 className="text-2xl md:text-3xl lg:text-3xl font-black text-foreground leading-tight">Pick a studio</h1>
+                <p className="text-sm md:text-base text-muted-foreground mt-1 md:mt-2 max-w-2xl">
+                  Choose the studio for this class before payment.
+                </p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {studios.map((studio) => (
+                  <button
+                    key={studio.id}
+                    type="button"
+                    onClick={() => setSelectedStudioId(studio.id)}
+                    className={cn(
+                      "rounded-2xl border-2 p-4 text-left btn-press",
+                      selectedStudioId === studio.id ? "border-primary bg-accent" : "border-border bg-card",
+                    )}
+                  >
+                    <p className="font-black text-foreground">{studio.name}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{studio.location}</p>
+                    <p className="text-xs text-muted-foreground">{studio.address}</p>
+                  </button>
+                ))}
+              </div>
+              <div className="md:hidden">
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button variant="outline" className="rounded-2xl w-full">
+                      Open studio picker
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="bottom" className="rounded-t-3xl">
+                    <SheetHeader>
+                      <SheetTitle>Select studio</SheetTitle>
+                    </SheetHeader>
+                    <div className="space-y-2 mt-4">
+                      {studios.map((studio) => (
+                        <button
+                          key={studio.id}
+                          type="button"
+                          onClick={() => setSelectedStudioId(studio.id)}
+                          className={cn(
+                            "w-full rounded-xl border p-3 text-left",
+                            selectedStudioId === studio.id ? "border-primary bg-accent" : "border-border bg-card",
+                          )}
+                        >
+                          <p className="font-bold">{studio.name}</p>
+                          <p className="text-xs text-muted-foreground">{studio.location}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              </div>
+            </motion.div>
+          )}
+
+          {step === 5 && (
+            <motion.div
+              key="s5-credits"
               initial={{ opacity: 0, x: 12 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -12 }}
@@ -733,7 +808,13 @@ export default function CreateGroupWizard() {
                   `Top-up recorded (${creditsPaid} credits) · Used ${result.creditsCharged} credits · Group created`,
                 );
               }
-              router.push(`/groups/${result.groupId}`);
+              if (selectedStudioId) {
+                const selected = await chooseStudioForGroup(result.groupId, selectedStudioId);
+                if (selected.ok && (selected.overlapHours ?? 0) < 2) {
+                  toast.warning("Your current class has less than 2 hours overlap with this studio.");
+                }
+              }
+              router.push(`/browse/${result.groupId}`);
             } finally {
               setSubmitting(false);
             }
@@ -750,7 +831,8 @@ export default function CreateGroupWizard() {
               disabled={
                 (step === 1 && !canNextSong) ||
                 (step === 2 && !canNextMembers) ||
-                (step === 3 && !canNextSlot)
+                (step === 3 && !canNextSlot) ||
+                (step === 4 && !canNextStudio)
               }
               onClick={handleNext}
             >

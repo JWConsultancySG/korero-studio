@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import type { SongGroup, ClassType } from "@/types";
 import { CLASS_LABELS } from "@/lib/credits";
 import { makeSongKey } from "@/lib/song-key";
 import type { ValidateSongPayload } from "@/context/AppContext";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, X } from "lucide-react";
 
 const ALL_CLASS_TYPES: ClassType[] = ["no-filming", "half-song", "full-song"];
 
@@ -23,7 +23,10 @@ type Props = {
 export function SongValidationForm({ group, onSubmit, onCancel }: Props) {
   const songKey = group.songKey ?? makeSongKey(group.songTitle, group.artist);
   const [formationSize, setFormationSize] = useState(String(group.maxMembers || 4));
-  const [rolesText, setRolesText] = useState((group.slotLabels ?? []).join(", ") || "Role 1, Role 2, Role 3, Role 4");
+  const [roleNames, setRoleNames] = useState<string[]>(
+    group.slotLabels?.length ? [...group.slotLabels] : ["Role 1", "Role 2", "Role 3", "Role 4"],
+  );
+  const [newRoleName, setNewRoleName] = useState("");
   const [difficulty, setDifficulty] = useState("Intermediate");
   const [teacherNotes, setTeacherNotes] = useState("");
   const [classOpts, setClassOpts] = useState<ClassType[]>(["no-filming", "half-song", "full-song"]);
@@ -31,14 +34,46 @@ export function SongValidationForm({ group, onSubmit, onCancel }: Props) {
 
   const image = group.imageUrl;
 
+  useEffect(() => {
+    const n = Math.max(1, Math.min(15, parseInt(formationSize, 10) || 1));
+    setRoleNames((prev) => {
+      if (prev.length === n) return prev;
+      const next = [...prev];
+      if (next.length > n) return next.slice(0, n);
+      for (let i = next.length; i < n; i++) next.push(`Member ${i + 1}`);
+      return next;
+    });
+  }, [formationSize]);
+
+  const updateRoleName = (idx: number, value: string) => {
+    setRoleNames((prev) => prev.map((r, i) => (i === idx ? value : r)));
+  };
+
+  const removeRoleAt = (idx: number) => {
+    setRoleNames((prev) => {
+      if (prev.length <= 1) return prev;
+      const next = prev.filter((_, i) => i !== idx);
+      setFormationSize(String(next.length));
+      return next;
+    });
+  };
+
+  const addRole = () => {
+    const name = newRoleName.trim();
+    if (!name) return;
+    setRoleNames((prev) => {
+      if (prev.length >= 15) return prev;
+      const next = [...prev, name];
+      setFormationSize(String(next.length));
+      return next;
+    });
+    setNewRoleName("");
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const n = Math.max(1, Math.min(15, parseInt(formationSize, 10) || 1));
-    const parsed = rolesText
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const roles = parsed.slice(0, n);
+    const roles = roleNames.map((s) => s.trim()).filter(Boolean).slice(0, n);
     if (roles.length < n) {
       for (let i = roles.length; i < n; i++) roles.push(`Member ${i + 1}`);
     }
@@ -89,15 +124,43 @@ export function SongValidationForm({ group, onSubmit, onCancel }: Props) {
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="roles">Role / slot names (comma-separated)</Label>
-        <Textarea
-          id="roles"
-          value={rolesText}
-          onChange={(e) => setRolesText(e.target.value)}
-          rows={3}
-          placeholder="Jisoo, Jennie, Rosé, Lisa"
-          className="rounded-xl"
-        />
+        <Label>Role / slot names</Label>
+        <div className="space-y-2">
+          {roleNames.map((name, idx) => (
+            <div key={`${idx}-${name}`} className="flex items-center gap-2">
+              <Input
+                value={name}
+                onChange={(e) => updateRoleName(idx, e.target.value)}
+                className="rounded-xl h-11"
+                placeholder={`Member ${idx + 1}`}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="rounded-xl shrink-0"
+                onClick={() => removeRoleAt(idx)}
+                disabled={roleNames.length <= 1}
+                aria-label={`Remove role ${idx + 1}`}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+          ))}
+          <div className="flex items-center gap-2">
+            <Input
+              value={newRoleName}
+              onChange={(e) => setNewRoleName(e.target.value)}
+              placeholder="Add a new role/slot"
+              className="rounded-xl h-11"
+              maxLength={40}
+            />
+            <Button type="button" variant="outline" className="rounded-xl font-bold shrink-0" onClick={addRole}>
+              <Plus className="w-4 h-4 mr-1.5" />
+              Add
+            </Button>
+          </div>
+        </div>
       </div>
 
       <div className="space-y-2">

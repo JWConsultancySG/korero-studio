@@ -1,5 +1,10 @@
-import GroupDetailPage from "@/components/pages/GroupDetailPage";
+import { redirect } from "next/navigation";
 
-export default function Page() {
-  return <GroupDetailPage />;
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ groupId: string }>;
+}) {
+  const { groupId } = await params;
+  redirect(`/browse/${groupId}`);
 }

@@ -9,6 +9,7 @@ import type {
   GroupMemberEnrollment,
   SongCatalogEntry,
   SongGroup,
+  Studio,
   Student,
   StudentNotification,
   TimeSlot,
@@ -27,6 +28,7 @@ import {
   mapStudentAvailabilityRow,
   mapStudentNotificationRow,
   mapBookingSlotRow,
+  mapStudioRow,
   mergeSongGroup,
   type GroupEnrollmentRow,
   type ProfileRow,
@@ -67,6 +69,7 @@ export type KoreroLoadedData = {
   adminAlerts: AdminAlert[];
   studentNotifications: StudentNotification[];
   availability: AvailabilitySlot[];
+  studios: Studio[];
 };
 
 export async function loadBookingTimeSlots(supabase: SupabaseClient): Promise<TimeSlot[]> {
@@ -89,14 +92,14 @@ async function ensureUserMembershipOnGroups(
   if (!(await hasSupabaseAuthSession(supabase))) {
     return groups;
   }
-  const { data: mine, error } = await supabase.from('group_enrollments').select('group_id').eq('student_id', uid);
+  const { data: mine, error } = await supabase.from('class_enrollments').select('class_id').eq('student_id', uid);
   if (error) {
     if (process.env.NODE_ENV === 'development') {
       console.warn('[korero] ensureUserMembershipOnGroups', formatSupabaseError(error));
     }
     return groups;
   }
-  const enrolledIds = new Set((mine ?? []).map((r) => r.group_id as string));
+  const enrolledIds = new Set((mine ?? []).map((r) => r.class_id as string));
   if (enrolledIds.size === 0) return groups;
   return groups.map((g) => {
     if (!enrolledIds.has(g.id)) return g;
@@ -111,7 +114,7 @@ export async function fetchSongGroupsMerged(
   includeEnrollments: boolean,
 ): Promise<SongGroup[]> {
   const { data: groups, error } = await supabase
-    .from('song_groups')
+    .from('classes')
     .select('*')
     .order('created_at', { ascending: false });
   if (error) {
@@ -125,25 +128,66 @@ export async function fetchSongGroupsMerged(
   if (!(await hasSupabaseAuthSession(supabase))) {
     return gRows.map((g) => mergeSongGroup(g, []));
   }
-  const { data: ens, error: ensError } = await supabase.from('group_enrollments').select('*');
+  const [{ data: ens, error: ensError }, { data: studioSelections }, { data: instructorAssignments }] =
+    await Promise.all([
+      supabase.from('class_enrollments').select('*'),
+      supabase.from('class_studio_selection').select('*'),
+      supabase.from('class_instructor_assignments').select('*').order('requested_at', { ascending: false }),
+    ]);
   if (ensError) {
     if (process.env.NODE_ENV === 'development') {
-      console.warn('[korero] fetchSongGroupsMerged group_enrollments', formatSupabaseError(ensError));
+      console.warn('[korero] fetchSongGroupsMerged class_enrollments', formatSupabaseError(ensError));
     }
   }
   const byGroup = new Map<string, GroupEnrollmentRow[]>();
   for (const e of (ens ?? []) as GroupEnrollmentRow[]) {
-    const arr = byGroup.get(e.group_id) ?? [];
+    const arr = byGroup.get(e.class_id) ?? [];
     arr.push(e);
-    byGroup.set(e.group_id, arr);
+    byGroup.set(e.class_id, arr);
   }
+  const studioByGroup = new Map<string, (typeof studioSelections)[number]>();
+  for (const s of studioSelections ?? []) studioByGroup.set(s.class_id as string, s);
+  const instructorByGroup = new Map<string, (typeof instructorAssignments)[number]>();
+  for (const a of instructorAssignments ?? []) {
+    const key = a.class_id as string;
+    const prev = instructorByGroup.get(key);
+    if (!prev || (prev.status !== 'confirmed' && a.status === 'confirmed')) instructorByGroup.set(key, a);
+  }
+
   return gRows.map((g) => {
     const rows = byGroup.get(g.id) ?? [];
+    const studio = studioByGroup.get(g.id);
+    const instructor = instructorByGroup.get(g.id);
     return mergeSongGroup(
       g,
       rows.map(mapEnrollmentRow),
+      studio
+        ? {
+            groupId: studio.class_id as string,
+            studioId: studio.studio_id as string,
+            selectedBy: (studio.selected_by as string | null) ?? undefined,
+            selectedAt: studio.selected_at as string,
+          }
+        : undefined,
+      instructor
+        ? {
+            id: instructor.id as string,
+            groupId: instructor.class_id as string,
+            instructorId: instructor.instructor_id as string,
+            status: instructor.status as 'pending' | 'confirmed' | 'rejected',
+            requestedAt: instructor.requested_at as string,
+            decidedAt: (instructor.decided_at as string | null) ?? undefined,
+            decidedBy: (instructor.decided_by as string | null) ?? undefined,
+          }
+        : undefined,
     );
   });
+}
+
+export async function fetchStudios(supabase: SupabaseClient): Promise<Studio[]> {
+  const { data, error } = await supabase.from('studios').select('*').order('name', { ascending: true });
+  if (error || !data) return [];
+  return data.map((r) => mapStudioRow(r as Parameters<typeof mapStudioRow>[0]));
 }
 
 export async function fetchSongCatalogMap(supabase: SupabaseClient): Promise<Record<string, SongCatalogEntry>> {
@@ -172,6 +216,7 @@ export async function loadKoreroData(
   }
   const timeSlots = await loadBookingTimeSlots(supabase);
   const songCatalog = await fetchSongCatalogMap(supabase);
+  const studios = await fetchStudios(supabase);
   const includeEnrollments = Boolean(opts.userId);
   let groups = await fetchSongGroupsMerged(supabase, includeEnrollments);
   if (opts.userId && includeEnrollments) {
@@ -190,6 +235,7 @@ export async function loadKoreroData(
       adminAlerts: [],
       studentNotifications: [],
       availability: [],
+      studios,
     };
   }
 
@@ -241,6 +287,7 @@ export async function loadKoreroData(
     availability: (availRows ?? []).map((r) =>
       mapStudentAvailabilityRow(r as Parameters<typeof mapStudentAvailabilityRow>[0]),
     ),
+    studios,
   };
 }
 
@@ -290,6 +337,8 @@ export async function createSongGroupInDb(
     if (!slotLabels.includes(creatorSlot)) {
       creatorSlot = slotLabels[0] ?? creatorSlot;
     }
+  } else if (!slotLabels.includes(creatorSlot)) {
+    creatorSlot = slotLabels[0] ?? creatorSlot;
   }
 
   const awaitingSongValidation = !payload.skipSongValidation && !isValidated;
@@ -324,15 +373,15 @@ export async function createSongGroupInDb(
     awaiting_song_validation: awaitingSongValidation,
   };
 
-  const { data: inserted, error: gErr } = await supabase.from('song_groups').insert(insertRow).select('id').single();
+  const { data: inserted, error: gErr } = await supabase.from('classes').insert(insertRow).select('id').single();
   if (gErr || !inserted?.id) {
     console.error('[korero] createSongGroup insert', gErr);
     return { ok: false, reason: 'error' };
   }
   const groupId = inserted.id as string;
 
-  const { error: eErr } = await supabase.from('group_enrollments').insert({
-    group_id: groupId,
+  const { error: eErr } = await supabase.from('class_enrollments').insert({
+    class_id: groupId,
     student_id: st.id,
     student_name: st.name,
     slot_label: creatorSlot,
@@ -340,7 +389,7 @@ export async function createSongGroupInDb(
   });
   if (eErr) {
     console.error('[korero] createSongGroup enrollment', eErr);
-    await supabase.from('song_groups').delete().eq('id', groupId);
+    await supabase.from('classes').delete().eq('id', groupId);
     return { ok: false, reason: 'error' };
   }
 
@@ -348,7 +397,7 @@ export async function createSongGroupInDb(
     await supabase.from('admin_alerts').insert({
       kind: 'song_validation',
       message: `New song group created — ${payload.songTitle} / ${payload.artist}. Validate to activate.`,
-      group_id: groupId,
+      class_id: groupId,
       song_key: songKey,
     });
   }
@@ -361,7 +410,7 @@ export async function createSongGroupInDb(
     kind: 'group_create',
     credits_delta: -cost,
     label: `New song group: "${payload.songTitle}" (${cost} credits)`,
-    group_id: groupId,
+    class_id: groupId,
     class_type: payload.classType,
   });
 
@@ -380,25 +429,31 @@ export async function joinGroupInDb(
   student: Student,
   groupId: string,
   availability: AvailabilitySlot[],
+  slotLabel?: string,
 ): Promise<{ ok: boolean; error?: string }> {
   const snap = availability.filter((a) => !a.isConfirmedClass).map((s) => ({ ...s }));
   const enrollment: GroupMemberEnrollment = {
     studentId: student.id,
     studentName: student.name,
-    slotLabel: 'Member',
+    slotLabel: slotLabel?.trim() || 'Member',
     availabilitySlots: snap,
   };
 
-  const { error } = await supabase.from('group_enrollments').insert({
-    group_id: groupId,
+  const { error } = await supabase.from('class_enrollments').insert({
+    class_id: groupId,
     student_id: student.id,
     student_name: student.name,
     slot_label: enrollment.slotLabel,
     availability_slots: enrollment.availabilitySlots,
   });
   if (error) {
-    console.error('[korero] joinGroup', error);
-    return { ok: false, error: error.message };
+    const duplicateEnrollment = error.code === '23505';
+    if (duplicateEnrollment) {
+      // Treat repeated joins as a no-op so UI stays stable/idempotent.
+      return { ok: true };
+    }
+    console.error('[korero] joinGroup', formatSupabaseError(error));
+    return { ok: false, error: formatSupabaseError(error) };
   }
   return { ok: true };
 }
@@ -412,7 +467,7 @@ export async function replaceStudentAvailability(
   await supabase.from('student_availability_slots').delete().eq('student_id', studentId);
   const freeSlots = slots.filter((s) => !s.isConfirmedClass).map((s) => ({ ...s }));
   const { error: enrollErr } = await supabase
-    .from('group_enrollments')
+    .from('class_enrollments')
     .update({ availability_slots: freeSlots })
     .eq('student_id', studentId);
   if (enrollErr) {
@@ -425,7 +480,7 @@ export async function replaceStudentAvailability(
     start_hour: s.startHour,
     end_hour: s.endHour,
     is_confirmed_class: Boolean(s.isConfirmedClass),
-    confirmed_group_id: s.confirmedGroupId ?? null,
+    confirmed_class_id: s.confirmedGroupId ?? null,
   }));
   const { error } = await supabase.from('student_availability_slots').insert(rows);
   if (error) console.error('[korero] replaceStudentAvailability', error);

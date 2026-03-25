@@ -23,7 +23,7 @@ export async function notifyClassThresholdReached(payload: {
   const supabase = createServiceSupabase();
   if (supabase) {
     try {
-      await supabase.from("song_groups").update({ full_notified_at: new Date().toISOString() }).eq("id", payload.groupId);
+      await supabase.from("classes").update({ full_notified_at: new Date().toISOString() }).eq("id", payload.groupId);
       await supabase.from("korero_notification_log").insert({
         kind: "class_full",
         payload: payload as unknown as Record<string, unknown>,

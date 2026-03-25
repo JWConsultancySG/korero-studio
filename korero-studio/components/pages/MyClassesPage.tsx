@@ -103,10 +103,10 @@ export default function MyClassesPage() {
               time & room once assigned.
             </p>
             <Button
-              onClick={() => router.push('/groups')}
+              onClick={() => router.push('/browse')}
               className="rounded-2xl font-bold gradient-purple text-primary-foreground btn-press h-12 px-8"
             >
-              Browse groups <ArrowRight className="w-4 h-4 ml-1" />
+              Browse classes <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </motion.div>
         )}
@@ -118,7 +118,7 @@ export default function MyClassesPage() {
               <div>
                 <h2 className="text-lg font-black text-foreground">Waiting to form (joined)</h2>
                 <p className="text-xs text-muted-foreground">
-                  These groups need more members or aligned availability. Overlap shows when everyone is free.
+                  These groups need more members or aligned availability.
                 </p>
               </div>
             </div>
@@ -161,7 +161,7 @@ export default function MyClassesPage() {
               <div>
                 <h2 className="text-lg font-black text-foreground">Song groups you created</h2>
                 <p className="text-xs text-muted-foreground">
-                  While forming, use overlap to coordinate; after scheduling, your class slot and room appear below.
+                  While forming, keep your availability updated; after scheduling, your class slot and room appear below.
                 </p>
               </div>
             </div>

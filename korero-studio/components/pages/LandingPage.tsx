@@ -34,7 +34,7 @@ export default function LandingPage() {
   const heroScale = useTransform(scrollYProgress, [0, 1], [1, 1.08]);
 
   const handleCTA = () => {
-    router.push(student ? '/groups' : '/register');
+    router.push(student ? '/browse' : '/register');
   };
 
   const trendingGroups = groups
@@ -360,7 +360,7 @@ export default function LandingPage() {
               variant="outline"
               className="w-full md:w-auto md:min-w-[240px] md:mx-auto h-13 rounded-2xl font-bold btn-press border-primary/20 text-primary hover:bg-accent"
             >
-              See All Groups <ArrowRight className="w-4 h-4 ml-1" />
+              Browse Classes <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </motion.div>
         </div>

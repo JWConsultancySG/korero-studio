@@ -1,5 +1,5 @@
-import GroupsPage from "@/components/pages/GroupsPage";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <GroupsPage />;
+  redirect("/browse");
 }

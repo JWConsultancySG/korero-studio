@@ -23,10 +23,8 @@ import {
   rankOverlapSlots,
   SCHEDULE_GRID_HOURS,
   splitMembersAtCell,
-  WEEKDAY_FULL_NAMES,
-  expandSlotsToWeekdayHourKeys,
+  expandSlotsToDateHourKeys,
 } from "@/lib/schedule-overlap";
-import ScheduleOverlapView from "@/components/groups/ScheduleOverlapView";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,14 +55,14 @@ import Link from "next/link";
 import { AdminTutorialCallout } from "@/components/admin/AdminTutorialCallout";
 
 function countFreeHourBlocks(e: { availabilitySlots: import("@/types").AvailabilitySlot[] }): number {
-  return expandSlotsToWeekdayHourKeys(e.availabilitySlots).size;
+  return expandSlotsToDateHourKeys(e.availabilitySlots).size;
 }
 
 export default function AdminAvailabilityMatcher() {
   const { groups } = useApp();
   const [groupId, setGroupId] = useState<string>("");
   const [detailOpen, setDetailOpen] = useState(false);
-  const [detail, setDetail] = useState<{ dayIndex: number; hour: number; count: number } | null>(null);
+  const [detail, setDetail] = useState<{ dateKey: string; dateLabel: string; hour: number; count: number } | null>(null);
 
   const groupsWithMembers = useMemo(
     () => groups.filter((g) => (g.enrollments?.length ?? 0) > 0),
@@ -103,14 +101,14 @@ export default function AdminAvailabilityMatcher() {
     [enrollments],
   );
 
-  const handleCellClick = (d: { dayIndex: number; hour: number; count: number }) => {
+  const handleCellClick = (d: { dateKey: string; dateLabel: string; hour: number; count: number }) => {
     setDetail(d);
     setDetailOpen(true);
   };
 
   const split = useMemo(() => {
     if (!detail || !enrollments.length) return { free: [] as typeof enrollments, notFree: [] as typeof enrollments };
-    return splitMembersAtCell(enrollments, detail.dayIndex, detail.hour);
+    return splitMembersAtCell(enrollments, detail.dateKey, detail.hour);
   }, [detail, enrollments]);
 
   if (groups.length === 0) {
@@ -127,11 +125,11 @@ export default function AdminAvailabilityMatcher() {
 
       <AdminTutorialCallout title="Using the matcher effectively">
         <p>
-          Pick a class with enrolled members. <strong>Heatmap</strong> shows overlap density; <strong>Top slots</strong>{" "}
-          ranks the best windows; <strong>Per member</strong> explains who still needs to open hours in My Schedule.
+          Pick a class with enrolled members. <strong>Top slots</strong> ranks the best date-time windows;{" "}
+          <strong>Per member</strong> explains who still needs to open hours in My Schedule.
         </p>
         <p>
-          Tap a heatmap cell to see <strong>who is free vs not</strong> for that weekday and hour — ideal before you
+          Tap a ranked slot to see <strong>who is free vs not</strong> for that date and hour — ideal before you
           propose times in chat or assign rooms.
         </p>
       </AdminTutorialCallout>
@@ -141,7 +139,7 @@ export default function AdminAvailabilityMatcher() {
           <div className="space-y-1">
             <LabelRow icon={Target} label="Group" />
             <p className="text-xs text-muted-foreground max-w-xl">
-              Compare everyone&apos;s recurring / 30-day availability (from My Schedule snapshots when they joined).
+              Compare everyone&apos;s date-time availability snapshots (next 30 days).
             </p>
           </div>
           <div className="w-full md:w-[min(100%,320px)]">
@@ -179,14 +177,8 @@ export default function AdminAvailabilityMatcher() {
             maxMembers={selected.maxMembers}
           />
 
-          <Tabs defaultValue="heatmap" className="w-full space-y-4">
-            <TabsList className="grid w-full grid-cols-3 h-12 rounded-2xl bg-muted p-1">
-              <TabsTrigger
-                value="heatmap"
-                className="rounded-xl text-xs font-black data-[state=active]:gradient-purple data-[state=active]:text-primary-foreground data-[state=active]:shadow-md"
-              >
-                Heatmap
-              </TabsTrigger>
+          <Tabs defaultValue="rankings" className="w-full space-y-4">
+            <TabsList className="grid w-full grid-cols-2 h-12 rounded-2xl bg-muted p-1">
               <TabsTrigger
                 value="rankings"
                 className="rounded-xl text-xs font-black data-[state=active]:gradient-purple data-[state=active]:text-primary-foreground data-[state=active]:shadow-md"
@@ -201,24 +193,12 @@ export default function AdminAvailabilityMatcher() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="heatmap" className="mt-0 space-y-3 outline-none">
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Darker cells = more members free at the same time. Tap any cell to see exactly who is free vs who still
-                needs to open that hour in My Schedule.
-              </p>
-              <ScheduleOverlapView
-                enrollments={enrollments}
-                maxMembers={selected.maxMembers}
-                onCellClick={handleCellClick}
-              />
-            </TabsContent>
-
             <TabsContent value="rankings" className="mt-0 outline-none">
               <RankedSlotsList
                 ranked={ranked}
                 totalMembers={enrollments.length}
                 peak={peak}
-                onPickSlot={(dayIndex, hour, count) => handleCellClick({ dayIndex, hour, count })}
+                onPickSlot={(dateKey, dateLabel, hour, count) => handleCellClick({ dateKey, dateLabel, hour, count })}
               />
             </TabsContent>
 
@@ -239,7 +219,7 @@ export default function AdminAvailabilityMatcher() {
               </DialogTitle>
               {detail && (
                 <DialogDescription className="text-sm text-muted-foreground">
-                  {WEEKDAY_FULL_NAMES[detail.dayIndex]} · {formatOverlapHourLabel(detail.hour)}
+                  {detail.dateLabel} · {formatOverlapHourLabel(detail.hour)}
                   <span className="text-foreground font-bold"> · {detail.count}</span> / {enrollments.length} free
                 </DialogDescription>
               )}
@@ -271,7 +251,7 @@ export default function AdminAvailabilityMatcher() {
                   <XCircle className="h-3.5 w-3.5" /> Not free ({split.notFree.length})
                 </p>
                 {split.notFree.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Everyone is free — best possible overlap.</p>
+                  <p className="text-xs text-muted-foreground">Everyone is free — best possible class availability.</p>
                 ) : (
                   <ul className="flex flex-wrap gap-1.5">
                     {split.notFree.map((e) => (
@@ -321,7 +301,7 @@ function IntroCard() {
         <div className="min-w-0 flex-1 space-y-2">
           <h2 className="text-lg md:text-xl font-black text-foreground tracking-tight">Availability matcher</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            See where <span className="font-bold text-foreground">the most members overlap</span> on the same weekday +
+            See where <span className="font-bold text-foreground">the most members are available</span> at the same date +
             hour, then shortlist rehearsal or class times before you assign studio rooms. Data comes from each
             member&apos;s saved schedule (free hours only — studio blocks are excluded).
           </p>
@@ -399,7 +379,7 @@ function StatsRow({
       tone: "text-emerald-700 dark:text-emerald-400",
     },
     {
-      label: "Peak overlap",
+      label: "Peak class availability",
       value: `${peak}`,
       sub: memberCount > 0 ? `${peakPct}% of roster at best hour` : "—",
       icon: BarChart3,
@@ -445,13 +425,13 @@ function RankedSlotsList({
   ranked: ReturnType<typeof rankOverlapSlots>;
   totalMembers: number;
   peak: number;
-  onPickSlot: (dayIndex: number, hour: number, count: number) => void;
+  onPickSlot: (dateKey: string, dateLabel: string, hour: number, count: number) => void;
 }) {
   if (ranked.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-border p-8 text-center">
         <HelpCircle className="h-10 w-10 text-muted-foreground mx-auto mb-3 opacity-60" />
-        <p className="font-bold text-foreground">No overlapping free hours yet</p>
+        <p className="font-bold text-foreground">No shared class availability yet</p>
         <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
           Ask members to add availability in My Schedule, or widen their free blocks so common windows appear.
         </p>
@@ -472,7 +452,7 @@ function RankedSlotsList({
             const isTop = i === 0 && slot.count === peak;
             return (
               <motion.li
-                key={`${slot.dayIndex}-${slot.hour}-${i}`}
+                key={`${slot.dateKey}-${slot.hour}-${i}`}
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: Math.min(i * 0.03, 0.4) }}
@@ -491,7 +471,7 @@ function RankedSlotsList({
                 </div>
                 <div className="flex-1 min-w-0 space-y-2">
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
-                    <span className="font-black text-foreground">{slot.dayLabelFull}</span>
+                    <span className="font-black text-foreground">{slot.dateLabel}</span>
                     <span className="text-muted-foreground">·</span>
                     <span className="font-bold text-primary">{slot.timeLabel}</span>
                     {isTop && (
@@ -502,7 +482,7 @@ function RankedSlotsList({
                   </div>
                   <div className="space-y-1">
                     <div className="flex justify-between text-[11px] font-bold text-muted-foreground">
-                      <span>Overlap strength</span>
+                      <span>Availability strength</span>
                       <span>
                         {slot.count}/{totalMembers} ({pct}%)
                       </span>
@@ -515,7 +495,7 @@ function RankedSlotsList({
                   variant="outline"
                   size="sm"
                   className="rounded-xl font-bold shrink-0"
-                  onClick={() => onPickSlot(slot.dayIndex, slot.hour, slot.count)}
+                  onClick={() => onPickSlot(slot.dateKey, slot.dateLabel, slot.hour, slot.count)}
                 >
                   View detail
                   <ChevronRight className="h-4 w-4 ml-1" />
@@ -542,7 +522,7 @@ function PerMemberAccordion({
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
         See how much each person has shared, and whether their free hours line up with the{" "}
-        <span className="font-bold text-foreground">peak overlap ({peak}</span>/{totalMembers}).
+        <span className="font-bold text-foreground">peak class availability ({peak}</span>/{totalMembers}).
       </p>
       <Accordion type="single" collapsible className="w-full rounded-2xl border border-border divide-y divide-border overflow-hidden bg-card/50">
         {enrollments.map((e) => {
@@ -574,7 +554,7 @@ function PerMemberAccordion({
                 ) : (
                   <>
                     No free hours recorded from My Schedule yet — they may still be onboarding. Nudge them to complete
-                    Schedule so overlap can appear.
+                    Schedule so class availability can appear.
                   </>
                 )}
               </AccordionContent>
@@ -608,7 +588,7 @@ function EmptyNoEnrollments() {
         Students need to join a group so their availability snapshots appear here.
       </p>
       <Button asChild variant="outline" className="rounded-2xl font-bold border-2">
-        <Link href="/groups">Browse groups</Link>
+        <Link href="/browse">Browse classes</Link>
       </Button>
     </div>
   );

@@ -273,7 +273,7 @@ export default function ProfilePage() {
               {createdGroups.map((g) => (
                 <li key={g.id}>
                   <Link
-                    href={`/groups/${g.id}`}
+                    href={`/browse/${g.id}`}
                     className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3 btn-press hover:bg-muted/50"
                   >
                     <span className="font-bold text-foreground truncate">{g.songTitle}</span>
@@ -286,7 +286,7 @@ export default function ProfilePage() {
             </ul>
           )}
           <Button asChild variant="outline" className="mt-4 rounded-2xl w-full sm:w-auto font-bold">
-            <Link href="/groups/new">Create a song group</Link>
+            <Link href="/browse/new">Create a song group</Link>
           </Button>
         </section>
 
@@ -302,7 +302,7 @@ export default function ProfilePage() {
               {joinedGroups.map((g) => (
                 <li key={g.id}>
                   <Link
-                    href={`/groups/${g.id}`}
+                    href={`/browse/${g.id}`}
                     className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3 btn-press hover:bg-muted/50"
                   >
                     <span className="font-bold text-foreground truncate">{g.songTitle}</span>
@@ -313,7 +313,7 @@ export default function ProfilePage() {
             </ul>
           )}
           <Button asChild variant="outline" className="mt-4 rounded-2xl w-full sm:w-auto font-bold">
-            <Link href="/groups">Browse groups</Link>
+            <Link href="/browse">Browse classes</Link>
           </Button>
         </section>
 
