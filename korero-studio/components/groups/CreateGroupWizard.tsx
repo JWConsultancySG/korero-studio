@@ -410,7 +410,14 @@ export default function CreateGroupWizard() {
       toast.error("Pick a class format to see pricing");
       return;
     }
-    if (!canNextSlot || !memberNames.length) return;
+    if (!canNextSlot || !memberNames.length) {
+      if (!memberNames.length) {
+        toast.error("Add your group members before paying.");
+      } else {
+        toast.error("Choose your member slot (step 3) before paying.");
+      }
+      return;
+    }
     if (shortfall > 0) {
       setShortfallPayment({ credits: shortfall, sgd: sgdForCredits(shortfall) });
       return;
@@ -442,15 +449,8 @@ export default function CreateGroupWizard() {
     }
   };
 
-  if (!student) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  const slotHolds = skipSlotHoldUX ? ({} as ReturnType<typeof getSlotHoldsForDraft>) : getSlotHoldsForDraft(draftId);
+  const slotHolds =
+    skipSlotHoldUX || !student ? ({} as ReturnType<typeof getSlotHoldsForDraft>) : getSlotHoldsForDraft(draftId);
   /** Stable across SSR / hydration; updates every second for hold countdowns (admin / multi-tab path only). */
   const [nowMs, setNowMs] = useState(0);
   useEffect(() => {
@@ -464,6 +464,14 @@ export default function CreateGroupWizard() {
     return () => clearInterval(t);
   }, [skipSlotHoldUX]);
   const clockReady = skipSlotHoldUX || nowMs > 0;
+
+  if (!student) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (!wizardBootstrapped) {
     return (

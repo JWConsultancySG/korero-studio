@@ -40,10 +40,11 @@ export function StripeReturnClient() {
           setErrorMessage(data.error ?? "Verification failed");
           return;
         }
-        if (data.paymentStatus === "paid" && data.fulfilled) {
+        if (data.paymentStatus === "paid") {
           const path = safeAppReturnTarget(nextRaw);
           const u = new URL(path, window.location.origin);
           u.searchParams.set("stripe_ref", sessionId);
+          if (data.fulfilled) u.searchParams.set("stripe_fulfilled", "1");
           router.replace(u.pathname + u.search);
           return;
         }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -44,6 +44,16 @@ export function CreditsPaymentDialog({
   onBeforeStripeRedirect,
 }: CreditsPaymentDialogProps) {
   const [loading, setLoading] = useState(false);
+
+  /**
+   * After "Pay with Stripe", `loading` stays true until redirect. Back/forward cache can restore that state
+   * with the button still disabled — no fetch, no toast. Reset when the page is shown again (incl. BFCache).
+   */
+  useEffect(() => {
+    const onPageShow = () => setLoading(false);
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   const startStripeCheckout = async () => {
     setLoading(true);

@@ -56,6 +56,8 @@ export async function updateSession(request: NextRequest) {
     path.startsWith("/forgot-password") ||
     path.startsWith("/feedback") ||
     path.startsWith("/auth") ||
+    // Stripe must reach this endpoint without a Supabase user session.
+    path.startsWith("/api/stripe/webhook") ||
     /** Admin dashboard: sign-in form uses Supabase; unauthenticated users must still load the page. */
     path.startsWith("/admin");
 

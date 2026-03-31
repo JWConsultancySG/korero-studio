@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe-server";
-import { isCheckoutFulfilledInDb } from "@/lib/stripe-fulfillment";
+import { fulfillCheckoutSession, isCheckoutFulfilledInDb } from "@/lib/stripe-fulfillment";
 
 export const runtime = "nodejs";
 
@@ -41,10 +41,18 @@ export async function GET(req: Request) {
     }
 
     let fulfilled = false;
+    let fulfillmentError: string | null = null;
     try {
       const admin = createAdminClient();
       fulfilled = await isCheckoutFulfilledInDb(admin, session);
-    } catch {
+      // Fallback for environments where webhook delivery is delayed/misconfigured:
+      // apply fulfillment directly from verified paid session (idempotent by payment_ref unique key).
+      if (paymentStatus === "paid" && !fulfilled) {
+        await fulfillCheckoutSession(admin, session);
+        fulfilled = await isCheckoutFulfilledInDb(admin, session);
+      }
+    } catch (e) {
+      fulfillmentError = e instanceof Error ? e.message : "Fulfillment check failed";
       const meta = session.metadata ?? {};
       const kind = meta.fulfillment_kind;
       if (kind === "booking" && meta.booking_id) {
@@ -64,6 +72,18 @@ export async function GET(req: Request) {
           .maybeSingle();
         fulfilled = !!data;
       }
+    }
+
+    if (paymentStatus === "paid" && !fulfilled && fulfillmentError) {
+      return NextResponse.json(
+        {
+          error: `Payment captured but credits/booking not applied yet: ${fulfillmentError}`,
+          paymentStatus,
+          fulfilled: false,
+          fulfillmentKind: session.metadata?.fulfillment_kind ?? null,
+        },
+        { status: 500 },
+      );
     }
     return NextResponse.json({
       paymentStatus,
