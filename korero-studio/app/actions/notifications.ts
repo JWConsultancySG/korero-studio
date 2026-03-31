@@ -16,7 +16,7 @@ export async function notifyClassThresholdReached(payload: {
     `Korero — Class is full`,
     `"${payload.songTitle}" — ${payload.artist}`,
     `Members: ${payload.interestCount}/${payload.maxMembers}`,
-    `Listing: ${payload.groupId}`,
+    `Class ID: ${payload.groupId}`,
     `Open Admin → Classes to confirm next steps.`,
   ].join("\n");
 

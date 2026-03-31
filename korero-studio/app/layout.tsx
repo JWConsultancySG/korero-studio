@@ -15,7 +15,7 @@ const defaultUrl = process.env.VERCEL_URL
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
   title: "Korero Studio",
-  description: "K-pop dance & singing studio — book classes, join song groups, and slay.",
+  description: "K-pop dance & singing studio — book classes, join song classes, and slay.",
 };
 
 const geistSans = Geist({

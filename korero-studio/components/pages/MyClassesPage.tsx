@@ -84,7 +84,7 @@ export default function MyClassesPage() {
             My Classes <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-primary shrink-0" />
           </h1>
           <p className="text-sm md:text-base text-muted-foreground leading-relaxed max-w-2xl">
-            Groups you&apos;re filling, classes that are scheduled, and song groups you lead.
+            Classes you&apos;re filling, scheduled studio sessions, and song classes you lead.
           </p>
         </motion.div>
       </div>
@@ -99,7 +99,7 @@ export default function MyClassesPage() {
             <Music className="w-12 h-12 text-primary mx-auto mb-4 opacity-80" />
             <p className="font-black text-lg text-foreground mb-2">No classes yet</p>
             <p className="text-sm text-muted-foreground mb-8 max-w-md mx-auto leading-relaxed">
-              Join a song group or create one — pending groups show formation progress here; scheduled classes show studio
+              Join a song class or create one — listings still forming show progress here; scheduled classes show studio
               time & room once assigned.
             </p>
             <Button
@@ -118,7 +118,7 @@ export default function MyClassesPage() {
               <div>
                 <h2 className="text-lg font-black text-foreground">Waiting to form (joined)</h2>
                 <p className="text-xs text-muted-foreground">
-                  These groups need more members or aligned availability.
+                  These classes need more members or aligned availability.
                 </p>
               </div>
             </div>
@@ -159,7 +159,7 @@ export default function MyClassesPage() {
             <div className="flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-primary" />
               <div>
-                <h2 className="text-lg font-black text-foreground">Song groups you created</h2>
+                <h2 className="text-lg font-black text-foreground">Song classes you created</h2>
                 <p className="text-xs text-muted-foreground">
                   While forming, keep your availability updated; after scheduling, your class slot and room appear below.
                 </p>

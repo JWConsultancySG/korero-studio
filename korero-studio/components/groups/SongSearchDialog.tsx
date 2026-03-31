@@ -188,7 +188,7 @@ export default function SongSearchDialog({ open, onOpenChange, onSubmit }: SongS
               className="w-full h-12 rounded-2xl font-black gradient-purple text-primary-foreground btn-press relative overflow-hidden"
             >
               <span className="relative z-10 flex items-center gap-2">
-                Add to Groups <Sparkles className="w-4 h-4" />
+                Continue — new class <Sparkles className="w-4 h-4" />
               </span>
               {selectedSong && <div className="absolute inset-0 shimmer" />}
             </Button>

@@ -86,7 +86,7 @@ export default function PreferencesPage() {
           What&apos;s your class style? 💃
         </h1>
         <p className="text-sm text-muted-foreground text-center mb-8 leading-relaxed">
-          Pick your preferred class type — next you&apos;ll set your availability before browsing song groups.
+          Pick your preferred class type — next you&apos;ll set your availability before browsing song classes.
         </p>
 
         <div className="grid gap-3 md:grid-cols-3 md:gap-4">

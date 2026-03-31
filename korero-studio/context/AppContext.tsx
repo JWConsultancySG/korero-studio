@@ -304,6 +304,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const syncStudentFromAuth = useCallback((s: Student) => {
     setStudent({ ...s, credits: s.credits ?? 0 });
+    setIsAdmin(isAdminFromAppRole(s.appRole));
   }, []);
 
   const logoutStudent = useCallback(() => {

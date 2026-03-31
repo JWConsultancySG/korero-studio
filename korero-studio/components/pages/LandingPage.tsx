@@ -213,7 +213,7 @@ export default function LandingPage() {
                 className="w-full md:w-auto md:min-w-[280px] lg:min-w-[320px] text-lg font-black h-14 rounded-2xl gradient-purple-deep text-primary-foreground glow-purple-intense btn-press relative overflow-hidden group"
               >
                 <span className="relative z-10 flex items-center justify-center gap-2">
-                  Join a Song Group
+                  Join a song class
                   <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
                 </span>
                 <div className="absolute inset-0 shimmer" />
@@ -230,7 +230,7 @@ export default function LandingPage() {
             <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-md p-8 text-left">
               <p className="text-xs font-black text-white/50 uppercase tracking-[0.2em] mb-3">Why Korero</p>
               <p className="text-lg font-bold text-white leading-relaxed">
-                Book classes, join song groups, and train with a crew that matches your vibe — all in one place.
+                Book studio time, join song classes, and train with a crew that matches your vibe — all in one place.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">

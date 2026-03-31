@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -30,14 +30,14 @@ import { PostPaymentExperienceDialog } from "@/components/PostPaymentExperienceD
 
 export default function ProfilePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const {
     student,
     logoutStudent,
     creditTransactions,
     groups,
     bookings,
-    purchaseCredits,
-    purchaseClassPlan,
+    refreshApp,
   } = useApp();
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [topUpCredits, setTopUpCredits] = useState("");
@@ -47,13 +47,30 @@ export default function ProfilePage() {
   const [showFollowUp, setShowFollowUp] = useState(false);
   const [followUpPaymentRef, setFollowUpPaymentRef] = useState<string | undefined>();
 
+  useEffect(() => {
+    if (!student) return;
+    const ref = searchParams.get("stripe_ref");
+    const canceled = searchParams.get("stripe_canceled");
+    if (ref?.startsWith("cs_")) {
+      void refreshApp();
+      setFollowUpPaymentRef(ref);
+      setShowFollowUp(true);
+      router.replace("/profile", { scroll: false });
+      return;
+    }
+    if (canceled === "1") {
+      toast.message("Checkout was canceled.");
+      router.replace("/profile", { scroll: false });
+    }
+  }, [student, searchParams, router, refreshApp]);
+
   if (!student) {
     return (
       <div className="min-h-screen flex items-center justify-center px-6 pb-28 md:pb-10">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center max-w-sm">
           <User className="w-12 h-12 text-primary mx-auto mb-4" />
           <h2 className="text-xl font-black text-foreground mb-2">Your profile</h2>
-          <p className="text-sm text-muted-foreground mb-6">Sign in to see credits, groups, and activity.</p>
+          <p className="text-sm text-muted-foreground mb-6">Sign in to see credits, classes, and activity.</p>
           <Button
             onClick={() => router.push("/login")}
             className="rounded-2xl font-bold gradient-purple text-primary-foreground btn-press h-12 px-8"
@@ -141,7 +158,7 @@ export default function ProfilePage() {
             <h2 className="text-lg font-black text-foreground">Credits balance</h2>
           </div>
           <p className="text-4xl font-black tabular-nums text-foreground">{balance}</p>
-          <p className="text-xs text-muted-foreground mt-1">1 credit = S${SGD_PER_CREDIT} · used when you create or join song groups.</p>
+          <p className="text-xs text-muted-foreground mt-1">1 credit = S${SGD_PER_CREDIT} · used when you create or join song classes.</p>
 
           <Collapsible open={creditsOpen} onOpenChange={setCreditsOpen} className="mt-4 space-y-3">
             <CollapsibleTrigger className="flex w-full items-center justify-between rounded-2xl border border-border bg-muted/40 px-4 py-3 text-left text-sm font-bold text-foreground btn-press hover:bg-muted/60">
@@ -150,7 +167,7 @@ export default function ProfilePage() {
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-4 pt-1">
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                Each format matches a song-group class type. You pay first; credits and transaction history update only
+                Each format matches a song-class type. You pay first; credits and transaction history update only
                 after checkout succeeds.
               </p>
               <div className="grid gap-2 sm:grid-cols-3">
@@ -212,7 +229,7 @@ export default function ProfilePage() {
           </div>
           {txSorted.length === 0 ? (
             <p className="text-sm text-muted-foreground py-6 text-center rounded-2xl border border-dashed border-border">
-              No transactions yet — top-ups and group charges appear here.
+              No transactions yet — top-ups and class charges appear here.
             </p>
           ) : (
             <ul className="space-y-2">
@@ -230,7 +247,7 @@ export default function ProfilePage() {
                       )}
                       {tx.kind === "group_create" && (
                         <Badge variant="outline" className="text-[9px] font-black h-5">
-                          Group charge
+                          Class charge
                         </Badge>
                       )}
                       {tx.classType && (
@@ -264,10 +281,10 @@ export default function ProfilePage() {
         <section>
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-black text-foreground">Song groups you created</h2>
+            <h2 className="text-lg font-black text-foreground">Song classes you created</h2>
           </div>
           {createdGroups.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">You haven&apos;t created a group yet.</p>
+            <p className="text-sm text-muted-foreground py-4">You haven&apos;t created a class listing yet.</p>
           ) : (
             <ul className="space-y-2">
               {createdGroups.map((g) => (
@@ -286,17 +303,17 @@ export default function ProfilePage() {
             </ul>
           )}
           <Button asChild variant="outline" className="mt-4 rounded-2xl w-full sm:w-auto font-bold">
-            <Link href="/browse/new">Create a song group</Link>
+            <Link href="/browse/new">Create a song class</Link>
           </Button>
         </section>
 
         <section>
           <div className="flex items-center gap-2 mb-3">
             <Users className="w-5 h-5 text-primary" />
-            <h2 className="text-lg font-black text-foreground">Groups you joined</h2>
+            <h2 className="text-lg font-black text-foreground">Classes you joined</h2>
           </div>
           {joinedGroups.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">No joined groups yet — browse open groups and tap to join.</p>
+            <p className="text-sm text-muted-foreground py-4">No joined classes yet — browse open listings and tap to join.</p>
           ) : (
             <ul className="space-y-2">
               {joinedGroups.map((g) => (
@@ -342,20 +359,11 @@ export default function ProfilePage() {
           subtitle={paymentDialogProps.subtitle}
           amountSgd={paymentDialogProps.amountSgd}
           creditsLine={paymentDialogProps.creditsLine}
-          onPaymentConfirmed={async (meta) => {
-            if (paymentTarget.kind === "plan") {
-              await purchaseClassPlan(paymentTarget.classType, meta);
-              const cr = creditsForClass(paymentTarget.classType);
-              toast.success(`${CLASS_LABELS[paymentTarget.classType]} plan added (+${cr} credits)`);
-            } else {
-              await purchaseCredits(paymentTarget.credits, meta);
-              setTopUpCredits("");
-              toast.success(`Added ${paymentTarget.credits} credits`);
-            }
-            setFollowUpPaymentRef(meta.paymentRef);
-            setPaymentTarget(null);
-            setShowFollowUp(true);
-          }}
+          stripeIntent={
+            paymentTarget.kind === "plan"
+              ? { kind: "class_plan", classType: paymentTarget.classType }
+              : { kind: "topup", credits: paymentTarget.credits }
+          }
         />
       )}
 

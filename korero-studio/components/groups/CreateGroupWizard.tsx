@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { CreditsPaymentDialog } from "@/components/CreditsPaymentDialog";
+import { readVerifySessionResponse } from "@/lib/stripe-client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
   MobileStepRail,
@@ -48,6 +49,22 @@ interface ITunesResult {
   artworkUrl100: string;
   collectionName?: string;
 }
+
+const WIZARD_STRIPE_DRAFT_KEY = "korero_wizard_stripe_draft_v1";
+const WIZARD_STRIPE_FINALIZE_KEY = "korero_pending_finalize_after_stripe_topup";
+
+type WizardStripeDraftV1 = {
+  v: 1;
+  step: number;
+  query: string;
+  memberNames: string[];
+  nameInput: string;
+  classType: ClassType | null;
+  selectedStudioId: string;
+  mySlot: string;
+  selectedSong: ITunesResult | null;
+  skipSongValidation: boolean;
+};
 
 const MIN_MEMBERS = 2;
 const MAX_MEMBERS = 15;
@@ -68,9 +85,12 @@ function formatHoldCountdown(expiresAt: number, now: number) {
 
 export default function CreateGroupWizard() {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   /** Admin flow from /browse/new?asAdmin=1 — no song-validation hold. */
   const skipSongValidation = searchParams.get("asAdmin") === "1";
+  /** Student creating a new request: draft isn’t visible to others yet — no slot competition / 30‑min hold. */
+  const skipSlotHoldUX = !skipSongValidation;
   const {
     student,
     createSongGroup,
@@ -78,9 +98,9 @@ export default function CreateGroupWizard() {
     claimSlotHold,
     clearDraftSlotHolds,
     getSlotHoldsForDraft,
-    purchaseCredits,
     studios,
     chooseStudioForGroup,
+    refreshApp,
   } = useApp();
 
   const draftIdRef = useRef<string | null>(null);
@@ -102,10 +122,56 @@ export default function CreateGroupWizard() {
   const [submitting, setSubmitting] = useState(false);
   const [shortfallPayment, setShortfallPayment] = useState<null | { credits: number; sgd: number }>(null);
   const [selectedStudioId, setSelectedStudioId] = useState("");
+  const [wizardBootstrapped, setWizardBootstrapped] = useState(false);
+  const autoStripeFinalizeRef = useRef(false);
+
+  const returnNextWizard = useMemo(() => {
+    const q = searchParams.toString();
+    return q ? `${pathname}?${q}` : pathname;
+  }, [pathname, searchParams]);
 
   useEffect(() => {
     if (!student) router.replace("/login");
   }, [student, router]);
+
+  useEffect(() => {
+    if (!student) {
+      setWizardBootstrapped(true);
+      return;
+    }
+    try {
+      const raw = sessionStorage.getItem(WIZARD_STRIPE_DRAFT_KEY);
+      if (raw) {
+        const o = JSON.parse(raw) as Partial<WizardStripeDraftV1>;
+        sessionStorage.removeItem(WIZARD_STRIPE_DRAFT_KEY);
+        if (o.v === 1) {
+          if (typeof o.step === "number") setStep(o.step);
+          if (typeof o.query === "string") setQuery(o.query);
+          if (Array.isArray(o.memberNames)) setMemberNames(o.memberNames);
+          if (typeof o.nameInput === "string") setNameInput(o.nameInput);
+          if (o.classType === null || o.classType === "no-filming" || o.classType === "half-song" || o.classType === "full-song") {
+            setClassType(o.classType);
+          }
+          if (typeof o.selectedStudioId === "string") setSelectedStudioId(o.selectedStudioId);
+          if (typeof o.mySlot === "string") setMySlot(o.mySlot);
+          if (o.selectedSong && typeof o.selectedSong === "object") setSelectedSong(o.selectedSong as ITunesResult);
+        }
+      }
+    } catch {
+      /* ignore corrupt draft */
+    }
+    setWizardBootstrapped(true);
+  }, [student]);
+
+  useEffect(() => {
+    if (searchParams.get("stripe_canceled") !== "1") return;
+    toast.message("Checkout was canceled.");
+    sessionStorage.removeItem(WIZARD_STRIPE_FINALIZE_KEY);
+    const sp = new URLSearchParams(searchParams.toString());
+    sp.delete("stripe_canceled");
+    const q = sp.toString();
+    router.replace(q ? `${pathname}?${q}` : pathname);
+  }, [searchParams, pathname, router]);
 
   useEffect(() => {
     if (student?.classPreference) setClassType(student.classPreference);
@@ -184,6 +250,36 @@ export default function CreateGroupWizard() {
   const balance = student?.credits ?? 0;
   const shortfall = Math.max(0, cost - balance);
 
+  const saveWizardDraftForStripe = useCallback(() => {
+    if (!selectedSong || !resolvedClass || !shortfallPayment) return;
+    const payload: WizardStripeDraftV1 = {
+      v: 1,
+      step,
+      query,
+      memberNames,
+      nameInput,
+      classType,
+      selectedStudioId,
+      mySlot,
+      selectedSong,
+      skipSongValidation,
+    };
+    sessionStorage.setItem(WIZARD_STRIPE_DRAFT_KEY, JSON.stringify(payload));
+    sessionStorage.setItem(WIZARD_STRIPE_FINALIZE_KEY, "1");
+  }, [
+    step,
+    query,
+    memberNames,
+    nameInput,
+    classType,
+    selectedStudioId,
+    mySlot,
+    selectedSong,
+    skipSongValidation,
+    shortfallPayment,
+    resolvedClass,
+  ]);
+
   const handleBack = () => {
     if (step <= 1) {
       router.push("/browse");
@@ -233,6 +329,82 @@ export default function CreateGroupWizard() {
     skipSongValidation,
   ]);
 
+  useEffect(() => {
+    if (!student || !wizardBootstrapped || autoStripeFinalizeRef.current) return;
+    const ref = searchParams.get("stripe_ref");
+    if (!ref?.startsWith("cs_")) return;
+
+    const cleanStripeRefFromUrl = () => {
+      const sp = new URLSearchParams(searchParams.toString());
+      sp.delete("stripe_ref");
+      const q = sp.toString();
+      router.replace(q ? `${pathname}?${q}` : pathname);
+    };
+
+    if (sessionStorage.getItem(WIZARD_STRIPE_FINALIZE_KEY) !== "1") {
+      cleanStripeRefFromUrl();
+      return;
+    }
+
+    autoStripeFinalizeRef.current = true;
+
+    void (async () => {
+      try {
+        for (let i = 0; i < 60; i++) {
+          await refreshApp();
+          const r = await fetch(`/api/stripe/verify-session?session_id=${encodeURIComponent(ref)}`, {
+            credentials: "include",
+          });
+          const d = await readVerifySessionResponse(r);
+          if (d.fulfilled && d.fulfillmentKind === "credits_topup") break;
+          await new Promise((res) => setTimeout(res, 900));
+        }
+      } finally {
+        sessionStorage.removeItem(WIZARD_STRIPE_FINALIZE_KEY);
+        cleanStripeRefFromUrl();
+      }
+
+      setSubmitting(true);
+      try {
+        const result = await finalizeGroupCreation();
+        if (!result || !result.ok) {
+          if (result?.reason === "insufficient_credits") {
+            toast.error("Not enough credits after payment — try confirming again from the last step");
+          } else {
+            toast.error("Could not create class listing after payment");
+          }
+          return;
+        }
+        if (result.awaitingSongValidation) {
+          toast.success(
+            `Top-up applied · Used ${result.creditsCharged} credits · Listing submitted — we’ll validate the song and notify you when it’s live.`,
+          );
+        } else {
+          toast.success(`Top-up applied · Used ${result.creditsCharged} credits · Class listing created`);
+        }
+        if (selectedStudioId) {
+          const selected = await chooseStudioForGroup(result.groupId, selectedStudioId);
+          if (selected.ok && (selected.overlapHours ?? 0) < 2) {
+            toast.warning("Your current class has less than 2 hours overlap with this studio.");
+          }
+        }
+        router.push(`/browse/${result.groupId}`);
+      } finally {
+        setSubmitting(false);
+      }
+    })();
+  }, [
+    student,
+    wizardBootstrapped,
+    searchParams,
+    pathname,
+    router,
+    refreshApp,
+    finalizeGroupCreation,
+    chooseStudioForGroup,
+    selectedStudioId,
+  ]);
+
   const handleConfirmPay = async () => {
     if (!student || !selectedSong || !resolvedClass) {
       toast.error("Pick a class format to see pricing");
@@ -248,7 +420,7 @@ export default function CreateGroupWizard() {
     try {
       const result = await finalizeGroupCreation();
       if (!result || !result.ok) {
-        toast.error("Could not create group");
+        toast.error("Could not create class listing");
         return;
       }
       if (result.awaitingSongValidation) {
@@ -256,7 +428,7 @@ export default function CreateGroupWizard() {
           `Used ${result.creditsCharged} credits · Listing submitted — we’ll validate the song and notify you when it’s live.`,
         );
       } else {
-        toast.success(`Used ${result.creditsCharged} credits · Group created`);
+        toast.success(`Used ${result.creditsCharged} credits · Class listing created`);
       }
       if (selectedStudioId) {
         const selected = await chooseStudioForGroup(result.groupId, selectedStudioId);
@@ -278,16 +450,28 @@ export default function CreateGroupWizard() {
     );
   }
 
-  const slotHolds = getSlotHoldsForDraft(draftId);
-  /** Stable across SSR / hydration; updates every second for hold countdowns. */
+  const slotHolds = skipSlotHoldUX ? ({} as ReturnType<typeof getSlotHoldsForDraft>) : getSlotHoldsForDraft(draftId);
+  /** Stable across SSR / hydration; updates every second for hold countdowns (admin / multi-tab path only). */
   const [nowMs, setNowMs] = useState(0);
   useEffect(() => {
+    if (skipSlotHoldUX) {
+      setNowMs(Date.now());
+      return;
+    }
     const tick = () => setNowMs(Date.now());
     tick();
     const t = setInterval(tick, 1000);
     return () => clearInterval(t);
-  }, []);
-  const clockReady = nowMs > 0;
+  }, [skipSlotHoldUX]);
+  const clockReady = skipSlotHoldUX || nowMs > 0;
+
+  if (!wizardBootstrapped) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col pb-[env(safe-area-inset-bottom)] md:min-h-[100dvh]">
@@ -318,7 +502,7 @@ export default function CreateGroupWizard() {
               </span>
             </div>
             <div className="hidden lg:flex flex-1 min-w-0 items-baseline gap-3">
-              <h1 className="text-lg font-black tracking-tight text-foreground truncate">New song group</h1>
+              <h1 className="text-lg font-black tracking-tight text-foreground truncate">New song class</h1>
               <span className="text-xs text-muted-foreground tabular-nums shrink-0">
                 Step {step} of {TOTAL_STEPS}
               </span>
@@ -439,7 +623,7 @@ export default function CreateGroupWizard() {
             >
               <div>
                 <h1 className="text-2xl md:text-3xl lg:text-3xl font-black text-foreground leading-tight">
-                  Who&apos;s in this group?
+                  Who&apos;s in this class?
                 </h1>
                 <p className="text-sm md:text-base text-muted-foreground mt-1 md:mt-2 leading-relaxed max-w-3xl">
                   Add one name per member (e.g. Jennie, Lisa). That&apos;s your full line-up —{" "}
@@ -513,19 +697,31 @@ export default function CreateGroupWizard() {
               <div>
                 <h1 className="text-2xl md:text-3xl lg:text-3xl font-black text-foreground leading-tight">Your slot</h1>
                 <p className="text-sm md:text-base text-muted-foreground mt-1 md:mt-2 max-w-2xl">
-                  Which member position are you taking for this song? Positions update live. Choosing a slot starts a{" "}
-                  <span className="font-bold text-foreground">30-minute hold</span> — finish payment on the next step to
-                  secure it.
+                  {skipSlotHoldUX ? (
+                    <>
+                      Which member position are you taking for this song? This request is only visible to you until you
+                      finish — tap the slot that&apos;s <span className="font-bold text-foreground">you</span>, then
+                      continue to studio and payment.
+                    </>
+                  ) : (
+                    <>
+                      Which member position are you taking for this song? Positions update live. Choosing a slot starts a{" "}
+                      <span className="font-bold text-foreground">30-minute hold</span> — finish payment on the next step to
+                      secure it.
+                    </>
+                  )}
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-primary/25 bg-primary/5 px-4 py-3 text-[11px] md:text-xs text-muted-foreground leading-relaxed flex gap-2.5 items-start">
-                <Lock className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                <span>
-                  Holds are shared across tabs and refresh about every second. After you pay, your role is{" "}
-                  <span className="font-bold text-foreground">locked in</span> for this group.
-                </span>
-              </div>
+              {!skipSlotHoldUX && (
+                <div className="rounded-2xl border border-primary/25 bg-primary/5 px-4 py-3 text-[11px] md:text-xs text-muted-foreground leading-relaxed flex gap-2.5 items-start">
+                  <Lock className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <span>
+                    Holds are shared across tabs and refresh about every second. After you pay, your role is{" "}
+                    <span className="font-bold text-foreground">locked in</span> for this class.
+                  </span>
+                </div>
+              )}
 
               <div
                 className={cn(
@@ -537,19 +733,25 @@ export default function CreateGroupWizard() {
               >
                 {slotLabels.map((label) => {
                   const hold = slotHolds[label];
-                  const blockedByOther =
-                    clockReady &&
-                    hold &&
-                    hold.studentId !== student.id &&
-                    hold.expiresAt > nowMs;
-                  const heldByMe =
-                    clockReady &&
-                    hold &&
-                    hold.studentId === student.id &&
-                    hold.expiresAt > nowMs;
-                  const selected = mySlot === label && heldByMe;
+                  const blockedByOther = skipSlotHoldUX
+                    ? false
+                    : Boolean(
+                        clockReady &&
+                          hold &&
+                          hold.studentId !== student.id &&
+                          hold.expiresAt > nowMs,
+                      );
+                  const heldByMe = skipSlotHoldUX
+                    ? false
+                    : Boolean(
+                        clockReady &&
+                          hold &&
+                          hold.studentId === student.id &&
+                          hold.expiresAt > nowMs,
+                      );
+                  const selected = skipSlotHoldUX ? mySlot === label : mySlot === label && heldByMe;
                   const countdown =
-                    clockReady && hold && hold.expiresAt > nowMs
+                    !skipSlotHoldUX && clockReady && hold && hold.expiresAt > nowMs
                       ? formatHoldCountdown(hold.expiresAt, nowMs)
                       : null;
 
@@ -559,9 +761,13 @@ export default function CreateGroupWizard() {
                       type="button"
                       role="radio"
                       aria-checked={selected}
-                      disabled={Boolean(blockedByOther)}
+                      disabled={blockedByOther}
                       onClick={() => {
                         if (blockedByOther) return;
+                        if (skipSlotHoldUX) {
+                          setMySlot(label);
+                          return;
+                        }
                         const ok = claimSlotHold(draftId, label);
                         if (!ok) {
                           toast.error("This position is temporarily held by someone else — try another or wait.");
@@ -587,18 +793,26 @@ export default function CreateGroupWizard() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-black text-foreground">{label}</p>
-                        {blockedByOther && hold && (
-                          <p className="text-[11px] text-amber-700 dark:text-amber-400 font-bold mt-0.5">
-                            Held by {hold.studentName} · {countdown} left
+                        {skipSlotHoldUX ? (
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {selected ? "Your position" : "Tap to choose"}
                           </p>
-                        )}
-                        {heldByMe && !blockedByOther && (
-                          <p className="text-[11px] text-primary font-bold mt-0.5">
-                            Your hold · {countdown} · complete payment to secure
-                          </p>
-                        )}
-                        {!hold && (
-                          <p className="text-[11px] text-muted-foreground">Available — tap to hold 30 min</p>
+                        ) : (
+                          <>
+                            {blockedByOther && hold && (
+                              <p className="text-[11px] text-amber-700 dark:text-amber-400 font-bold mt-0.5">
+                                Held by {hold.studentName} · {countdown} left
+                              </p>
+                            )}
+                            {heldByMe && !blockedByOther && (
+                              <p className="text-[11px] text-primary font-bold mt-0.5">
+                                Your hold · {countdown} · complete payment to secure
+                              </p>
+                            )}
+                            {!hold && (
+                              <p className="text-[11px] text-muted-foreground">Available — tap to hold 30 min</p>
+                            )}
+                          </>
                         )}
                       </div>
                       <Music className="w-5 h-5 text-primary shrink-0 opacity-80" />
@@ -741,7 +955,7 @@ export default function CreateGroupWizard() {
                     <div className="h-px bg-border" />
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">This group</span>
+                        <span className="text-muted-foreground">This class</span>
                         <span className="font-black">{cost} credits</span>
                       </div>
                       {shortfall > 0 && (
@@ -753,7 +967,7 @@ export default function CreateGroupWizard() {
                         </div>
                       )}
                       {shortfall === 0 && (
-                        <p className="text-xs text-muted-foreground">No top-up — balance covers this group.</p>
+                        <p className="text-xs text-muted-foreground">No top-up — balance covers this class.</p>
                       )}
                     </div>
                   </>
@@ -762,7 +976,7 @@ export default function CreateGroupWizard() {
 
               <div className="rounded-2xl bg-muted/50 p-4 md:p-5 text-xs md:text-sm text-muted-foreground leading-relaxed md:max-w-3xl md:mx-auto xl:max-w-none xl:mx-0">
                 If you&apos;re short on credits, you&apos;ll complete a payment step first; your balance and transaction
-                history update only after that succeeds, then the group is created.
+                history update only after that succeeds, then the class listing is created.
               </div>
               </div>
             </motion.div>
@@ -778,47 +992,13 @@ export default function CreateGroupWizard() {
           onOpenChange={(o) => {
             if (!o) setShortfallPayment(null);
           }}
-          title="Top up to create this group"
+          title="Top up to create this class"
           subtitle={`You need ${shortfallPayment.credits} more credits for ${CLASS_LABELS[resolvedClass]} (${cost} total for this format).`}
           amountSgd={shortfallPayment.sgd}
           creditsLine={`${shortfallPayment.credits} credits top-up`}
-          onPaymentConfirmed={async (meta) => {
-            if (!student || !selectedSong || !resolvedClass || !shortfallPayment) return;
-            const creditsPaid = shortfallPayment.credits;
-            await purchaseCredits(creditsPaid, meta);
-            setShortfallPayment(null);
-            setSubmitting(true);
-            await new Promise((r) => setTimeout(r, 600));
-            try {
-              const result = await finalizeGroupCreation();
-              if (!result || !result.ok) {
-                if (result?.reason === "insufficient_credits") {
-                  toast.error("Not enough credits after payment — try again");
-                } else {
-                  toast.error("Could not create group");
-                }
-                return;
-              }
-              if (result.awaitingSongValidation) {
-                toast.success(
-                  `Top-up recorded (${creditsPaid} credits) · Used ${result.creditsCharged} credits · Listing submitted — we’ll validate the song and notify you when it’s live.`,
-                );
-              } else {
-                toast.success(
-                  `Top-up recorded (${creditsPaid} credits) · Used ${result.creditsCharged} credits · Group created`,
-                );
-              }
-              if (selectedStudioId) {
-                const selected = await chooseStudioForGroup(result.groupId, selectedStudioId);
-                if (selected.ok && (selected.overlapHours ?? 0) < 2) {
-                  toast.warning("Your current class has less than 2 hours overlap with this studio.");
-                }
-              }
-              router.push(`/browse/${result.groupId}`);
-            } finally {
-              setSubmitting(false);
-            }
-          }}
+          stripeIntent={{ kind: "topup", credits: shortfallPayment.credits }}
+          returnNext={returnNextWizard}
+          onBeforeStripeRedirect={saveWizardDraftForStripe}
         />
       )}
 
@@ -852,7 +1032,7 @@ export default function CreateGroupWizard() {
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 mr-2" />
-                  Create group ({cost} credits)
+                  Create class ({cost} credits)
                 </>
               )}
             </Button>

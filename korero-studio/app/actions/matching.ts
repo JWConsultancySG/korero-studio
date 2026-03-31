@@ -9,7 +9,7 @@ async function requireUser() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { supabase, user: null as const };
+  if (!user) return { supabase, user: null as null };
   return { supabase, user };
 }
 

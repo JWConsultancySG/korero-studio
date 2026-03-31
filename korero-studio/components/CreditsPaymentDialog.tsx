@@ -5,17 +5,18 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import type { ClassType } from "@/types";
+import { readCheckoutSessionResponse } from "@/lib/stripe-client";
 
-export type DemoPaymentMethod = "paynow" | "card";
+export type StripeCheckoutIntent =
+  | { kind: "topup"; credits: number }
+  | { kind: "class_plan"; classType: ClassType };
 
 export type CreditsPaymentDialogProps = {
   open: boolean;
@@ -24,8 +25,11 @@ export type CreditsPaymentDialogProps = {
   subtitle?: string;
   amountSgd: number;
   creditsLine: string;
-  /** Called after the simulated gateway succeeds — add credits / plans here only. */
-  onPaymentConfirmed: (meta: { paymentMethod: DemoPaymentMethod; paymentRef: string }) => void | Promise<void>;
+  stripeIntent: StripeCheckoutIntent;
+  /** Where to send the user after Stripe (e.g. `/browse/new?asAdmin=1`). Defaults to `/profile`. */
+  returnNext?: string;
+  /** Called immediately before redirecting to Stripe (e.g. persist wizard state). */
+  onBeforeStripeRedirect?: () => void;
 };
 
 export function CreditsPaymentDialog({
@@ -35,108 +39,85 @@ export function CreditsPaymentDialog({
   subtitle,
   amountSgd,
   creditsLine,
-  onPaymentConfirmed,
+  stripeIntent,
+  returnNext,
+  onBeforeStripeRedirect,
 }: CreditsPaymentDialogProps) {
-  const [method, setMethod] = useState<DemoPaymentMethod>("paynow");
-  const [cardName, setCardName] = useState("");
-  const [processing, setProcessing] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handlePay = async () => {
-    if (method === "card" && cardName.trim().length < 2) {
-      toast.error("Enter the name on card");
-      return;
-    }
-    setProcessing(true);
-    await new Promise((r) => setTimeout(r, 1400));
-    const paymentRef = `PAY-${crypto.randomUUID().slice(0, 8).toUpperCase()}`;
+  const startStripeCheckout = async () => {
+    setLoading(true);
     try {
-      await onPaymentConfirmed({ paymentMethod: method, paymentRef });
-      onOpenChange(false);
-      setCardName("");
-    } finally {
-      setProcessing(false);
+      onBeforeStripeRedirect?.();
+      const body =
+        stripeIntent.kind === "topup"
+          ? {
+              kind: "topup" as const,
+              credits: stripeIntent.credits,
+              ...(returnNext ? { returnNext } : {}),
+            }
+          : {
+              kind: "class_plan" as const,
+              classType: stripeIntent.classType,
+              ...(returnNext ? { returnNext } : {}),
+            };
+      const res = await fetch("/api/stripe/checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        credentials: "include",
+      });
+      const data = await readCheckoutSessionResponse(res);
+      if (!res.ok) {
+        throw new Error(data.error ?? "Could not start checkout");
+      }
+      if (!data.url) {
+        throw new Error("Stripe did not return a checkout URL");
+      }
+      window.location.href = data.url;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Checkout failed");
+      setLoading(false);
     }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-2xl sm:max-w-md">
+      <DialogContent className="max-h-[min(90vh,720px)] overflow-y-auto rounded-2xl border-border p-4 sm:max-w-lg sm:p-6">
         <DialogHeader>
-          <DialogTitle className="text-xl font-black">{title}</DialogTitle>
-          <DialogDescription className={subtitle ? "text-sm text-muted-foreground leading-relaxed" : "sr-only"}>
-            {subtitle ?? "Review your purchase and confirm demo payment."}
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>
+            {subtitle ?? "You will be redirected to Stripe Checkout (test mode) to pay securely."}
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 py-1">
-          <div className="rounded-2xl border border-border bg-muted/40 px-4 py-3 space-y-1">
-            <p className="text-sm font-bold text-foreground">{creditsLine}</p>
-            <p className="text-2xl font-black tabular-nums text-foreground">S${amountSgd.toFixed(2)}</p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-xs font-black uppercase tracking-wider text-muted-foreground">Pay with</p>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant={method === "paynow" ? "default" : "outline"}
-                className="rounded-xl font-bold"
-                onClick={() => setMethod("paynow")}
-              >
-                PayNow
-              </Button>
-              <Button
-                type="button"
-                variant={method === "card" ? "default" : "outline"}
-                className="rounded-xl font-bold"
-                onClick={() => setMethod("card")}
-              >
-                Card
-              </Button>
+        <div className="space-y-4 pt-2">
+          <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm">
+            <div className="flex justify-between gap-3">
+              <span className="text-muted-foreground">{creditsLine}</span>
+              <span className="font-bold tabular-nums">S${amountSgd.toFixed(2)}</span>
             </div>
           </div>
-          {method === "card" && (
-            <div className="space-y-2">
-              <Label htmlFor="card-name" className="text-xs font-bold">
-                Name on card
-              </Label>
-              <Input
-                id="card-name"
-                value={cardName}
-                onChange={(e) => setCardName(e.target.value)}
-                placeholder="As shown on card"
-                className="rounded-xl h-11"
-                autoComplete="cc-name"
-              />
-            </div>
-          )}
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Demo checkout: no real charge. Credits apply only after you confirm payment.
-          </p>
-        </div>
-        <DialogFooter className="gap-2 sm:gap-0">
           <Button
             type="button"
-            variant="outline"
-            className="rounded-xl font-bold"
-            disabled={processing}
-            onClick={() => onOpenChange(false)}
+            className="w-full h-12 rounded-xl font-bold gradient-purple text-primary-foreground"
+            disabled={loading}
+            onClick={startStripeCheckout}
           >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            className="rounded-xl font-black gradient-purple text-primary-foreground"
-            disabled={processing}
-            onClick={handlePay}
-          >
-            {processing ? (
+            {loading ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Processing…
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Opening Stripe…
               </>
             ) : (
-              `Pay S$${amountSgd.toFixed(2)}`
+              `Pay S$${amountSgd.toFixed(2)} with Stripe`
             )}
           </Button>
-        </DialogFooter>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Uses your configured Stripe <strong>test</strong> keys. No real charges in test mode. Example card:{" "}
+            <span className="font-mono">4242 4242 4242 4242</span>, any future expiry, any CVC. PayNow appears if enabled
+            for your Stripe account (Singapore).
+          </p>
+        </div>
       </DialogContent>
     </Dialog>
   );

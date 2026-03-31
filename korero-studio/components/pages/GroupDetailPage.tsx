@@ -7,7 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { useApp } from "@/context/AppContext";
 import DateTimeOverlapView from "@/components/groups/DateTimeOverlapView";
 import { CLASS_LABELS } from "@/lib/credits";
-import { ArrowLeft, Music, Users, Sparkles, CalendarDays, AlertCircle, CheckCircle2, MapPin } from "lucide-react";
+import { ArrowLeft, Music, Users, Sparkles, CalendarDays, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -29,15 +29,7 @@ export default function GroupDetailPage() {
   const params = useParams();
   const groupId = typeof params.groupId === "string" ? params.groupId : "";
   const router = useRouter();
-  const {
-    groups,
-    student,
-    studios,
-    requestInstructorForGroup,
-    submitGroupFinalAcceptance,
-    finalizeGroupLesson,
-    recomputeGroupMatching,
-  } = useApp();
+  const { groups, student } = useApp();
   const [artwork, setArtwork] = useState<string | null>(null);
 
   const group = useMemo(() => groups.find((g) => g.id === groupId), [groups, groupId]);
@@ -60,7 +52,7 @@ export default function GroupDetailPage() {
   if (!group) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-6">
-        <p className="text-muted-foreground text-sm text-center">This group doesn&apos;t exist or was removed.</p>
+        <p className="text-muted-foreground text-sm text-center">This class listing doesn&apos;t exist or was removed.</p>
       </div>
     );
   }
@@ -68,7 +60,6 @@ export default function GroupDetailPage() {
   const fill = group.maxMembers > 0 ? (group.interestCount / group.maxMembers) * 100 : 0;
   const enrollments = group.enrollments ?? [];
   const isCreator = student?.id === group.creatorId;
-  const selectedStudio = studios.find((s) => s.id === group.studioSelection?.studioId);
   const matchedSlots = group.finalizedSlotBlocks ?? [];
 
   return (
@@ -123,7 +114,7 @@ export default function GroupDetailPage() {
                 </div>
                 <Progress value={fill} className="h-3 bg-muted" />
                 <p className="text-[11px] text-muted-foreground">
-                  {Math.round(fill)}% full — invite friends or share the group link when you have one.
+                  {Math.round(fill)}% full — invite friends or share the class link when you have one.
                 </p>
               </div>
             </div>
@@ -181,16 +172,31 @@ export default function GroupDetailPage() {
         >
           <h2 className="text-lg md:text-xl font-black text-foreground mb-1 flex items-center gap-2">
             <CalendarDays className="w-5 h-5 md:w-6 md:h-6 text-primary shrink-0" />
-            Class availability
+            When can we all meet?
           </h2>
-          <p className="text-sm md:text-base text-muted-foreground mb-4 md:mb-5 leading-relaxed max-w-prose">
-            Date-time class availability only. Switch dates and view only slots where everyone in this group is free at the same
-            time. Need to open more options? Update your availability in{" "}
+          <p className="text-sm md:text-base text-muted-foreground mb-3 leading-relaxed max-w-prose">
+            <span className="font-semibold text-foreground">What this is:</span> a calendar view of{" "}
+            <span className="font-semibold text-foreground">1-hour windows in the next 30 days</span> where{" "}
+            <span className="font-semibold text-foreground">every current member</span> has marked themselves free in{" "}
             <Link href="/schedule" className="font-bold text-primary underline-offset-2 hover:underline">
-              Schedule
+              My Schedule
             </Link>
-            .
+            . If even one person isn&apos;t free, that hour won&apos;t appear — that&apos;s expected.
           </p>
+          <ul className="text-xs md:text-sm text-muted-foreground mb-4 md:mb-5 space-y-1.5 max-w-prose list-disc pl-4 marker:text-primary/70">
+            <li>
+              <span className="font-semibold text-foreground">Your job:</span> keep My Schedule accurate so the group can see real
+              overlap.
+            </li>
+            <li>
+              <span className="font-semibold text-foreground">Not final yet:</span> studio room and official class time are set by
+              Korero admin later — this section only helps everyone align on possibilities.
+            </li>
+            <li>
+              <span className="font-semibold text-foreground">No purple times?</span> widen your free blocks or pick days others
+              already freed up (use the week strip below).
+            </li>
+          </ul>
           <DateTimeOverlapView enrollments={enrollments} />
           {matchedSlots.length > 0 && (
             <div className="mt-5 rounded-2xl border border-border p-4 bg-card/50">
@@ -209,59 +215,13 @@ export default function GroupDetailPage() {
 
         <div className="rounded-2xl md:rounded-3xl border border-border/80 bg-muted/30 p-5 md:p-6 max-w-4xl lg:max-w-none mx-auto">
           <p className="text-[11px] md:text-xs text-muted-foreground leading-relaxed">
-            <span className="font-black text-foreground">Studio time & room</span> are scheduled by the studio admin when your
-            group is ready — students do not book the studio here. Use{" "}
+            <span className="font-black text-foreground">Studio time & room</span> are booked by Korero when your class is ready —
+            you don&apos;t pick the room here. The grid above is only &quot;when are we all free?&quot; — keep{" "}
             <Link href="/schedule" className="font-bold text-primary underline-offset-2 hover:underline">
               My Schedule
             </Link>{" "}
-            so everyone can align class availability.
+            updated so that picture stays true.
           </p>
-        </div>
-        <div className="rounded-2xl border border-border p-5 space-y-3">
-          <p className="font-black text-foreground flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-primary" />
-            Matching lifecycle
-          </p>
-          <p className="text-sm text-muted-foreground">
-            State: <span className="font-bold text-foreground">{group.matchingState ?? "forming"}</span>
-            {group.requiredMatchHours ? ` · Golden target: ${group.requiredMatchHours}h on distinct days` : ""}
-          </p>
-          {selectedStudio && (
-            <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-primary" />
-              Studio: <span className="font-bold text-foreground">{selectedStudio.name}</span>
-            </p>
-          )}
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => void requestInstructorForGroup(group.id)}
-              className="rounded-xl border px-3 py-2 text-xs font-bold"
-            >
-              Instructor: request join
-            </button>
-            <button
-              type="button"
-              onClick={() => void recomputeGroupMatching(group.id)}
-              className="rounded-xl border px-3 py-2 text-xs font-bold"
-            >
-              Recompute matching
-            </button>
-            <button
-              type="button"
-              onClick={() => void submitGroupFinalAcceptance(group.id)}
-              className="rounded-xl border px-3 py-2 text-xs font-bold"
-            >
-              Accept final lesson
-            </button>
-            <button
-              type="button"
-              onClick={() => void finalizeGroupLesson(group.id)}
-              className="rounded-xl border border-primary bg-primary text-primary-foreground px-3 py-2 text-xs font-bold"
-            >
-              Finalize & fix lesson
-            </button>
-          </div>
         </div>
       </div>
     </div>

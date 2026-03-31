@@ -159,7 +159,7 @@ export default function AvailabilityPage() {
       return;
     }
     if (!canProceedOnboarding) {
-      toast.error('Add at least one free hour so we can match you with classes and groups.');
+      toast.error('Add at least one free hour so we can match you with classes.');
       return;
     }
     if (returnTo && returnTo.startsWith('/')) {
@@ -196,13 +196,16 @@ export default function AvailabilityPage() {
             {fromSignup ? (
               <>
                 <span className="font-bold text-foreground">Almost there — </span>
-                mark at least one free hour so we can match you into classes and song groups. Edit any week directly, then
+                mark at least one free hour so we can match you into song classes. Edit any week directly, then
                 save when you are done.
               </>
             ) : (
               <>
-                Paint free hours on any week, jump with the date picker, and optionally apply your recurring week from the
-                popup. Changes stay in draft until you press Save changes. Studio class times are assigned by the admin.
+                Paint when you&apos;re <span className="font-semibold text-foreground">free for rehearsals</span> (not busy
+                elsewhere). Each class you&apos;re in compares everyone&apos;s grid to show &quot;when are we all free?&quot; —
+                so honest blocks here make that view trustworthy. Changes stay in draft until you press{" "}
+                <span className="font-semibold text-foreground">Save changes</span>. Final studio room &amp; time still come from
+                Korero admin.
               </>
             )}
           </p>
@@ -294,7 +297,7 @@ export default function AvailabilityPage() {
                 {canProceedOnboarding
                   ? returnTo
                     ? 'Continue to return to what you were doing.'
-                    : 'Continue to browse and join song groups.'
+                    : 'Continue to browse and join song classes.'
                   : 'Paint or apply at least one free hour (not studio class blocks) before continuing.'}
               </p>
             </div>
@@ -304,7 +307,7 @@ export default function AvailabilityPage() {
               onClick={navigateAfterSchedule}
               className="rounded-2xl font-black gradient-purple text-primary-foreground btn-press h-12 px-8 shrink-0 w-full sm:w-auto disabled:opacity-50"
             >
-              {returnTo ? 'Continue' : 'Continue to song groups'}
+              {returnTo ? 'Continue' : 'Continue to song classes'}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>

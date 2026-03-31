@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { addDays, format, isSameDay, startOfDay, startOfWeek } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -92,8 +93,11 @@ export default function DateTimeOverlapView({ enrollments }: Props) {
     return (
       <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-8 text-center">
         <Users className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
-        <p className="text-sm font-bold text-foreground mb-1">No members to compare yet</p>
-        <p className="text-xs text-muted-foreground">Joiners need to share schedule availability first.</p>
+        <p className="text-sm font-bold text-foreground mb-1">Nobody in this class yet</p>
+        <p className="text-xs text-muted-foreground leading-relaxed max-w-sm mx-auto">
+          Overlap appears after people join. Each member paints their free hours in My Schedule; then we can show times when
+          everyone matches.
+        </p>
       </div>
     );
   }
@@ -101,11 +105,13 @@ export default function DateTimeOverlapView({ enrollments }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs md:text-sm font-bold text-muted-foreground">
-          Showing only <span className="text-foreground">full class availability</span> slots ({memberCount}/{memberCount} members free).
+        <p className="text-xs md:text-sm text-muted-foreground leading-snug max-w-[min(100%,28rem)]">
+          <span className="font-bold text-foreground">Everyone-free hours only.</span> Listed times are 8am–11pm when all{" "}
+          <span className="font-semibold text-foreground">{memberCount}</span> member{memberCount === 1 ? "" : "s"} are free in My
+          Schedule on that calendar day. Partial overlap (some free, some not) is hidden on purpose.
         </p>
-        <Badge variant="outline" className="font-bold">
-          30-day window
+        <Badge variant="outline" className="font-bold shrink-0">
+          Next 30 days
         </Badge>
       </div>
 
@@ -156,7 +162,9 @@ export default function DateTimeOverlapView({ enrollments }: Props) {
               >
                 <p className="text-[10px] font-black text-muted-foreground uppercase">{format(d, "EEE")}</p>
                 <p className="text-sm font-black text-foreground leading-tight">{format(d, "d")}</p>
-                <p className="text-[10px] font-bold text-primary mt-1">{consensusCount} slot{consensusCount === 1 ? "" : "s"}</p>
+                <p className="text-[10px] font-bold text-primary mt-1 leading-tight">
+                  {consensusCount} everyone-free hr{consensusCount === 1 ? "" : "s"}
+                </p>
               </button>
             );
           })}
@@ -178,11 +186,23 @@ export default function DateTimeOverlapView({ enrollments }: Props) {
             ))}
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            No full class-availability slots on this date. Try another day in this week.
-          </p>
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              No hour in this day has <span className="font-semibold text-foreground">all {memberCount} members</span> free at once.
+              Try other days in the week strip,               or open{" "}
+              <Link href="/schedule" className="font-bold text-primary underline-offset-2 hover:underline">
+                My Schedule
+              </Link>{" "}
+              and add overlapping free time.
+            </p>
+          </div>
         )}
       </div>
+
+      <p className="text-[11px] md:text-xs text-muted-foreground leading-relaxed border-t border-border/60 pt-3">
+        <span className="font-semibold text-foreground">Reminder:</span> this is coordination data from My Schedule, not your
+        confirmed studio booking. Final room &amp; time come from Korero after matching.
+      </p>
     </div>
   );
 }

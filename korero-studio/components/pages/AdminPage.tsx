@@ -50,6 +50,32 @@ import StudioRoomsTimetable from "@/components/schedule/StudioRoomsTimetable";
 import AdminUserManagementPanel from "@/components/admin/AdminUserManagementPanel";
 import AdminStudiosPanel from "@/components/admin/AdminStudiosPanel";
 
+function AdminDataLoadingScreen() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-background px-6 pb-28 md:pb-10 gradient-purple-subtle">
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="flex flex-col items-center gap-5 text-center max-w-sm"
+      >
+        <div className="relative">
+          <div className="w-16 h-16 rounded-2xl gradient-purple-deep flex items-center justify-center glow-purple">
+            <Loader2 className="w-8 h-8 animate-spin text-primary-foreground" />
+          </div>
+          <Shield className="absolute -bottom-1 -right-1 w-6 h-6 text-primary drop-shadow-sm" aria-hidden />
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-sm font-black text-foreground">Loading admin console…</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Syncing your account and studio data. This screen stays up until the database load finishes.
+          </p>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 const ADMIN_SECTIONS: Record<
   AdminTabId,
   { title: string; subtitle: string }
@@ -60,7 +86,7 @@ const ADMIN_SECTIONS: Record<
     title: "Class listings",
     subtitle: "Full class detail, members, sessions — edit or remove listings as needed",
   },
-  library: { title: "Song library", subtitle: "Validated songs — formation & roles reused for new groups" },
+  library: { title: "Song library", subtitle: "Validated songs — formation & roles reused for new class listings" },
   validate: { title: "Song validation", subtitle: "Complete iTunes profile and activate listings" },
   rooms: { title: "Studio rooms", subtitle: "Farrer Park & Orchard — timetable and assignments" },
   matcher: {
@@ -74,6 +100,7 @@ function AdminDashboardInner() {
     isAdmin,
     authSessionReady,
     authUser,
+    dataLoading,
     logoutAdmin,
     syncStudentFromAuth,
     groups,
@@ -109,6 +136,11 @@ function AdminDashboardInner() {
         <p className="text-sm text-muted-foreground">Loading session…</p>
       </div>
     );
+  }
+
+  /** Avoid “Not an admin” flash: auth clears isAdmin before Korero data (and real app_role) is loaded. */
+  if (authUser && dataLoading) {
+    return <AdminDataLoadingScreen />;
   }
 
   if (!isAdmin) {
@@ -162,11 +194,8 @@ function AdminDashboardInner() {
           </motion.div>
 
           <h1 className="text-2xl font-black mb-1.5 text-foreground text-center">Admin sign in</h1>
-            <p className="text-sm text-muted-foreground mb-2 text-center">Sign in with an account that has admin access</p>
-          <p className="text-[11px] text-muted-foreground text-center mb-6 leading-relaxed">
-            Admin access is controlled by <span className="font-mono text-[10px]">profiles.app_role = &apos;admin&apos;</span> in the database.
-            Bootstrap: run in Supabase SQL —{" "}
-            <span className="font-mono text-[10px]">UPDATE profiles SET app_role = &apos;admin&apos; WHERE email = &apos;your@email&apos;;</span>
+          <p className="text-sm text-muted-foreground mb-6 text-center leading-relaxed">
+            Sign in with the studio admin account. Need access? Ask whoever runs Korero for your studio.
           </p>
 
           <form
@@ -193,7 +222,7 @@ function AdminDashboardInner() {
                 const { data: prof } = await supabase.from("profiles").select("app_role").eq("id", user.id).maybeSingle();
                 if (prof?.app_role !== "admin") {
                   await supabase.auth.signOut();
-                  toast.error("This account does not have admin access (profiles.app_role).");
+                  toast.error("This account doesn’t have admin access.");
                   return;
                 }
                 const meta = user.user_metadata as Record<string, unknown> | undefined;
@@ -356,7 +385,7 @@ function AdminDashboardInner() {
                   Song validation needed
                 </p>
                 <p className="text-xs text-muted-foreground mb-3">
-                  {pendingValidationGroups.length} group listing(s) waiting for song profile. Open the Validation tab.
+                  {pendingValidationGroups.length} class listing(s) waiting for song profile. Open the Validation tab.
                 </p>
                 <Button
                   size="sm"
@@ -431,7 +460,7 @@ function AdminDashboardInner() {
                 allowed class formats.
               </p>
               <p>
-                Saving writes to the <strong>Song library</strong> and turns on the public listing for every group with
+                Saving writes to the <strong>Song library</strong> and turns on the public listing for every class with
                 that song key.
               </p>
             </AdminTutorialCallout>
@@ -471,7 +500,7 @@ function AdminDashboardInner() {
               <p className="text-xs font-black uppercase tracking-wider text-primary mb-3">Pending listings</p>
               {pendingValidationGroups.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-8 text-center border border-dashed rounded-2xl">
-                  No groups waiting for song validation.
+                  No classes waiting for song validation.
                 </p>
               ) : (
                 <div className="space-y-2">

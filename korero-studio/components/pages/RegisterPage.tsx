@@ -127,7 +127,7 @@ export default function RegisterPage() {
             Create your account
           </h1>
           <p className="text-muted-foreground text-sm mb-8 leading-relaxed">
-            Join song groups, book classes and track your progress
+            Join song classes, book studio time and track your progress
           </p>
         </motion.div>
 

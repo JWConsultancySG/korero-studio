@@ -137,7 +137,7 @@ export default function AdminAvailabilityMatcher() {
       <div className="rounded-2xl border border-border/80 bg-card/50 p-4 md:p-5 space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div className="space-y-1">
-            <LabelRow icon={Target} label="Group" />
+            <LabelRow icon={Target} label="Class" />
             <p className="text-xs text-muted-foreground max-w-xl">
               Compare everyone&apos;s date-time availability snapshots (next 30 days).
             </p>
@@ -145,7 +145,7 @@ export default function AdminAvailabilityMatcher() {
           <div className="w-full md:w-[min(100%,320px)]">
             <Select value={groupId} onValueChange={setGroupId}>
               <SelectTrigger className="h-12 rounded-2xl border-2 font-bold">
-                <SelectValue placeholder="Choose group" />
+                <SelectValue placeholder="Choose class" />
               </SelectTrigger>
               <SelectContent className="rounded-2xl">
                 {groupsWithMembers.map((g) => (
@@ -310,7 +310,7 @@ function IntroCard() {
               <Sparkles className="h-3 w-3" /> Admin tool
             </Badge>
             <Badge variant="outline" className="rounded-lg font-bold border-primary/30">
-              Same grid as group page
+              Same grid as class detail page
             </Badge>
           </div>
         </div>
@@ -570,7 +570,7 @@ function EmptyNoGroups() {
   return (
     <div className="rounded-3xl border border-dashed border-border bg-muted/20 p-10 text-center max-w-lg mx-auto">
       <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-      <p className="font-black text-lg text-foreground mb-2">No groups in the system</p>
+      <p className="font-black text-lg text-foreground mb-2">No classes in the system</p>
       <p className="text-sm text-muted-foreground mb-6">Create or approve listings under Classes first.</p>
       <Button asChild className="rounded-2xl font-black gradient-purple text-primary-foreground">
         <Link href="/admin?tab=classes">Go to Classes</Link>
@@ -585,7 +585,7 @@ function EmptyNoEnrollments() {
       <Layers className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
       <p className="font-black text-lg text-foreground mb-2">No members to match yet</p>
       <p className="text-sm text-muted-foreground mb-6">
-        Students need to join a group so their availability snapshots appear here.
+        Students need to join a class so their availability snapshots appear here.
       </p>
       <Button asChild variant="outline" className="rounded-2xl font-bold border-2">
         <Link href="/browse">Browse classes</Link>

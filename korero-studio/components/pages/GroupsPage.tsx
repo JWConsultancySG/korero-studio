@@ -170,7 +170,7 @@ export default function GroupsPage() {
             Find Your Song <Music className="w-5 h-5 md:w-6 md:h-6 text-primary shrink-0" />
           </h1>
           <p className="text-sm md:text-base text-muted-foreground leading-relaxed max-w-2xl">
-            Claim your spot before it&apos;s gone — or start a new group if your song isn&apos;t listed yet.
+            Claim your spot before it&apos;s gone — or start a new class if your song isn&apos;t listed yet.
           </p>
 
           <div className="flex items-center gap-2.5 mt-5 flex-wrap">
@@ -201,7 +201,7 @@ export default function GroupsPage() {
               <div>
                 <p className="font-black text-sm text-foreground">Looking for a different song?</p>
                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  If it&apos;s not in the list below, tap Request a Song to add it and start a new group.
+                  If it&apos;s not in the list below, tap Request a Song to add it and start a new class.
                 </p>
               </div>
             </div>
@@ -217,13 +217,13 @@ export default function GroupsPage() {
         </motion.div>
       </div>
 
-      {/* Groups Forming Now */}
+      {/* Song classes forming */}
       <div className="px-5 pt-5 content-max">
         {filteredJoinable.length > 0 && (
           <div>
             <p className="text-xs font-black uppercase tracking-[0.15em] text-muted-foreground mb-4 flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              Groups Forming Now
+              Song classes forming
             </p>
             <div className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-3 md:gap-4">
               <AnimatePresence>
@@ -329,7 +329,7 @@ export default function GroupsPage() {
                             href={`/browse/${group.id}`}
                             className="block text-center text-xs font-bold text-primary py-1.5 hover:underline"
                           >
-                            View group status & class availability →
+                            View class status & availability →
                           </Link>
                           {alreadyJoined ? (
                             <Button
@@ -366,7 +366,7 @@ export default function GroupsPage() {
                                 {isAlmostFull ? (
                                   <>Grab Last Spot <Zap className="w-4 h-4" /></>
                                 ) : (
-                                  <>Join This Group <Sparkles className="w-4 h-4" /></>
+                                  <>Join this class <Sparkles className="w-4 h-4" /></>
                                 )}
                               </span>
                               {isAlmostFull && <div className="absolute inset-0 shimmer" />}
@@ -374,7 +374,7 @@ export default function GroupsPage() {
                           )}
                         </motion.div>
 
-                        {/* Next class note for full groups */}
+                        {/* Next class note for full listings */}
                       </motion.div>
                     );
                   })}
@@ -388,9 +388,9 @@ export default function GroupsPage() {
             {searchNoMatchesWithOtherGroups ? (
               <>
                 <Search className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <p className="font-black text-foreground text-base mb-1">No groups match &ldquo;{search.trim()}&rdquo;</p>
+                <p className="font-black text-foreground text-base mb-1">No classes match &ldquo;{search.trim()}&rdquo;</p>
                 <p className="text-muted-foreground text-sm mb-6 leading-relaxed">
-                  That song might not have a group yet. Request it and be the first to start one.
+                  That song might not have a class listing yet. Request it and be the first to start one.
                 </p>
                 <Button
                   type="button"
@@ -404,9 +404,9 @@ export default function GroupsPage() {
             ) : searchNoMatchesEmptyStudio ? (
               <>
                 <Search className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                <p className="font-black text-foreground text-base mb-1">No groups match &ldquo;{search.trim()}&rdquo;</p>
+                <p className="font-black text-foreground text-base mb-1">No classes match &ldquo;{search.trim()}&rdquo;</p>
                 <p className="text-muted-foreground text-sm mb-6 leading-relaxed">
-                  Nothing here yet — use Request a Song to add this track and start a new group.
+                  Nothing here yet — use Request a Song to add this track and start a new class.
                 </p>
                 <Button
                   type="button"
@@ -422,9 +422,9 @@ export default function GroupsPage() {
                 <div className="w-16 h-16 rounded-3xl gradient-purple/15 flex items-center justify-center mx-auto mb-4">
                   <Music className="w-8 h-8 text-primary" />
                 </div>
-                <p className="font-black text-foreground text-base mb-1">No song groups yet</p>
+                <p className="font-black text-foreground text-base mb-1">No song classes yet</p>
                 <p className="text-muted-foreground text-sm mb-6 leading-relaxed">
-                  Be the first — request a song to create a group others can join.
+                  Be the first — request a song to create a class others can join.
                 </p>
                 <Button
                   type="button"
@@ -439,7 +439,7 @@ export default function GroupsPage() {
           </div>
         )}
 
-        {/* Full / Confirmed Groups */}
+        {/* Full / confirmed class listings */}
         {filteredFull.length > 0 && (
           <div className="mt-10">
             <p className="text-xs font-black uppercase tracking-[0.15em] text-muted-foreground mb-4">Full — Join for Next Class</p>
@@ -521,7 +521,7 @@ export default function GroupsPage() {
         whileTap={{ scale: 0.9 }}
         whileHover={{ scale: 1.05 }}
         onClick={openRequestSong}
-        aria-label="Request a Song — create a new song group"
+        aria-label="Request a Song — create a new song class"
         title="Request a Song"
         className="fixed bottom-24 right-5 md:bottom-8 md:right-8 w-14 h-14 rounded-2xl gradient-purple-deep glow-purple-intense flex items-center justify-center shadow-2xl z-40"
       >
@@ -590,8 +590,12 @@ export default function GroupsPage() {
             </div>
 
             <div className="mb-5">
-              <p className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground mb-2">
-                Class availability
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground mb-1">
+                When is everyone free?
+              </p>
+              <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                Same view as the class page: only times when every current member overlaps in My Schedule (next 30 days). Use it
+                to sanity-check before you join.
               </p>
               <DateTimeOverlapView enrollments={joinTarget.enrollments ?? []} />
             </div>

@@ -145,10 +145,12 @@ export async function fetchSongGroupsMerged(
     arr.push(e);
     byGroup.set(e.class_id, arr);
   }
-  const studioByGroup = new Map<string, (typeof studioSelections)[number]>();
-  for (const s of studioSelections ?? []) studioByGroup.set(s.class_id as string, s);
-  const instructorByGroup = new Map<string, (typeof instructorAssignments)[number]>();
-  for (const a of instructorAssignments ?? []) {
+  const studioRows = studioSelections ?? [];
+  const studioByGroup = new Map<string, (typeof studioRows)[number]>();
+  for (const s of studioRows) studioByGroup.set(s.class_id as string, s);
+  const assignmentRows = instructorAssignments ?? [];
+  const instructorByGroup = new Map<string, (typeof assignmentRows)[number]>();
+  for (const a of assignmentRows) {
     const key = a.class_id as string;
     const prev = instructorByGroup.get(key);
     if (!prev || (prev.status !== 'confirmed' && a.status === 'confirmed')) instructorByGroup.set(key, a);

@@ -1,15 +1,34 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import type { RoleName, Booking } from '@/types';
-import { ArrowLeft, Check, Clock, CreditCard, Music, Star, Timer, Sparkles, Shield, Mic2, Users, Zap, CircleCheck, CircleX, BookOpen, MessageSquare, ArrowRight, CalendarDays, QrCode, Lock } from 'lucide-react';
+import {
+  ArrowLeft,
+  Check,
+  CreditCard,
+  Music,
+  Star,
+  Timer,
+  Sparkles,
+  Shield,
+  Mic2,
+  Users,
+  Zap,
+  CircleCheck,
+  BookOpen,
+  MessageSquare,
+  ArrowRight,
+  CalendarDays,
+  Lock,
+  Loader2,
+} from 'lucide-react';
 import { toast } from 'sonner';
+import { readCheckoutSessionResponse, readVerifySessionResponse } from '@/lib/stripe-client';
 
 const STEPS = ['Role', 'Pay', 'Done'];
 
@@ -24,21 +43,67 @@ const ROLE_ICONS: Record<string, typeof Mic2> = {
 
 export default function BookingFlow({ groupId }: { groupId: string }) {
   const router = useRouter();
-  const { groups, roles, selectRole, createBooking, completePayment, student, timeSlots, availability, isAdmin } = useApp();
+  const searchParams = useSearchParams();
+  const { groups, roles, selectRole, createBooking, student, timeSlots, availability, isAdmin, refreshApp, bookings } =
+    useApp();
   const [step, setStep] = useState(0);
   const [selectedRole, setSelectedRole] = useState<RoleName | null>(null);
   const [booking, setBooking] = useState<Booking | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'paynow'>('stripe');
-  const [processing, setProcessing] = useState(false);
   const [holdTimer, setHoldTimer] = useState(1800);
   const [showConfetti, setShowConfetti] = useState(false);
   const [showAvailabilityPrompt, setShowAvailabilityPrompt] = useState(false);
   const [showPreferencePrompt, setShowPreferencePrompt] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const expectStripeAdvanceRef = useRef(false);
 
-  // Mock card form state
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvc, setCardCvc] = useState('');
+  const stripeRef = searchParams.get('stripe_ref');
+
+  useEffect(() => {
+    if (searchParams.get('stripe_canceled') === '1') {
+      toast.message('Checkout was canceled.');
+      const sp = new URLSearchParams(searchParams.toString());
+      sp.delete('stripe_canceled');
+      const q = sp.toString();
+      router.replace(q ? `/booking/${groupId}?${q}` : `/booking/${groupId}`, { scroll: false });
+    }
+  }, [searchParams, groupId, router]);
+
+  useEffect(() => {
+    if (!stripeRef?.startsWith('cs_') || !student) return;
+    let alive = true;
+    void (async () => {
+      const r = await fetch(`/api/stripe/verify-session?session_id=${encodeURIComponent(stripeRef)}`, {
+        credentials: 'include',
+      });
+      const d = await readVerifySessionResponse(r);
+      if (!alive) return;
+      await refreshApp();
+      if (d.fulfilled && d.fulfillmentKind === 'booking') {
+        expectStripeAdvanceRef.current = true;
+        toast.success("Payment received! You're booked.");
+      } else if (d.paymentStatus === 'paid') {
+        toast.message('Payment received; confirming booking… refresh if this takes long.');
+      }
+      router.replace(`/booking/${groupId}`, { scroll: false });
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [stripeRef, student, groupId, refreshApp, router]);
+
+  useEffect(() => {
+    if (!student || !expectStripeAdvanceRef.current) return;
+    const b = bookings.find(
+      (x) => x.groupId === groupId && x.studentId === student.id && x.paymentStatus === 'paid',
+    );
+    if (b) {
+      setBooking(b);
+      setSelectedRole(b.role);
+      setStep(2);
+      setShowConfetti(true);
+      expectStripeAdvanceRef.current = false;
+    }
+  }, [bookings, groupId, student]);
 
   const group = groups.find(g => g.id === groupId);
 
@@ -101,41 +166,41 @@ export default function BookingFlow({ groupId }: { groupId: string }) {
 
   const formatTimer = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
-  const formatCardNumber = (value: string) => {
-    const digits = value.replace(/\D/g, '').slice(0, 16);
-    return digits.replace(/(\d{4})(?=\d)/g, '$1 ');
-  };
-
-  const formatExpiry = (value: string) => {
-    const digits = value.replace(/\D/g, '').slice(0, 4);
-    if (digits.length > 2) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-    return digits;
-  };
-
   const handleSelectRole = (role: RoleName) => {
     setSelectedRole(role);
     selectRole(role);
     setHoldTimer(1800);
   };
 
-  const handlePayment = async () => {
+  const handleStripePay = async () => {
     if (!selectedRole || !groupId) return;
-    setProcessing(true);
-    const defaultSlot = timeSlots[0];
-    const b = await createBooking(groupId, selectedRole, defaultSlot);
-    setBooking(b);
-    await new Promise(r => setTimeout(r, 2500));
-    await completePayment(b.id);
-    setBooking(prev => prev ? { ...prev, paymentStatus: 'paid' } : null);
-    setProcessing(false);
-    setShowConfetti(true);
-    setStep(2);
-    toast.success("You're in!");
+    setCheckoutLoading(true);
+    try {
+      let b = booking;
+      if (!b) {
+        const defaultSlot = timeSlots[0];
+        b = await createBooking(groupId, selectedRole, defaultSlot);
+        setBooking(b);
+      }
+      const res = await fetch('/api/stripe/checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ kind: 'booking', bookingId: b.id, groupId }),
+        credentials: 'include',
+      });
+      const data = await readCheckoutSessionResponse(res);
+      if (!res.ok) throw new Error(data.error ?? 'Checkout failed');
+      if (!data.url) throw new Error('Stripe did not return a checkout URL');
+      window.location.href = data.url;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Checkout failed');
+      setCheckoutLoading(false);
+    }
   };
 
   if (!group) return (
     <div className="min-h-screen flex items-center justify-center">
-      <p className="text-muted-foreground">Group not found</p>
+      <p className="text-muted-foreground">Class not found</p>
     </div>
   );
 
@@ -150,7 +215,7 @@ export default function BookingFlow({ groupId }: { groupId: string }) {
           </motion.div>
           <h2 className="text-2xl md:text-3xl font-black text-foreground mb-2">Choose your class style first 💃</h2>
           <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
-            Tell us your preferred class type so we can match you with the right group!
+            Tell us your preferred class type so we can match you with the right class!
           </p>
           <div className="space-y-3">
             <Button onClick={() => router.push(`/preferences?returnTo=/booking/${groupId}`)}
@@ -176,7 +241,7 @@ export default function BookingFlow({ groupId }: { groupId: string }) {
           </motion.div>
           <h2 className="text-2xl md:text-3xl font-black text-foreground mb-2">Pick your free time first 🔥</h2>
           <p className="text-sm text-muted-foreground mb-8 leading-relaxed">
-            Share your availability for the next 30 days — we'll use it to lock in the best class times for you and your group!
+            Share your availability for the next 30 days — we&apos;ll use it to lock in the best class times for you and your class!
           </p>
           <div className="space-y-3">
             <Button onClick={() => router.push(`/schedule?returnTo=/booking/${groupId}`)}
@@ -204,7 +269,15 @@ export default function BookingFlow({ groupId }: { groupId: string }) {
         <div className="content-max">
           <div className="flex items-center gap-3 mb-4">
             {step < 2 && (
-              <button onClick={() => step > 0 ? setStep(step - 1) : router.back()} className="text-muted-foreground btn-press p-1.5 -ml-1.5">
+              <button
+                onClick={() => {
+                  if (step > 0) {
+                    if (step === 1) setBooking(null);
+                    setStep(step - 1);
+                  } else router.back();
+                }}
+                className="text-muted-foreground btn-press p-1.5 -ml-1.5"
+              >
                 <ArrowLeft className="w-5 h-5" />
               </button>
             )}
@@ -320,125 +393,45 @@ export default function BookingFlow({ groupId }: { groupId: string }) {
               <h2 className="text-2xl font-black mb-1.5 text-foreground flex items-center gap-2">
                 Payment <CreditCard className="w-5 h-5 text-primary" />
               </h2>
-              <p className="text-sm text-muted-foreground mb-8 leading-relaxed">Almost there — one more step!</p>
-
-              {/* Order Summary */}
-              <div className="card-premium p-6 mb-6 relative overflow-hidden">
-                <div className="absolute top-0 left-0 right-0 h-1 gradient-purple" />
-                <p className="text-xs font-black uppercase tracking-wider text-primary mb-5">Order Summary</p>
-                <div className="space-y-4 text-sm">
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground flex items-center gap-2"><Music className="w-3.5 h-3.5" /> Song</span>
-                    <span className="font-bold text-foreground">{group.songTitle}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground flex items-center gap-2"><Star className="w-3.5 h-3.5" /> Role</span>
-                    <span className="font-bold text-foreground">{selectedRole}</span>
-                  </div>
-                  <div className="h-px bg-border my-1" />
-                  <div className="flex justify-between items-center">
-                    <span className="font-black text-foreground">Total</span>
-                    <span className="text-2xl font-black text-primary">$45.00</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Payment Method Selector */}
-              <div className="mb-6">
-                <p className="text-sm font-black text-foreground mb-4">Payment Method</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {[
-                    { id: 'stripe' as const, label: 'Card Payment', icon: CreditCard },
-                    { id: 'paynow' as const, label: 'PayNow QR', icon: QrCode },
-                  ].map(method => (
-                    <button
-                      key={method.id}
-                      onClick={() => setPaymentMethod(method.id)}
-                      className={`p-5 rounded-2xl border-2 text-center transition-all btn-press min-h-[80px] ${
-                        paymentMethod === method.id ? 'border-primary bg-accent glow-purple' : 'border-border bg-card'
-                      }`}
-                    >
-                      <method.icon className={`w-5 h-5 mx-auto mb-2.5 ${paymentMethod === method.id ? 'text-primary' : 'text-muted-foreground'}`} />
-                      <p className="text-xs font-bold text-foreground">{method.label}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Stripe Mock Card Form */}
-              {paymentMethod === 'stripe' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card-premium p-5 mb-6 space-y-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-accent">
-                      <Shield className="w-3 h-3 text-primary" />
-                      <span className="text-[10px] font-black text-primary uppercase tracking-wider">Powered by Stripe</span>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-muted-foreground">Card Number</label>
-                    <Input placeholder="4242 4242 4242 4242" value={cardNumber} onChange={e => setCardNumber(formatCardNumber(e.target.value))} className="h-12 rounded-xl text-sm border-2 border-border bg-card font-mono tracking-wider" maxLength={19} />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-muted-foreground">Expiry</label>
-                      <Input placeholder="MM/YY" value={cardExpiry} onChange={e => setCardExpiry(formatExpiry(e.target.value))} className="h-12 rounded-xl text-sm border-2 border-border bg-card font-mono" maxLength={5} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-muted-foreground">CVC</label>
-                      <Input placeholder="123" value={cardCvc} onChange={e => setCardCvc(e.target.value.replace(/\D/g, '').slice(0, 3))} className="h-12 rounded-xl text-sm border-2 border-border bg-card font-mono" maxLength={3} type="password" />
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* PayNow QR Mock */}
-              {paymentMethod === 'paynow' && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card-premium p-6 mb-6 text-center">
-                  <p className="text-xs font-bold text-muted-foreground mb-4 uppercase tracking-wider">Scan to pay with PayNow</p>
-                  <div className="w-48 h-48 mx-auto mb-4 bg-card border-2 border-border rounded-2xl flex items-center justify-center relative overflow-hidden">
-                    <div className="grid grid-cols-8 gap-[2px] w-36 h-36">
-                      {Array.from({ length: 64 }).map((_, i) => {
-                        const seed = Math.sin((i + 1) * 12.9898) * 43758.5453;
-                        const frac = seed - Math.floor(seed);
-                        return (
-                          <div key={i} className={`rounded-[1px] ${frac > 0.4 ? 'bg-foreground' : 'bg-transparent'}`} />
-                        );
-                      })}
-                    </div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-10 h-10 rounded-xl bg-card border-2 border-border flex items-center justify-center">
-                        <span className="text-xs font-black text-primary">PN</span>
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-sm font-bold text-foreground mb-1">PayNow to: Korero Studio</p>
-                  <p className="text-xs text-muted-foreground">UEN: 202412345A</p>
-                  <p className="text-lg font-black text-primary mt-2">$45.00</p>
-                  <div className="mt-4 p-3 rounded-xl bg-accent">
-                    <p className="text-[11px] text-muted-foreground">After scanning, tap "Pay Now" below to confirm your booking</p>
-                  </div>
-                </motion.div>
-              )}
-
-              <Button
-                onClick={handlePayment}
-                disabled={processing}
-                className="w-full h-14 rounded-2xl text-lg font-black gradient-purple-deep text-primary-foreground glow-purple-intense btn-press relative overflow-hidden"
-              >
-                <span className="relative z-10">
-                  {processing ? (
-                    <span className="flex items-center gap-2">
-                      <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1 }} className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full" />
-                      Processing...
-                    </span>
-                  ) : <span className="flex items-center gap-2">Pay $45.00 <ArrowRight className="w-4 h-4" /></span>}
-                </span>
-                {!processing && <div className="absolute inset-0 shimmer" />}
-              </Button>
-
-              <p className="text-center text-[11px] text-muted-foreground mt-4 flex items-center justify-center gap-1.5">
-                <Shield className="w-3 h-3" /> Secure payment · Instant confirmation
+              <p className="text-sm text-muted-foreground mb-6 leading-relaxed">
+                Pay with Stripe Checkout (test mode). You will leave this page and return after payment.
               </p>
+
+              <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Song</span>
+                    <span className="font-bold text-right">{group.songTitle}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Role</span>
+                    <span className="font-bold">{selectedRole ?? '—'}</span>
+                  </div>
+                  <div className="h-px bg-border" />
+                  <div className="flex justify-between gap-3 items-center">
+                    <span className="text-muted-foreground">Total</span>
+                    <span className="text-xl font-black tabular-nums">S$45.00</span>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  className="w-full h-14 rounded-2xl font-black text-base gradient-purple text-primary-foreground"
+                  disabled={checkoutLoading || !selectedRole}
+                  onClick={handleStripePay}
+                >
+                  {checkoutLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Opening Stripe…
+                    </>
+                  ) : (
+                    'Pay S$45 with Stripe'
+                  )}
+                </Button>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  Test card <span className="font-mono">4242 4242 4242 4242</span> — any future expiry, any CVC. PayNow if enabled on your Stripe account.
+                </p>
+              </div>
             </motion.div>
           )}
 

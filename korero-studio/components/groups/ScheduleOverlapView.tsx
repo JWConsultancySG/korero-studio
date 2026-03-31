@@ -45,7 +45,7 @@ export default function ScheduleOverlapView({ enrollments, maxMembers, onCellCli
         <Users className="w-10 h-10 md:w-12 md:h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
         <p className="text-sm md:text-base font-bold text-foreground mb-1">No availability yet</p>
         <p className="text-xs md:text-sm text-muted-foreground leading-relaxed max-w-sm md:max-w-md mx-auto">
-          When members add their schedule in My Schedule, you&apos;ll see overlapping free times here so the group can align on a slot.
+          When members add their schedule in My Schedule, you&apos;ll see overlapping free times here so the class can align on a slot.
         </p>
       </div>
     );
@@ -127,7 +127,7 @@ export default function ScheduleOverlapView({ enrollments, maxMembers, onCellCli
 
       <p className="text-[11px] md:text-xs text-muted-foreground leading-relaxed max-w-prose">
         Tip: if you see a hot column (evenings/weekends), consider updating your availability in{" "}
-        <span className="font-semibold text-foreground">Schedule</span> to match the group.
+        <span className="font-semibold text-foreground">Schedule</span> to match the class.
       </p>
     </div>
   );

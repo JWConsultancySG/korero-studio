@@ -82,7 +82,7 @@ export default function AdminSongLibraryPanel() {
     if (!deleteEntry) return;
     const result = await deleteSongCatalogEntry(deleteEntry.songKey);
     if (!result.ok) {
-      toast.error("Cannot delete — a class listing still uses this song. Remove or reassign groups first.");
+      toast.error("Cannot delete — a class listing still uses this song. Remove or reassign classes first.");
     } else {
       toast.success("Removed from library.");
     }

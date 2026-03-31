@@ -55,7 +55,7 @@ export default function FormationCard({ group, studentId, variant = "joined" }: 
         <p className="text-[11px] text-muted-foreground">
           {group.interestCount === group.maxMembers
             ? "Full — waiting for confirmation."
-            : `${Math.round(fill)}% toward a full group — invite others or align schedules.`}
+            : `${Math.round(fill)}% toward a full class — invite others or align schedules.`}
         </p>
       </div>
 
@@ -64,12 +64,12 @@ export default function FormationCard({ group, studentId, variant = "joined" }: 
           <div className="flex items-start gap-2">
             <Lightbulb className="w-4 h-4 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
             <div className="space-y-1 min-w-0">
-              <p className="text-xs font-black text-foreground">Class availability (majority)</p>
+              <p className="text-xs font-black text-foreground">Best overlap so far (not everyone yet)</p>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
-                The strongest shared slot so far is <span className="font-bold text-foreground">{suggestion.label}</span>{" "}
-                ({suggestion.count}/{suggestion.memberTotal} members free). If you add that window to{" "}
-                <span className="font-semibold text-foreground">My Schedule</span>, you can help the group lock a class
-                time faster.
+                Most members are free around <span className="font-bold text-foreground">{suggestion.label}</span>{" "}
+                ({suggestion.count}/{suggestion.memberTotal} free). The class page only shows times when{" "}
+                <span className="font-semibold text-foreground">everyone</span> overlaps; adding this window in{" "}
+                <span className="font-semibold text-foreground">My Schedule</span> moves you closer to a full match.
               </p>
             </div>
           </div>
@@ -83,14 +83,14 @@ export default function FormationCard({ group, studentId, variant = "joined" }: 
 
       {suggestion?.studentFree && (
         <p className="text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
-          You&apos;re already free at the group&apos;s strongest class-availability window ({suggestion.label}). Nice — that helps
+          You&apos;re already free at the class&apos;s strongest availability window ({suggestion.label}). Nice — that helps
           formation.
         </p>
       )}
 
       <Button asChild variant="outline" className="w-full rounded-2xl font-bold">
         <Link href={`/browse/${group.id}`}>
-          {variant === "created" ? "Manage group" : "Group details"}{" "}
+          {variant === "created" ? "Manage class" : "Class details"}{" "}
           <ArrowRight className="w-4 h-4 ml-1 inline" />
         </Link>
       </Button>

@@ -9,7 +9,7 @@ export type StepInfo = {
   caption: string;
 };
 
-/** Default copy for the create-group flow (5 steps). */
+/** Default copy for the create-class flow (5 steps). */
 export const WIZARD_STEPS: readonly StepInfo[] = [
   { id: 1, label: "Song", caption: "Search and pick the track" },
   { id: 2, label: "Members", caption: "Name everyone in the line-up" },
@@ -120,7 +120,7 @@ export function DesktopStepSidebar({
   return (
     <nav className="hidden lg:flex flex-col w-full max-w-[260px] shrink-0" aria-label="Steps">
       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-6 px-1">
-        New song group
+        New song class
       </p>
       <ol className="space-y-0">
         {steps.map((s, i) => {
