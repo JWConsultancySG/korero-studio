@@ -43,11 +43,13 @@ import {
 } from "@/components/groups/CreateGroupWizardChrome";
 
 interface ITunesResult {
-  trackId: number;
+  trackId?: number;
   trackName: string;
   artistName: string;
   artworkUrl100: string;
   collectionName?: string;
+  songKey?: string;
+  source?: "catalog" | "apple";
 }
 
 const WIZARD_STRIPE_DRAFT_KEY = "korero_wizard_stripe_draft_v1";
@@ -99,6 +101,7 @@ export default function CreateGroupWizard() {
     clearDraftSlotHolds,
     getSlotHoldsForDraft,
     studios,
+    songCatalog,
     chooseStudioForGroup,
     refreshApp,
   } = useApp();
@@ -109,7 +112,8 @@ export default function CreateGroupWizard() {
 
   const [step, setStep] = useState(1);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<ITunesResult[]>([]);
+  const [catalogResults, setCatalogResults] = useState<ITunesResult[]>([]);
+  const [appleResults, setAppleResults] = useState<ITunesResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSong, setSelectedSong] = useState<ITunesResult | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -189,9 +193,37 @@ export default function CreateGroupWizard() {
     };
   }, [draftId, clearDraftSlotHolds]);
 
+  const searchCatalog = useCallback(
+    (term: string): ITunesResult[] => {
+      const q = term.trim().toLowerCase();
+      if (q.length < 2) return [];
+      const all = Object.values(songCatalog).filter((entry) => {
+        if (!entry.validated) return false;
+        const title = entry.songTitle.toLowerCase();
+        const artist = entry.artist.toLowerCase();
+        return title.includes(q) || artist.includes(q);
+      });
+      all.sort((a, b) => {
+        const aStarts = a.songTitle.toLowerCase().startsWith(q) || a.artist.toLowerCase().startsWith(q);
+        const bStarts = b.songTitle.toLowerCase().startsWith(q) || b.artist.toLowerCase().startsWith(q);
+        if (aStarts !== bStarts) return aStarts ? -1 : 1;
+        return a.songTitle.localeCompare(b.songTitle);
+      });
+      return all.slice(0, 6).map((entry) => ({
+        trackId: entry.itunesTrackId,
+        trackName: entry.songTitle,
+        artistName: entry.artist,
+        artworkUrl100: entry.imageUrl || "",
+        songKey: entry.songKey,
+        source: "catalog",
+      }));
+    },
+    [songCatalog],
+  );
+
   const searchiTunes = useCallback(async (term: string) => {
     if (term.length < 2) {
-      setResults([]);
+      setAppleResults([]);
       return;
     }
     setLoading(true);
@@ -200,9 +232,10 @@ export default function CreateGroupWizard() {
         `/api/itunes/search?q=${encodeURIComponent(term)}&limit=8`,
       );
       const data = await res.json();
-      setResults(data.results || []);
+      const raw = Array.isArray(data.results) ? (data.results as ITunesResult[]) : [];
+      setAppleResults(raw.map((track) => ({ ...track, source: "apple" })));
     } catch {
-      setResults([]);
+      setAppleResults([]);
     } finally {
       setLoading(false);
     }
@@ -211,14 +244,16 @@ export default function CreateGroupWizard() {
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!query.trim()) {
-      setResults([]);
+      setCatalogResults([]);
+      setAppleResults([]);
       return;
     }
+    setCatalogResults(searchCatalog(query));
     debounceRef.current = setTimeout(() => searchiTunes(query), 350);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, searchiTunes]);
+  }, [query, searchCatalog, searchiTunes]);
 
   const addMemberName = () => {
     const t = nameInput.trim();
@@ -548,7 +583,7 @@ export default function CreateGroupWizard() {
                   Pick your song
                 </h1>
                 <p className="text-sm md:text-base text-muted-foreground mt-1 md:mt-2 max-w-2xl">
-                  Search Apple Music, then select the exact track.
+                  We show validated Korero songs first, then Apple Music results.
                 </p>
               </div>
 
@@ -568,7 +603,8 @@ export default function CreateGroupWizard() {
                     onClick={() => {
                       setSelectedSong(null);
                       setQuery("");
-                      setResults([]);
+                      setCatalogResults([]);
+                      setAppleResults([]);
                     }}
                     className="p-2 rounded-full hover:bg-muted shrink-0"
                   >
@@ -589,31 +625,81 @@ export default function CreateGroupWizard() {
                       className="pl-11 pr-10 h-12 md:h-14 md:text-base rounded-2xl border-2"
                     />
                   </div>
-                  {results.length > 0 && (
-                    <div className="rounded-2xl md:rounded-3xl border border-border bg-card divide-y divide-border max-h-[45vh] md:max-h-[min(50vh,28rem)] lg:max-h-[min(45vh,32rem)] overflow-y-auto shadow-sm">
-                      {results.map((track) => (
-                        <button
-                          key={track.trackId}
-                          type="button"
-                          onClick={() => {
-                            setSelectedSong(track);
-                            setQuery("");
-                            setResults([]);
-                          }}
-                          className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/60 transition-colors"
-                        >
-                          <img
-                            src={track.artworkUrl100}
-                            alt=""
-                            className="w-12 h-12 rounded-lg object-cover shrink-0"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="font-bold text-sm truncate">{track.trackName}</p>
-                            <p className="text-xs text-muted-foreground truncate">{track.artistName}</p>
+                  {(catalogResults.length > 0 || appleResults.length > 0 || loading) && (
+                    <div className="rounded-2xl md:rounded-3xl border border-border bg-card max-h-[45vh] md:max-h-[min(50vh,28rem)] lg:max-h-[min(45vh,32rem)] overflow-y-auto shadow-sm">
+                      {catalogResults.length > 0 && (
+                        <div className="border-b border-border">
+                          <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-primary bg-primary/5">
+                            Validated catalog
                           </div>
-                          <Disc3 className="w-4 h-4 text-muted-foreground/40 shrink-0" />
-                        </button>
-                      ))}
+                          <div className="divide-y divide-border">
+                            {catalogResults.map((track) => (
+                              <button
+                                key={`catalog-${track.songKey ?? `${track.trackName}-${track.artistName}`}`}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedSong(track);
+                                  setQuery("");
+                                  setCatalogResults([]);
+                                  setAppleResults([]);
+                                }}
+                                className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/60 transition-colors"
+                              >
+                                {track.artworkUrl100 ? (
+                                  <img
+                                    src={track.artworkUrl100}
+                                    alt=""
+                                    className="w-12 h-12 rounded-lg object-cover shrink-0"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                                    <Music className="w-4 h-4 text-muted-foreground" />
+                                  </div>
+                                )}
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-bold text-sm truncate">{track.trackName}</p>
+                                  <p className="text-xs text-muted-foreground truncate">{track.artistName}</p>
+                                </div>
+                                <Badge variant="secondary" className="text-[10px]">Ready</Badge>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div>
+                        <div className="px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-muted-foreground bg-muted/40 border-b border-border">
+                          Apple Music {loading ? "· fetching..." : ""}
+                        </div>
+                        <div className="divide-y divide-border">
+                          {appleResults.map((track, idx) => (
+                            <button
+                              key={`apple-${track.trackId ?? `${track.trackName}-${track.artistName}-${idx}`}`}
+                              type="button"
+                              onClick={() => {
+                                setSelectedSong(track);
+                                setQuery("");
+                                setCatalogResults([]);
+                                setAppleResults([]);
+                              }}
+                              className="w-full flex items-center gap-3 p-3 text-left hover:bg-muted/60 transition-colors"
+                            >
+                              <img
+                                src={track.artworkUrl100}
+                                alt=""
+                                className="w-12 h-12 rounded-lg object-cover shrink-0"
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className="font-bold text-sm truncate">{track.trackName}</p>
+                                <p className="text-xs text-muted-foreground truncate">{track.artistName}</p>
+                              </div>
+                              <Disc3 className="w-4 h-4 text-muted-foreground/40 shrink-0" />
+                            </button>
+                          ))}
+                          {!loading && appleResults.length === 0 && query.trim().length >= 2 && (
+                            <p className="px-3 py-4 text-xs text-muted-foreground">No Apple Music matches found.</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </>
