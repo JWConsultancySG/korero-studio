@@ -85,7 +85,7 @@ function formatHoldCountdown(expiresAt: number, now: number) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-export default function CreateGroupWizard() {
+export default function CreateClassWizard() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -333,7 +333,7 @@ export default function CreateGroupWizard() {
     if (step < TOTAL_STEPS) setStep((s) => s + 1);
   };
 
-  const finalizeGroupCreation = useCallback(async () => {
+  const finalizeClassCreation = useCallback(async () => {
     if (!student || !selectedSong || !resolvedClass) return null;
     const imageUrl = selectedSong.artworkUrl100.replace("100x100", "200x200");
     if (classType && classType !== student.classPreference) {
@@ -401,7 +401,7 @@ export default function CreateGroupWizard() {
 
       setSubmitting(true);
       try {
-        const result = await finalizeGroupCreation();
+        const result = await finalizeClassCreation();
         if (!result || !result.ok) {
           if (result?.reason === "insufficient_credits") {
             toast.error("Not enough credits after payment — try confirming again from the last step");
@@ -435,7 +435,7 @@ export default function CreateGroupWizard() {
     pathname,
     router,
     refreshApp,
-    finalizeGroupCreation,
+    finalizeClassCreation,
     chooseStudioForGroup,
     selectedStudioId,
   ]);
@@ -447,7 +447,7 @@ export default function CreateGroupWizard() {
     }
     if (!canNextSlot || !memberNames.length) {
       if (!memberNames.length) {
-        toast.error("Add your group members before paying.");
+        toast.error("Add your class members before paying.");
       } else {
         toast.error("Choose your member slot (step 3) before paying.");
       }
@@ -460,7 +460,7 @@ export default function CreateGroupWizard() {
     setSubmitting(true);
     await new Promise((r) => setTimeout(r, 600));
     try {
-      const result = await finalizeGroupCreation();
+        const result = await finalizeClassCreation();
       if (!result || !result.ok) {
         toast.error("Could not create class listing");
         return;
@@ -545,7 +545,7 @@ export default function CreateGroupWizard() {
               </span>
             </div>
             <div className="hidden lg:flex flex-1 min-w-0 items-baseline gap-3">
-              <h1 className="text-lg font-black tracking-tight text-foreground truncate">New song class</h1>
+              <h1 className="text-lg font-black tracking-tight text-foreground truncate">New class</h1>
               <span className="text-xs text-muted-foreground tabular-nums shrink-0">
                 Step {step} of {TOTAL_STEPS}
               </span>

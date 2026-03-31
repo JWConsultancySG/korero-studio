@@ -40,13 +40,13 @@ export async function updateSession(request: NextRequest) {
   );
 
   // Do not run code between createServerClient and
-  // supabase.auth.getClaims(). A simple mistake could make it very hard to debug
+  // supabase.auth.getUser(). A simple mistake could make it very hard to debug
   // issues with users being randomly logged out.
 
-  // IMPORTANT: If you remove getClaims() and you use server-side rendering
+  // IMPORTANT: If you remove getUser() and you use server-side rendering
   // with the Supabase client, your users may be randomly logged out.
-  const { data } = await supabase.auth.getClaims();
-  const user = data?.claims;
+  const { data, error } = await supabase.auth.getUser();
+  const user = data?.user;
 
   const path = request.nextUrl.pathname;
   const isPublicAuth =
@@ -61,7 +61,7 @@ export async function updateSession(request: NextRequest) {
     /** Admin dashboard: sign-in form uses Supabase; unauthenticated users must still load the page. */
     path.startsWith("/admin");
 
-  if (!isPublicAuth && !user) {
+  if (!isPublicAuth && (!user || error)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

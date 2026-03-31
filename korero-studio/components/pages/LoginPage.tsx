@@ -64,10 +64,11 @@ export default function LoginPage() {
         appRole,
       });
       if (appRole === 'admin') {
-        router.push('/admin?tab=overview');
+        router.replace('/admin?tab=overview');
       } else {
-        router.push('/browse');
+        router.replace('/browse');
       }
+      router.refresh();
     } catch (err: unknown) {
       setError(
         err instanceof Error ? err.message : 'Incorrect email or password. Please try again.',

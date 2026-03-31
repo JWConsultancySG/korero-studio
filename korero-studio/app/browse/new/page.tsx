@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import CreateGroupWizard from "@/components/groups/CreateGroupWizard";
+import CreateClassWizard from "@/components/groups/CreateGroupWizard";
 import { Loader2 } from "lucide-react";
 
 function WizardFallback() {
@@ -10,10 +10,10 @@ function WizardFallback() {
   );
 }
 
-export default function NewGroupPage() {
+export default function NewClassPage() {
   return (
     <Suspense fallback={<WizardFallback />}>
-      <CreateGroupWizard />
+      <CreateClassWizard />
     </Suspense>
   );
 }

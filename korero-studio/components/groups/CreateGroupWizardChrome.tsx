@@ -120,7 +120,7 @@ export function DesktopStepSidebar({
   return (
     <nav className="hidden lg:flex flex-col w-full max-w-[260px] shrink-0" aria-label="Steps">
       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-6 px-1">
-        New song class
+        New class
       </p>
       <ol className="space-y-0">
         {steps.map((s, i) => {
