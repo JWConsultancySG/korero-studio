@@ -1,14 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
-import { CLASS_LABELS, creditsForClass, sgdForCredits, SGD_PER_CREDIT } from "@/lib/credits";
+import { CLASS_LABELS, creditsForClass, isClassType, sgdForCredits, SGD_PER_CREDIT } from "@/lib/credits";
 import type { ClassType } from "@/types";
+import { fulfillLessonConfirmFromStripeSession } from "@/app/actions/matching";
 
 const BOOKING_AMOUNT_SGD = 45;
 const BOOKING_AMOUNT_CENTS = Math.round(BOOKING_AMOUNT_SGD * 100);
-
-function isClassType(s: string | undefined): s is ClassType {
-  return s === "no-filming" || s === "half-song" || s === "full-song";
-}
 
 /**
  * Apply paid Checkout to the database (idempotent). Called from the Stripe webhook.
@@ -106,6 +103,11 @@ export async function fulfillCheckoutSession(
     return;
   }
 
+  if (kind === "lesson_confirm") {
+    await fulfillLessonConfirmFromStripeSession(admin, session);
+    return;
+  }
+
   console.error("[stripe] fulfill: unknown fulfillment_kind", kind, session.id);
 }
 
@@ -174,7 +176,7 @@ export async function isCheckoutFulfilledInDb(
     return data?.payment_status === "paid";
   }
 
-  if (kind === "credits_topup" || kind === "credits_plan") {
+  if (kind === "credits_topup" || kind === "credits_plan" || kind === "lesson_confirm") {
     const { data } = await admin
       .from("credit_transactions")
       .select("id")

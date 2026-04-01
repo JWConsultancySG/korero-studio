@@ -28,3 +28,17 @@ export function slotsToHoursForDate(slots: AvailabilitySlot[], dateKey: string):
   }
   return set;
 }
+
+export function confirmedHoursForDate(
+  slots: AvailabilitySlot[],
+  dateKey: string,
+): Map<number, string | undefined> {
+  const map = new Map<number, string | undefined>();
+  for (const s of slots) {
+    if (s.date !== dateKey || !s.isConfirmedClass) continue;
+    for (let h = s.startHour; h < s.endHour; h++) {
+      map.set(h, s.confirmedGroupId);
+    }
+  }
+  return map;
+}

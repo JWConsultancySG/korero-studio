@@ -23,14 +23,12 @@ import type {
   ClassType,
   CreditTransaction,
   SongCatalogEntry,
-  StudioRoom,
   AdminAlert,
   StudentNotification,
   Studio,
 } from '@/types';
 import { creditsForClass, CLASS_LABELS } from '@/lib/credits';
 import type { User } from '@supabase/supabase-js';
-import { format } from 'date-fns';
 import { isAdminFromAppRole } from '@/lib/admin-auth';
 import { makeSongKey, groupSongKey } from '@/lib/song-key';
 import { hoursToBlocks, slotsToHoursForDate } from '@/lib/availability-blocks';
@@ -48,23 +46,29 @@ import type {
   CreateSongGroupPayload,
   CreditPurchaseMeta,
   CreateSongGroupResult,
-  ValidateSongPayload,
+  ReviewClassRequestPayload,
 } from '@/lib/korero-types';
+import type { MatchedHourSlot } from '@/types';
 import {
   confirmInstructorAssignment,
   finalizeGroupClass,
   precheckGroupStudioOverlap,
+  recomputeMatchingForCurrentUserEnrollments,
   recomputeGroupMatchingState,
   requestInstructorAssignment,
   selectGroupStudio,
   submitFinalAcceptance,
+  selectLessonSlots as selectLessonSlotsAction,
+  confirmStudentPayment as confirmStudentPaymentAction,
+  cancelClass as cancelClassAction,
 } from '@/app/actions/matching';
+import { addStudio as addStudioAction, deleteStudio as deleteStudioAction, updateStudio as updateStudioAction } from '@/app/actions/studios';
 
 export type {
   CreateSongGroupPayload,
   CreditPurchaseMeta,
   CreateSongGroupResult,
-  ValidateSongPayload,
+  ReviewClassRequestPayload,
 } from '@/lib/korero-types';
 
 const DEFAULT_ROLES: Role[] = [
@@ -160,16 +164,55 @@ interface AppContextType extends AppState {
   createBooking: (groupId: string, role: RoleName, timeSlot: TimeSlot) => Promise<Booking>;
   completePayment: (bookingId: string) => Promise<void>;
   logoutAdmin: () => void;
-  assignSession: (groupId: string, room: StudioRoom, startAt: string, endAt: string) => Promise<void>;
   chooseStudioForGroup: (groupId: string, studioId: string) => Promise<{ ok: boolean; overlapHours?: number }>;
+  addStudio: (input: {
+    name: string;
+    location?: string;
+    address?: string;
+    timezone?: string;
+    capacity?: number;
+    notes?: string;
+  }) => Promise<{ ok: boolean; message?: string }>;
+  updateStudio: (
+    studioId: string,
+    patch: {
+      name?: string;
+      location?: string;
+      address?: string;
+      timezone?: string;
+      capacity?: number;
+      notes?: string;
+      isActive?: boolean;
+    },
+  ) => Promise<{ ok: boolean; message?: string }>;
+  deleteStudio: (studioId: string) => Promise<{ ok: boolean; message?: string }>;
   requestInstructorForGroup: (groupId: string) => Promise<void>;
   confirmInstructorForGroup: (groupId: string, assignmentId: string) => Promise<void>;
   recomputeGroupMatching: (groupId: string) => Promise<void>;
   submitGroupFinalAcceptance: (groupId: string) => Promise<void>;
   finalizeGroupLesson: (groupId: string) => Promise<void>;
-  removeSession: (sessionId: string) => Promise<void>;
-  validateSong: (payload: ValidateSongPayload) => Promise<void>;
-  saveSongCatalogEntry: (payload: ValidateSongPayload, previousSongKey?: string) => Promise<void>;
+  selectLessonSlots: (
+    classId: string,
+    slots: MatchedHourSlot[],
+  ) => Promise<
+    | { ok: true; studentsNotified: number; notifyFailed: boolean }
+    | { ok: false; reason?: string }
+  >;
+  confirmPayment: (
+    classId: string,
+  ) => Promise<
+    | { ok: true; allPaid?: boolean; alreadyPaid?: boolean }
+    | {
+        ok: false;
+        reason: string;
+        costCredits?: number;
+        balance?: number;
+        classId?: string;
+      }
+  >;
+  cancelClassById: (classId: string, reason: string) => Promise<{ ok: boolean }>;
+  approveClassRequest: (payload: ReviewClassRequestPayload) => Promise<void>;
+  saveSongCatalogEntry: (payload: ReviewClassRequestPayload, previousSongKey?: string) => Promise<void>;
   deleteSongCatalogEntry: (songKey: string) => Promise<{ ok: true } | { ok: false; reason: 'in_use' }>;
   getSongCatalogEntry: (songKey: string) => SongCatalogEntry | undefined;
   markNotificationRead: (id: string) => Promise<void>;
@@ -214,6 +257,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const authUserRef = useRef<User | null>(null);
   authUserRef.current = authUser;
   const availabilityHydratedRef = useRef(false);
+  /** Only true after a successful `student_availability_slots` read — blocks accidental DB wipes. */
+  const availabilityPersistAllowedRef = useRef(false);
 
   const isAuthenticated = Boolean(student);
 
@@ -226,11 +271,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCreditTransactions(data.creditTransactions);
     setAdminAlerts(data.adminAlerts);
     setStudentNotifications(data.studentNotifications);
-    setAvailability(data.availability);
+    if (!data.availabilityLoadFailed) {
+      setAvailability(data.availability);
+    }
     setStudios(data.studios);
     availabilityHydratedRef.current = true;
-    if (data.student) setStudent(data.student);
-    else setStudent(null);
+    if (data.student) {
+      setStudent(data.student);
+      availabilityPersistAllowedRef.current = !data.availabilityLoadFailed;
+    } else {
+      setStudent(null);
+      availabilityPersistAllowedRef.current = false;
+    }
     setIsAdmin(isAdminFromAppRole(data.student?.appRole));
   }, []);
 
@@ -293,10 +345,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!authSessionReady || !availabilityHydratedRef.current || !student?.id) return;
+    if (!availabilityPersistAllowedRef.current) return;
     const t = setTimeout(() => {
       void (async () => {
         const supabase = createClient();
         await replaceStudentAvailability(supabase, student.id, availability);
+        await recomputeMatchingForCurrentUserEnrollments();
       })();
     }, 450);
     return () => clearTimeout(t);
@@ -318,6 +372,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     })();
     setStudent(null);
     availabilityHydratedRef.current = false;
+    availabilityPersistAllowedRef.current = false;
   }, []);
 
   const joinGroup = useCallback(
@@ -335,8 +390,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!res.ok) return;
       const data = await refresh();
       const nextG = data.groups.find((g) => g.id === groupId);
+      let shouldRefreshAgain = false;
       if (prevGroup && nextG) {
         await notifyIfClassBecameFull(nextG, prevGroup);
+        shouldRefreshAgain = true;
+      }
+      // Keep common slots in sync right after enrollment changes.
+      if (nextG?.studioSelection?.studioId) {
+        await recomputeGroupMatchingState(groupId);
+        shouldRefreshAgain = true;
+      }
+      if (shouldRefreshAgain) {
         await refresh();
       }
     },
@@ -408,7 +472,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const saveSongCatalogEntry = useCallback(
-    async (input: ValidateSongPayload, previousSongKey?: string) => {
+    async (input: ReviewClassRequestPayload, previousSongKey?: string) => {
       const supabase = createClient();
       await persistSongCatalogEntry(supabase, input, previousSongKey);
       await refresh();
@@ -416,8 +480,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [refresh],
   );
 
-  const validateSong = useCallback(
-    async (input: ValidateSongPayload) => {
+  const approveClassRequest = useCallback(
+    async (input: ReviewClassRequestPayload) => {
       await saveSongCatalogEntry(input);
     },
     [saveSongCatalogEntry],
@@ -490,7 +554,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (patch.imageUrl !== undefined) row.image_url = patch.imageUrl;
       if (patch.slotLabels !== undefined) row.slot_labels = patch.slotLabels;
       if (patch.creatorSlotLabel !== undefined) row.creator_slot_label = patch.creatorSlotLabel;
-      if (patch.awaitingSongValidation !== undefined) row.awaiting_song_validation = patch.awaitingSongValidation;
+      if (patch.awaitingAdminReview !== undefined) row.awaiting_song_validation = patch.awaitingAdminReview;
       if (patch.itunesTrackId !== undefined) row.itunes_track_id = patch.itunesTrackId;
       if (patch.classTypeAtCreation !== undefined) row.class_type_at_creation = patch.classTypeAtCreation;
 
@@ -623,31 +687,63 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setIsAdmin(false);
   }, []);
 
-  const assignSession = useCallback(
-    async (groupId: string, room: StudioRoom, startAt: string, endAt: string) => {
-      const supabase = createClient();
-      const start = new Date(startAt);
-      await supabase.from('class_sessions').insert({
-        class_id: groupId,
-        room,
-        day: format(start, 'EEEE'),
-        time: format(start, 'h:mm a'),
-        start_at: startAt,
-        end_at: endAt,
-        confirmed: true,
-      });
-      await refresh();
-    },
-    [refresh],
-  );
 
   const chooseStudioForGroup = useCallback(async (groupId: string, studioId: string) => {
     const selected = await selectGroupStudio(groupId, studioId);
     if (!selected.ok) return { ok: false };
     const precheck = await precheckGroupStudioOverlap(groupId, studioId);
+    await recomputeGroupMatchingState(groupId);
     await refresh();
     return { ok: true, overlapHours: precheck.ok ? precheck.overlapHours : 0 };
   }, [refresh]);
+
+  const addStudio = useCallback(
+    async (input: {
+      name: string;
+      location?: string;
+      address?: string;
+      timezone?: string;
+      capacity?: number;
+      notes?: string;
+    }) => {
+      const result = await addStudioAction(input);
+      if (!result.ok) return { ok: false, message: result.message ?? result.error };
+      await refresh();
+      return { ok: true };
+    },
+    [refresh],
+  );
+
+  const updateStudio = useCallback(
+    async (
+      studioId: string,
+      patch: {
+        name?: string;
+        location?: string;
+        address?: string;
+        timezone?: string;
+        capacity?: number;
+        notes?: string;
+        isActive?: boolean;
+      },
+    ) => {
+      const result = await updateStudioAction(studioId, patch);
+      if (!result.ok) return { ok: false, message: result.message ?? result.error };
+      await refresh();
+      return { ok: true };
+    },
+    [refresh],
+  );
+
+  const deleteStudio = useCallback(
+    async (studioId: string) => {
+      const result = await deleteStudioAction(studioId);
+      if (!result.ok) return { ok: false, message: result.message ?? result.error };
+      await refresh();
+      return { ok: true };
+    },
+    [refresh],
+  );
 
   const requestInstructorForGroup = useCallback(async (groupId: string) => {
     await requestInstructorAssignment(groupId);
@@ -656,6 +752,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const confirmInstructorForGroup = useCallback(async (groupId: string, assignmentId: string) => {
     await confirmInstructorAssignment(groupId, assignmentId);
+    await recomputeGroupMatchingState(groupId);
     await refresh();
   }, [refresh]);
 
@@ -674,14 +771,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await refresh();
   }, [refresh]);
 
-  const removeSession = useCallback(
-    async (sessionId: string) => {
-      const supabase = createClient();
-      await supabase.from('class_sessions').delete().eq('id', sessionId);
-      await refresh();
-    },
-    [refresh],
-  );
+  const selectLessonSlots = useCallback(async (classId: string, slots: MatchedHourSlot[]) => {
+    const res = await selectLessonSlotsAction(classId, slots);
+    await refresh();
+    if (!res.ok) return { ok: false as const, reason: (res as { reason?: string }).reason };
+    return {
+      ok: true as const,
+      studentsNotified: res.studentsNotified,
+      notifyFailed: res.notifyFailed,
+    };
+  }, [refresh]);
+
+  const confirmPayment = useCallback(async (classId: string) => {
+    const res = await confirmStudentPaymentAction(classId);
+    await refresh();
+    return res;
+  }, [refresh]);
+
+  const cancelClassById = useCallback(async (classId: string, reason: string) => {
+    const res = await cancelClassAction(classId, reason);
+    await refresh();
+    return { ok: res.ok };
+  }, [refresh]);
 
   const addAvailability = useCallback((slot: AvailabilitySlot) => {
     setAvailability((prev) => [...prev, slot]);
@@ -828,15 +939,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         createBooking,
         completePayment,
         logoutAdmin,
-        assignSession,
         chooseStudioForGroup,
+        addStudio,
+        updateStudio,
+        deleteStudio,
         requestInstructorForGroup,
         confirmInstructorForGroup,
         recomputeGroupMatching,
         submitGroupFinalAcceptance,
         finalizeGroupLesson,
-        removeSession,
-        validateSong,
+        selectLessonSlots,
+        confirmPayment,
+        cancelClassById,
+        approveClassRequest,
         saveSongCatalogEntry,
         deleteSongCatalogEntry,
         getSongCatalogEntry,

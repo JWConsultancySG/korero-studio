@@ -2,7 +2,6 @@ import type { LucideIcon } from "lucide-react";
 import {
   BookOpen,
   CalendarDays,
-  ClipboardCheck,
   Home,
   LayoutDashboard,
   Library,
@@ -22,14 +21,13 @@ export const MAIN_NAV_ITEMS: { href: string; icon: LucideIcon; label: string }[]
 ];
 
 /** Admin sidebar / bottom nav — matches Admin dashboard sections. */
-export type AdminTabId = "overview" | "users" | "classes" | "library" | "validate" | "rooms" | "matcher";
+export type AdminTabId = "overview" | "users" | "classes" | "library" | "rooms" | "matcher";
 
 export const ADMIN_TAB_IDS: AdminTabId[] = [
   "overview",
   "users",
   "classes",
   "library",
-  "validate",
   "rooms",
   "matcher",
 ];
@@ -44,7 +42,6 @@ export const ADMIN_NAV_ITEMS: {
   { href: "/admin?tab=users", tab: "users", icon: UserCog, label: "Users" },
   { href: "/admin?tab=classes", tab: "classes", icon: Music, label: "Classes" },
   { href: "/admin?tab=library", tab: "library", icon: Library, label: "Song library" },
-  { href: "/admin?tab=validate", tab: "validate", icon: ClipboardCheck, label: "Validation" },
   { href: "/admin?tab=rooms", tab: "rooms", icon: Calendar, label: "Rooms" },
   { href: "/admin?tab=matcher", tab: "matcher", icon: Users, label: "Matcher" },
 ];
@@ -52,6 +49,7 @@ export const ADMIN_NAV_ITEMS: {
 /** Parse ?tab= from /admin URL; invalid values fall back to overview. */
 export function parseAdminTab(searchParams: URLSearchParams | null | undefined): AdminTabId {
   const raw = searchParams?.get("tab") ?? "";
+  if (raw === "validate") return "classes";
   if (ADMIN_TAB_IDS.includes(raw as AdminTabId)) return raw as AdminTabId;
   return "overview";
 }

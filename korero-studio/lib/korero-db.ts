@@ -69,6 +69,11 @@ export type KoreroLoadedData = {
   adminAlerts: AdminAlert[];
   studentNotifications: StudentNotification[];
   availability: AvailabilitySlot[];
+  /**
+   * When true, `student_availability_slots` failed to load — do not overwrite React state or persist
+   * (otherwise we would treat [] as truth and DELETE all rows in replaceStudentAvailability).
+   */
+  availabilityLoadFailed?: boolean;
   studios: Studio[];
 };
 
@@ -156,10 +161,38 @@ export async function fetchSongGroupsMerged(
     if (!prev || (prev.status !== 'confirmed' && a.status === 'confirmed')) instructorByGroup.set(key, a);
   }
 
+  const instructorIds = [...new Set(
+    Array.from(instructorByGroup.values()).map((a) => a.instructor_id as string),
+  )];
+  const creatorIds = [
+    ...new Set(gRows.map((r) => r.creator_id).filter((id): id is string => Boolean(id))),
+  ];
+  const profileIds = [...new Set([...instructorIds, ...creatorIds])];
+  const nameById = new Map<string, string>();
+  if (profileIds.length > 0) {
+    const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', profileIds);
+    for (const p of profs ?? []) {
+      nameById.set(p.id as string, (p.full_name as string) ?? '');
+    }
+  }
+
   return gRows.map((g) => {
     const rows = byGroup.get(g.id) ?? [];
     const studio = studioByGroup.get(g.id);
     const instructor = instructorByGroup.get(g.id);
+    const instructorAssignment = instructor
+      ? {
+          id: instructor.id as string,
+          groupId: instructor.class_id as string,
+          instructorId: instructor.instructor_id as string,
+          instructorName: nameById.get(instructor.instructor_id as string) || undefined,
+          status: instructor.status as 'pending' | 'confirmed' | 'rejected',
+          requestedAt: instructor.requested_at as string,
+          decidedAt: (instructor.decided_at as string | null) ?? undefined,
+          decidedBy: (instructor.decided_by as string | null) ?? undefined,
+        }
+      : undefined;
+    const creatorName = g.creator_id ? nameById.get(g.creator_id as string) : undefined;
     return mergeSongGroup(
       g,
       rows.map(mapEnrollmentRow),
@@ -171,17 +204,8 @@ export async function fetchSongGroupsMerged(
             selectedAt: studio.selected_at as string,
           }
         : undefined,
-      instructor
-        ? {
-            id: instructor.id as string,
-            groupId: instructor.class_id as string,
-            instructorId: instructor.instructor_id as string,
-            status: instructor.status as 'pending' | 'confirmed' | 'rejected',
-            requestedAt: instructor.requested_at as string,
-            decidedAt: (instructor.decided_at as string | null) ?? undefined,
-            decidedBy: (instructor.decided_by as string | null) ?? undefined,
-          }
-        : undefined,
+      instructorAssignment,
+      g.creator_id ? { creatorName } : undefined,
     );
   });
 }
@@ -237,6 +261,7 @@ export async function loadKoreroData(
       adminAlerts: [],
       studentNotifications: [],
       availability: [],
+      availabilityLoadFailed: false,
       studios,
     };
   }
@@ -255,7 +280,11 @@ export async function loadKoreroData(
   const sessionRows = sessionsRes.data;
   const creditRows = creditRes.data;
   const notifRows = notifRes.data;
-  const availRows = availRes.data;
+  const availabilityLoadFailed = Boolean(availRes.error);
+  if (availRes.error && process.env.NODE_ENV === 'development') {
+    console.warn('[korero] student_availability_slots load failed', formatSupabaseError(availRes.error));
+  }
+  const availRows = availabilityLoadFailed ? null : availRes.data;
 
   let adminAlerts: AdminAlert[] = [];
   if (student?.appRole === 'admin') {
@@ -289,6 +318,7 @@ export async function loadKoreroData(
     availability: (availRows ?? []).map((r) =>
       mapStudentAvailabilityRow(r as Parameters<typeof mapStudentAvailabilityRow>[0]),
     ),
+    availabilityLoadFailed,
     studios,
   };
 }
@@ -343,7 +373,7 @@ export async function createSongGroupInDb(
     creatorSlot = slotLabels[0] ?? creatorSlot;
   }
 
-  const awaitingSongValidation = !payload.skipSongValidation && !isValidated;
+  const awaitingAdminReview = !payload.skipAdminReview && !isValidated;
   const cost = creditsForClass(payload.classType);
   const balance = st.credits ?? 0;
   if (balance < cost) {
@@ -372,7 +402,7 @@ export async function createSongGroupInDb(
     credits_charged: cost,
     class_type_at_creation: payload.classType,
     itunes_track_id: payload.itunesTrackId ?? null,
-    awaiting_song_validation: awaitingSongValidation,
+    awaiting_song_validation: awaitingAdminReview,
   };
 
   const { data: inserted, error: gErr } = await supabase.from('classes').insert(insertRow).select('id').single();
@@ -395,10 +425,10 @@ export async function createSongGroupInDb(
     return { ok: false, reason: 'error' };
   }
 
-  if (awaitingSongValidation) {
+  if (awaitingAdminReview) {
     await supabase.from('admin_alerts').insert({
-      kind: 'song_validation',
-      message: `New song group created — ${payload.songTitle} / ${payload.artist}. Validate to activate.`,
+      kind: 'class_request_review',
+      message: `New class request created — ${payload.songTitle} / ${payload.artist}. Review to publish.`,
       class_id: groupId,
       song_key: songKey,
     });
@@ -422,7 +452,7 @@ export async function createSongGroupInDb(
     creditsCharged: cost,
     topUpCredits: 0,
     topUpSgd: 0,
-    awaitingSongValidation,
+    awaitingAdminReview,
   };
 }
 

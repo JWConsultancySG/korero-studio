@@ -155,7 +155,7 @@ export default function BookingFlow({ groupId }: { groupId: string }) {
         <h1 className="text-xl font-black text-foreground mb-2">Admin only</h1>
         <p className="text-sm text-muted-foreground max-w-md mb-6 leading-relaxed">
           Studio sessions and rehearsal bookings are created by Korero admin only. Students coordinate availability in My
-          Schedule; admins assign rooms and times.
+          Schedule; final slots are determined from member + instructor + studio availability.
         </p>
         <Button onClick={() => router.push('/browse')} className="rounded-2xl font-bold gradient-purple text-primary-foreground">
           Back to browse

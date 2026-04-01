@@ -137,7 +137,7 @@ export default function MyClassesPage() {
               <div>
                 <h2 className="text-lg font-black text-foreground">Scheduled classes (joined)</h2>
                 <p className="text-xs text-muted-foreground">
-                  Time and room are set by the studio or admin — students do not pick the room.
+                  Time and room are finalized from member, instructor, and studio availability.
                 </p>
               </div>
             </div>

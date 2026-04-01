@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { makeSongKey } from '@/lib/song-key';
-import type { ValidateSongPayload } from '@/lib/korero-types';
+import type { ReviewClassRequestPayload } from '@/lib/korero-types';
 import type { SongGroupRow } from '@/lib/korero-mappers';
 
 function songKeyFromRow(row: Pick<SongGroupRow, 'song_key' | 'song_title' | 'artist'>): string {
@@ -10,7 +10,7 @@ function songKeyFromRow(row: Pick<SongGroupRow, 'song_key' | 'song_title' | 'art
 /** Persist catalog + update affected groups (admin). */
 export async function persistSongCatalogEntry(
   supabase: SupabaseClient,
-  input: ValidateSongPayload,
+  input: ReviewClassRequestPayload,
   previousSongKey?: string,
 ): Promise<void> {
   const roles = input.roleNames

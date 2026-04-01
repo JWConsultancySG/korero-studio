@@ -30,6 +30,7 @@ import {
   VideoOff,
   Film,
   Lock,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import { CreditsPaymentDialog } from "@/components/CreditsPaymentDialog";
@@ -50,6 +51,8 @@ interface ITunesResult {
   collectionName?: string;
   songKey?: string;
   source?: "catalog" | "apple";
+  catalogFormationSize?: number;
+  catalogRoleNames?: string[];
 }
 
 const WIZARD_STRIPE_DRAFT_KEY = "korero_wizard_stripe_draft_v1";
@@ -65,7 +68,7 @@ type WizardStripeDraftV1 = {
   selectedStudioId: string;
   mySlot: string;
   selectedSong: ITunesResult | null;
-  skipSongValidation: boolean;
+  skipAdminReview: boolean;
 };
 
 const MIN_MEMBERS = 2;
@@ -89,10 +92,10 @@ export default function CreateClassWizard() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  /** Admin flow from /browse/new?asAdmin=1 — no song-validation hold. */
-  const skipSongValidation = searchParams.get("asAdmin") === "1";
+  /** Admin flow from /browse/new?asAdmin=1 — skip admin-review gate. */
+  const skipAdminReview = searchParams.get("asAdmin") === "1";
   /** Student creating a new request: draft isn’t visible to others yet — no slot competition / 30‑min hold. */
-  const skipSlotHoldUX = !skipSongValidation;
+  const skipSlotHoldUX = !skipAdminReview;
   const {
     student,
     createSongGroup,
@@ -216,9 +219,24 @@ export default function CreateClassWizard() {
         artworkUrl100: entry.imageUrl || "",
         songKey: entry.songKey,
         source: "catalog",
+        catalogFormationSize: entry.formationSize,
+        catalogRoleNames: [...entry.roleNames],
       }));
     },
     [songCatalog],
+  );
+
+  const selectedCatalogRoleNames = useMemo(() => {
+    if (selectedSong?.source !== "catalog") return null;
+    if (selectedSong.catalogRoleNames?.length) return selectedSong.catalogRoleNames;
+    if (!selectedSong.songKey) return null;
+    const entry = songCatalog[selectedSong.songKey];
+    if (!entry?.validated) return null;
+    return entry.roleNames;
+  }, [selectedSong, songCatalog]);
+
+  const step2LockedByValidatedCatalog = Boolean(
+    selectedSong?.source === "catalog" && selectedCatalogRoleNames?.length,
   );
 
   const searchiTunes = useCallback(async (term: string) => {
@@ -256,6 +274,7 @@ export default function CreateClassWizard() {
   }, [query, searchCatalog, searchiTunes]);
 
   const addMemberName = () => {
+    if (step2LockedByValidatedCatalog) return;
     const t = nameInput.trim();
     if (!t || memberNames.length >= MAX_MEMBERS) return;
     if (memberNames.some((n) => n.toLowerCase() === t.toLowerCase())) {
@@ -267,6 +286,7 @@ export default function CreateClassWizard() {
   };
 
   const removeMemberName = (name: string) => {
+    if (step2LockedByValidatedCatalog) return;
     setMemberNames((prev) => prev.filter((n) => n !== name));
     if (mySlot === name) setMySlot("");
   };
@@ -297,7 +317,7 @@ export default function CreateClassWizard() {
       selectedStudioId,
       mySlot,
       selectedSong,
-      skipSongValidation,
+      skipAdminReview,
     };
     sessionStorage.setItem(WIZARD_STRIPE_DRAFT_KEY, JSON.stringify(payload));
     sessionStorage.setItem(WIZARD_STRIPE_FINALIZE_KEY, "1");
@@ -310,7 +330,7 @@ export default function CreateClassWizard() {
     selectedStudioId,
     mySlot,
     selectedSong,
-    skipSongValidation,
+    skipAdminReview,
     shortfallPayment,
     resolvedClass,
   ]);
@@ -322,6 +342,16 @@ export default function CreateClassWizard() {
     }
     setStep((s) => s - 1);
   };
+
+  useEffect(() => {
+    if (!selectedSong) return;
+    if (!step2LockedByValidatedCatalog || !selectedCatalogRoleNames?.length) return;
+    setMemberNames(selectedCatalogRoleNames);
+    setNameInput("");
+    if (mySlot && !selectedCatalogRoleNames.includes(mySlot)) {
+      setMySlot("");
+    }
+  }, [selectedSong, step2LockedByValidatedCatalog, selectedCatalogRoleNames, mySlot]);
 
   /** Industry pattern: jump back to earlier steps only (checkout-style). */
   const handleStepClick = (target: number) => {
@@ -349,7 +379,7 @@ export default function CreateClassWizard() {
       classType: resolvedClass,
       draftId,
       itunesTrackId: selectedSong.trackId,
-      skipSongValidation,
+      skipAdminReview,
     });
   }, [
     student,
@@ -361,7 +391,7 @@ export default function CreateClassWizard() {
     draftId,
     createSongGroup,
     setClassPreference,
-    skipSongValidation,
+    skipAdminReview,
   ]);
 
   useEffect(() => {
@@ -410,7 +440,7 @@ export default function CreateClassWizard() {
           }
           return;
         }
-        if (result.awaitingSongValidation) {
+        if (result.awaitingAdminReview) {
           toast.success(
             `Top-up applied · Used ${result.creditsCharged} credits · Listing submitted — we’ll validate the song and notify you when it’s live.`,
           );
@@ -465,7 +495,7 @@ export default function CreateClassWizard() {
         toast.error("Could not create class listing");
         return;
       }
-      if (result.awaitingSongValidation) {
+      if (result.awaitingAdminReview) {
         toast.success(
           `Used ${result.creditsCharged} credits · Listing submitted — we’ll validate the song and notify you when it’s live.`,
         );
@@ -639,6 +669,10 @@ export default function CreateClassWizard() {
                                 type="button"
                                 onClick={() => {
                                   setSelectedSong(track);
+                                  if (track.catalogRoleNames?.length) {
+                                    setMemberNames(track.catalogRoleNames);
+                                    setNameInput("");
+                                  }
                                   setQuery("");
                                   setCatalogResults([]);
                                   setAppleResults([]);
@@ -659,6 +693,24 @@ export default function CreateClassWizard() {
                                 <div className="min-w-0 flex-1">
                                   <p className="font-bold text-sm truncate">{track.trackName}</p>
                                   <p className="text-xs text-muted-foreground truncate">{track.artistName}</p>
+                                  {track.catalogRoleNames?.length ? (
+                                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                      <Badge variant="outline" className="h-5 px-2 text-[10px] gap-1">
+                                        <Users className="w-3 h-3" />
+                                        {track.catalogFormationSize ?? track.catalogRoleNames.length}
+                                      </Badge>
+                                      {track.catalogRoleNames.slice(0, 4).map((name) => (
+                                        <Badge key={`${track.songKey ?? track.trackName}-${name}`} variant="secondary" className="h-5 px-2 text-[10px]">
+                                          {name}
+                                        </Badge>
+                                      ))}
+                                      {track.catalogRoleNames.length > 4 && (
+                                        <Badge variant="secondary" className="h-5 px-2 text-[10px]">
+                                          +{track.catalogRoleNames.length - 4}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  ) : null}
                                 </div>
                                 <Badge variant="secondary" className="text-[10px]">Ready</Badge>
                               </button>
@@ -720,11 +772,23 @@ export default function CreateClassWizard() {
                   Who&apos;s in this class?
                 </h1>
                 <p className="text-sm md:text-base text-muted-foreground mt-1 md:mt-2 leading-relaxed max-w-3xl">
-                  Add one name per member (e.g. Jennie, Lisa). That&apos;s your full line-up —{" "}
-                  <span className="font-bold text-foreground">
-                    {memberNames.length} member{memberNames.length !== 1 ? "s" : ""}
-                  </span>{" "}
-                  so far. Need at least {MIN_MEMBERS}, up to {MAX_MEMBERS}.
+                  {step2LockedByValidatedCatalog ? (
+                    <>
+                      This song uses a validated formation, so member positions are pre-filled and locked.{" "}
+                      <span className="font-bold text-foreground">
+                        {memberNames.length} member{memberNames.length !== 1 ? "s" : ""}
+                      </span>{" "}
+                      confirmed.
+                    </>
+                  ) : (
+                    <>
+                      Add one name per member (e.g. Jennie, Lisa). That&apos;s your full line-up —{" "}
+                      <span className="font-bold text-foreground">
+                        {memberNames.length} member{memberNames.length !== 1 ? "s" : ""}
+                      </span>{" "}
+                      so far. Need at least {MIN_MEMBERS}, up to {MAX_MEMBERS}.
+                    </>
+                  )}
                 </p>
               </div>
 
@@ -736,20 +800,28 @@ export default function CreateClassWizard() {
                     className="pl-3 pr-1 py-1.5 text-sm font-bold rounded-xl gap-1 bg-card border border-border"
                   >
                     {name}
-                    <button
-                      type="button"
-                      onClick={() => removeMemberName(name)}
-                      className="ml-1 p-0.5 rounded-lg hover:bg-muted"
-                      aria-label={`Remove ${name}`}
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
+                    {!step2LockedByValidatedCatalog && (
+                      <button
+                        type="button"
+                        onClick={() => removeMemberName(name)}
+                        className="ml-1 p-0.5 rounded-lg hover:bg-muted"
+                        aria-label={`Remove ${name}`}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </Badge>
                 ))}
-                {memberNames.length < MAX_MEMBERS && (
+                {!step2LockedByValidatedCatalog && memberNames.length < MAX_MEMBERS && (
                   <span className="text-xs text-muted-foreground self-center">
                     Type a name and tap Add
                   </span>
+                )}
+                {step2LockedByValidatedCatalog && (
+                  <Badge variant="outline" className="self-center">
+                    <Lock className="w-3.5 h-3.5 mr-1" />
+                    Formation locked from validated catalog
+                  </Badge>
                 )}
               </div>
 
@@ -766,13 +838,14 @@ export default function CreateClassWizard() {
                   placeholder="e.g. Jennie"
                   className="h-12 md:h-14 rounded-2xl flex-1 md:text-base"
                   maxLength={32}
+                  disabled={step2LockedByValidatedCatalog}
                 />
                 <Button
                   type="button"
                   variant="secondary"
                   className="h-12 md:h-14 rounded-2xl font-bold shrink-0 px-5 sm:w-auto w-full sm:min-w-[100px]"
                   onClick={addMemberName}
-                  disabled={memberNames.length >= MAX_MEMBERS}
+                  disabled={step2LockedByValidatedCatalog || memberNames.length >= MAX_MEMBERS}
                 >
                   Add
                 </Button>
@@ -999,7 +1072,7 @@ export default function CreateClassWizard() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-1 xl:gap-4 2xl:grid-cols-3 2xl:gap-5 2xl:items-stretch">
+              <div className="grid grid-cols-3 gap-3 md:gap-4 xl:gap-5 items-stretch">
                 {(Object.keys(CREDITS_BY_CLASS) as ClassType[]).map((ct) => {
                   const Icon = CLASS_ICONS[ct];
                   const active = classType === ct;

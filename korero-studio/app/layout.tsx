@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Geist } from "next/font/google";
-import Script from "next/script";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AppProviders } from "@/components/providers";
 import "./globals.css";
@@ -16,6 +15,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
   title: "Korero Studio",
   description: "K-pop dance & singing studio — book classes, join song classes, and slay.",
+  icons: {
+    icon: "/white_icon_color1_background.png",
+    apple: "/white_icon_color1_background.png",
+  },
 };
 
 const geistSans = Geist({
@@ -31,8 +34,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="relative" suppressHydrationWarning>
+      <head>
+        <script id="theme-init" dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+      </head>
       <body className={`${geistSans.variable} ${geistSans.className} relative antialiased`} suppressHydrationWarning>
-        <Script id="theme-init" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

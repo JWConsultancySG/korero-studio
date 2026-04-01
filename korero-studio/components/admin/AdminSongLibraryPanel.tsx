@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useApp } from "@/context/AppContext";
 import type { SongCatalogEntry } from "@/types";
 import { CLASS_LABELS } from "@/lib/credits";
-import type { ValidateSongPayload } from "@/context/AppContext";
+import type { ReviewClassRequestPayload } from "@/context/AppContext";
 import { SongCatalogEditorForm } from "@/components/admin/SongCatalogEditorForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,7 +65,7 @@ export default function AdminSongLibraryPanel() {
     setEditorOpen(true);
   };
 
-  const handleSave = async (payload: ValidateSongPayload, previousSongKey?: string) => {
+  const handleSave = async (payload: ReviewClassRequestPayload, previousSongKey?: string) => {
     if (editorMode === "create") {
       if (songCatalog[payload.songKey]) {
         toast.error("That song title + artist is already in the library.");
@@ -98,7 +98,7 @@ export default function AdminSongLibraryPanel() {
         </p>
         <p>
           Use <strong>Add song</strong> to seed the library before anyone lists that track, or finish profiles from the{" "}
-          <strong>Validation</strong> tab when students submit new music.
+          <strong>Classes</strong> tab when students submit new requests.
         </p>
       </AdminTutorialCallout>
       <p className="text-sm text-muted-foreground leading-relaxed">

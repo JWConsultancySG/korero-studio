@@ -1,5 +1,5 @@
 export type ClassType = 'no-filming' | 'half-song' | 'full-song';
-export type MatchingState = 'forming' | 'matching' | 'golden' | 'fixed';
+export type MatchingState = 'forming' | 'matching' | 'golden' | 'instructor_confirmed' | 'fixed';
 export type AssignmentStatus = 'pending' | 'confirmed' | 'rejected';
 
 /** Studio account role — stored on `profiles.app_role` (authoritative). */
@@ -50,16 +50,18 @@ export interface SongGroup {
   /** Member position names (e.g. Jennie, Lisa) — length matches maxMembers when set. */
   slotLabels?: string[];
   creatorId?: string;
+  /** Resolved from `profiles.full_name` when available (e.g. admin / same user). */
+  creatorName?: string;
   /** Creator's chosen slot label from slotLabels. */
   creatorSlotLabel?: string;
   enrollments?: GroupMemberEnrollment[];
   creditsCharged?: number;
   classTypeAtCreation?: ClassType;
-  /** Matches `makeSongKey(songTitle, artist)` for library / validation. */
+  /** Matches `makeSongKey(songTitle, artist)` for library / review. */
   songKey?: string;
   itunesTrackId?: number;
-  /** True until admin validates the song profile — hidden from public group browse. */
-  awaitingSongValidation?: boolean;
+  /** True until admin reviews and approves the class request — hidden from public browse. */
+  awaitingAdminReview?: boolean;
   /** Set after class-full WhatsApp notification (DB: full_notified_at). */
   fullNotifiedAt?: string;
   matchingState?: MatchingState;
@@ -69,7 +71,11 @@ export interface SongGroup {
   acceptedByStudents?: string[];
   acceptedByInstructor?: boolean;
   finalizedSlotBlocks?: MatchedHourSlot[];
+  selectedLessonSlots?: MatchedHourSlot[];
+  studentPayments?: Record<string, 'pending' | 'paid'>;
   finalPaymentStatus?: 'pending' | 'paid';
+  cancelledAt?: string;
+  cancellationReason?: string;
   studioSelection?: GroupStudioSelection;
   instructorAssignment?: GroupInstructorAssignment;
 }
@@ -143,6 +149,8 @@ export interface GroupInstructorAssignment {
   id: string;
   groupId: string;
   instructorId: string;
+  /** Resolved from `profiles.full_name` when RLS allows reading that profile. */
+  instructorName?: string;
   status: AssignmentStatus;
   requestedAt: string;
   decidedAt?: string;
@@ -167,7 +175,7 @@ export type PaymentMethod = 'stripe' | 'paynow';
 export interface CreditTransaction {
   id: string;
   at: string; // ISO
-  kind: 'top_up' | 'group_create' | 'adjustment' | 'class_plan';
+  kind: 'top_up' | 'group_create' | 'adjustment' | 'class_plan' | 'lesson_confirm';
   /** Positive = credits added, negative = spent. */
   creditsDelta: number;
   sgdDelta?: number;
@@ -195,7 +203,7 @@ export interface ClassSession {
 
 export interface AdminAlert {
   id: string;
-  kind: 'song_validation';
+  kind: 'class_request_review';
   message: string;
   groupId: string;
   songKey: string;

@@ -11,7 +11,7 @@ import {
 } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 import { useApp } from "@/context/AppContext";
-import { Shield } from "lucide-react";
+import { KoreroLogo } from "@/components/KoreroLogo";
 
 export default function SidebarNav() {
   const pathname = usePathname() ?? "";
@@ -31,8 +31,8 @@ export default function SidebarNav() {
             href="/admin?tab=overview"
             className="flex items-center gap-3 rounded-xl p-1.5 -m-1.5 btn-press min-w-0"
           >
-            <div className="w-10 h-10 rounded-xl gradient-purple-deep flex items-center justify-center glow-purple shrink-0">
-              <Shield className="w-5 h-5 text-primary-foreground" aria-hidden />
+            <div className="w-10 h-10 rounded-xl ring-1 ring-border shrink-0 overflow-hidden">
+              <KoreroLogo imgClassName="w-full h-full object-cover" />
             </div>
             <div className="hidden lg:flex flex-col min-w-0">
               <span className="font-black text-foreground tracking-tight text-lg leading-tight truncate">
@@ -74,8 +74,8 @@ export default function SidebarNav() {
     >
       <div className="h-16 lg:h-[4.25rem] flex items-center justify-center lg:justify-start lg:px-5 border-b border-border/50 shrink-0">
         <Link href="/" className="flex items-center gap-3 rounded-xl p-1.5 -m-1.5 btn-press">
-          <div className="w-10 h-10 rounded-xl gradient-purple-deep flex items-center justify-center glow-purple shrink-0">
-            <span className="text-lg font-black text-primary-foreground tracking-tight">K</span>
+          <div className="w-10 h-10 rounded-xl ring-1 ring-border shrink-0 overflow-hidden">
+            <KoreroLogo imgClassName="w-full h-full object-cover" />
           </div>
           <span className="hidden lg:inline font-black text-foreground tracking-tight text-lg">Korero</span>
         </Link>

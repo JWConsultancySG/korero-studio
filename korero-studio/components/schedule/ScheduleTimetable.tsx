@@ -5,8 +5,8 @@ import type { PointerEvent as ReactPointerEvent } from "react";
 import { addDays, format, startOfDay, startOfWeek } from "date-fns";
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { AvailabilitySlot } from "@/types";
-import { slotsToHoursForDate } from "@/lib/availability-blocks";
+import type { AvailabilitySlot, SongGroup } from "@/types";
+import { slotsToHoursForDate, confirmedHoursForDate } from "@/lib/availability-blocks";
 import { cn } from "@/lib/utils";
 import { ScheduleGridFrame } from "@/components/schedule/ScheduleGridFrame";
 import type { WeekColumn } from "@/components/schedule/schedule-week";
@@ -48,6 +48,7 @@ type Props = {
   availability: AvailabilitySlot[];
   toggleFreeHour: (dateKey: string, hour: number) => void;
   today: Date;
+  groups?: SongGroup[];
 };
 
 export default function ScheduleTimetable({
@@ -58,6 +59,7 @@ export default function ScheduleTimetable({
   availability,
   toggleFreeHour,
   today,
+  groups,
 }: Props) {
   const isMobile = useIsMobile();
   const today0 = startOfDay(today);
@@ -191,9 +193,35 @@ export default function ScheduleTimetable({
       const disabled = !col?.inWindow;
       const dateKey = col?.dateKey ?? "";
       const current = slotsToHoursForDate(availability, dateKey);
+      const confirmed = confirmedHoursForDate(availability, dateKey);
       const isSelected = !disabled && current.has(hour);
+      const isConfirmed = !disabled && confirmed.has(hour);
       const isPrevSelected = !disabled && current.has(hour - 1);
       const isNextSelected = !disabled && current.has(hour + 1);
+      const isPrevConfirmed = !disabled && confirmed.has(hour - 1);
+      const isNextConfirmed = !disabled && confirmed.has(hour + 1);
+
+      if (isConfirmed) {
+        const groupId = confirmed.get(hour);
+        const group = groupId && groups ? groups.find((g) => g.id === groupId) : undefined;
+        const isStart = !isPrevConfirmed;
+        return (
+          <div
+            className={cn(
+              "min-h-0 h-full border-r border-border/40 bg-primary/20 relative cursor-default",
+              isStart && "rounded-t-sm",
+              !isNextConfirmed && "rounded-b-sm",
+            )}
+            title={group ? `${group.songTitle} — ${group.artist}` : "Confirmed lesson"}
+          >
+            {isStart && group && (
+              <span className="absolute inset-x-0.5 top-0 text-[6px] font-black text-primary leading-tight truncate pointer-events-none">
+                {group.songTitle}
+              </span>
+            )}
+          </div>
+        );
+      }
 
       return (
         <div
@@ -209,7 +237,7 @@ export default function ScheduleTimetable({
         />
       );
     },
-    [availability, onWeekPointerDown, onWeekPointerEnter],
+    [availability, groups, onWeekPointerDown, onWeekPointerEnter],
   );
   const renderPatternCell = useCallback(
     (dayIdx: number, hour: number) => {

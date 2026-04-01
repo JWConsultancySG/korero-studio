@@ -63,7 +63,7 @@ export async function GET(req: Request) {
           .eq("student_id", user.id)
           .maybeSingle();
         fulfilled = data?.payment_status === "paid";
-      } else if (kind === "credits_topup" || kind === "credits_plan") {
+      } else if (kind === "credits_topup" || kind === "credits_plan" || kind === "lesson_confirm") {
         const { data } = await supabase
           .from("credit_transactions")
           .select("id")

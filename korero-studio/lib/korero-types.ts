@@ -10,7 +10,7 @@ export type CreateSongGroupPayload = {
   classType: ClassType;
   draftId?: string;
   itunesTrackId?: number;
-  skipSongValidation?: boolean;
+  skipAdminReview?: boolean;
 };
 
 export type CreditPurchaseMeta = {
@@ -25,11 +25,11 @@ export type CreateSongGroupResult =
       creditsCharged: number;
       topUpCredits: 0;
       topUpSgd: 0;
-      awaitingSongValidation?: boolean;
+      awaitingAdminReview?: boolean;
     }
   | { ok: false; reason: 'unauthenticated' | 'insufficient_credits' | 'error' };
 
-export type ValidateSongPayload = {
+export type ReviewClassRequestPayload = {
   songKey: string;
   songTitle: string;
   artist: string;

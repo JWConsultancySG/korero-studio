@@ -70,10 +70,10 @@ function countAvailabilitySlots(e: GroupMemberEnrollment): number {
 }
 
 type Props = {
-  onValidateSong: (g: SongGroup) => void;
+  onReviewClassRequest: (g: SongGroup) => void;
 };
 
-export default function AdminClassListingsPanel({ onValidateSong }: Props) {
+export default function AdminClassListingsPanel({ onReviewClassRequest }: Props) {
   const {
     groups,
     sessions,
@@ -102,7 +102,7 @@ export default function AdminClassListingsPanel({ onValidateSong }: Props) {
       if (filter === "forming" && g.status !== "forming") return false;
       if (filter === "confirmed" && g.status !== "confirmed") return false;
       if (filter === "pending" && g.status !== "pending") return false;
-      if (filter === "awaiting_validation" && !g.awaitingSongValidation) return false;
+      if (filter === "awaiting_validation" && !g.awaitingAdminReview) return false;
       if (!q) return true;
       return (
         g.songTitle.toLowerCase().includes(q) ||
@@ -151,7 +151,7 @@ export default function AdminClassListingsPanel({ onValidateSong }: Props) {
         classTypeAtCreation: g.classTypeAtCreation,
         imageUrl: g.imageUrl?.trim() || undefined,
         itunesTrackId: g.itunesTrackId,
-        awaitingSongValidation: g.awaitingSongValidation,
+        awaitingAdminReview: g.awaitingAdminReview,
         creatorSlotLabel: g.creatorSlotLabel?.trim() || undefined,
       });
       toast.success("Class listing updated.");
@@ -195,7 +195,7 @@ export default function AdminClassListingsPanel({ onValidateSong }: Props) {
           (sessions and demo bookings tied to it are cleared too).
         </p>
         <p>
-          Open <strong>Validate song</strong> when you see &quot;Awaiting validation&quot; — that activates the listing
+          Open <strong>Review request</strong> when you see &quot;Pending review&quot; — that activates the listing
           and applies library defaults for new joins.
         </p>
       </AdminTutorialCallout>
@@ -225,7 +225,7 @@ export default function AdminClassListingsPanel({ onValidateSong }: Props) {
             ["forming", "Forming"],
             ["confirmed", "Confirmed"],
             ["pending", "Pending"],
-            ["awaiting_validation", "Awaiting validation"],
+            ["awaiting_validation", "Pending review"],
           ] as const
         ).map(([key, label]) => (
           <Button
@@ -317,9 +317,9 @@ export default function AdminClassListingsPanel({ onValidateSong }: Props) {
                               {CLASS_LABELS[g.classTypeAtCreation]}
                             </Badge>
                           )}
-                          {g.awaitingSongValidation ? (
+                          {g.awaitingAdminReview ? (
                             <Badge variant="destructive" className="text-[10px]">
-                              Awaiting validation
+                              Pending review
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="text-[10px]">
@@ -336,10 +336,10 @@ export default function AdminClassListingsPanel({ onValidateSong }: Props) {
                   <AccordionContent className="px-4 pb-4 pt-0">
                     <div className="rounded-xl border border-border/60 bg-background/50 p-4 space-y-4">
                       <div className="flex flex-wrap gap-2">
-                        {g.awaitingSongValidation && (
-                          <Button size="sm" className="rounded-xl font-bold" onClick={() => onValidateSong(g)}>
+                        {g.awaitingAdminReview && (
+                          <Button size="sm" className="rounded-xl font-bold" onClick={() => onReviewClassRequest(g)}>
                             <ClipboardCheck className="w-4 h-4 mr-1.5" />
-                            Validate song
+                            Review request
                           </Button>
                         )}
                         <Button size="sm" variant="outline" className="rounded-xl font-bold" onClick={() => setEditGroup({ ...g })}>
@@ -461,8 +461,17 @@ export default function AdminClassListingsPanel({ onValidateSong }: Props) {
 
                       <div className="grid sm:grid-cols-2 gap-2 text-[11px] text-muted-foreground">
                         <div>
-                          <span className="font-bold text-foreground">Creator ID: </span>
-                          {g.creatorId ?? "—"}
+                          <span className="font-bold text-foreground">Creator: </span>
+                          {g.creatorName ? (
+                            <>
+                              <span className="text-foreground">{g.creatorName}</span>
+                              {g.creatorId && (
+                                <span className="text-muted-foreground font-mono text-[10px] ml-1">({g.creatorId})</span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="font-mono text-[10px]">{g.creatorId ?? "—"}</span>
+                          )}
                         </div>
                         <div>
                           <span className="font-bold text-foreground">Creator slot: </span>
@@ -478,9 +487,24 @@ export default function AdminClassListingsPanel({ onValidateSong }: Props) {
                         </div>
                         <div>
                           <span className="font-bold text-foreground">Instructor: </span>
-                          {g.instructorAssignment
-                            ? `${g.instructorAssignment.instructorId} (${g.instructorAssignment.status})`
-                            : "none"}
+                          {g.instructorAssignment ? (
+                            <>
+                              <span className="text-foreground">
+                                {g.instructorAssignment.instructorName ?? "Unknown"}
+                              </span>
+                              <span className="text-muted-foreground">
+                                {" "}
+                                ({g.instructorAssignment.status})
+                              </span>
+                              {g.instructorAssignment.instructorId && (
+                                <span className="text-muted-foreground font-mono text-[10px] ml-1">
+                                  {g.instructorAssignment.instructorId}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            "none"
+                          )}
                         </div>
                       </div>
                       {g.instructorAssignment?.status === "pending" && (
@@ -714,12 +738,12 @@ function ClassEditBody({
 
       <div className="flex items-center justify-between gap-4 rounded-xl border border-border p-3">
         <div>
-          <p className="font-bold text-sm">Awaiting song validation</p>
-          <p className="text-xs text-muted-foreground">Hide from browse until you validate in the Validation tab.</p>
+          <p className="font-bold text-sm">Pending admin review</p>
+          <p className="text-xs text-muted-foreground">Hide from browse until you approve from this Classes page.</p>
         </div>
         <Switch
-          checked={Boolean(group.awaitingSongValidation)}
-          onCheckedChange={(c) => onChange({ ...group, awaitingSongValidation: c })}
+          checked={Boolean(group.awaitingAdminReview)}
+          onCheckedChange={(c) => onChange({ ...group, awaitingAdminReview: c })}
         />
       </div>
 

@@ -18,6 +18,7 @@ import {
   Sparkles,
   Users,
   ChevronDown,
+  Bell,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -25,6 +26,7 @@ import { CLASS_LABELS, CREDITS_BY_CLASS, SGD_PER_CREDIT, creditsForClass, sgdFor
 import type { ClassType } from "@/types";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { parseNotificationDeepLink } from "@/lib/notification-deep-link";
 import { CreditsPaymentDialog } from "@/components/CreditsPaymentDialog";
 import { PostPaymentExperienceDialog } from "@/components/PostPaymentExperienceDialog";
 
@@ -38,6 +40,8 @@ export default function ProfilePage() {
     groups,
     bookings,
     refreshApp,
+    studentNotifications,
+    markNotificationRead,
   } = useApp();
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [topUpCredits, setTopUpCredits] = useState("");
@@ -224,6 +228,65 @@ export default function ProfilePage() {
 
         <section>
           <div className="flex items-center gap-2 mb-3">
+            <Bell className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-black text-foreground">Notifications</h2>
+          </div>
+          {studentNotifications.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 rounded-2xl border border-dashed border-border px-4">
+              No messages yet — when a class needs your attention, it will show here.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {studentNotifications.map((n) => {
+                const { text, href } = parseNotificationDeepLink(n.message);
+                return (
+                  <li
+                    key={n.id}
+                    className={cn(
+                      "rounded-2xl border px-4 py-3",
+                      n.read ? "border-border bg-card" : "border-primary/30 bg-primary/5",
+                    )}
+                  >
+                    <p className="text-sm font-medium text-foreground whitespace-pre-wrap">{text}</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {href ? (
+                        <Button asChild size="sm" className="rounded-xl font-bold gradient-purple text-primary-foreground">
+                          <Link
+                            href={href}
+                            onClick={() => {
+                              void markNotificationRead(n.id);
+                            }}
+                          >
+                            Open class
+                          </Link>
+                        </Button>
+                      ) : null}
+                      {!n.read && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="rounded-xl font-bold"
+                          onClick={() => {
+                            void markNotificationRead(n.id);
+                          }}
+                        >
+                          Dismiss
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-2">
+                      {format(new Date(n.createdAt), "MMM d, yyyy · HH:mm")}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
+
+        <section>
+          <div className="flex items-center gap-2 mb-3">
             <History className="w-5 h-5 text-primary" />
             <h2 className="text-lg font-black text-foreground">Transaction history</h2>
           </div>
@@ -248,6 +311,11 @@ export default function ProfilePage() {
                       {tx.kind === "group_create" && (
                         <Badge variant="outline" className="text-[9px] font-black h-5">
                           Class charge
+                        </Badge>
+                      )}
+                      {tx.kind === "lesson_confirm" && (
+                        <Badge variant="outline" className="text-[9px] font-black h-5">
+                          Lesson confirm
                         </Badge>
                       )}
                       {tx.classType && (

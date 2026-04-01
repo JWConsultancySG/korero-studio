@@ -16,7 +16,8 @@ import { readCheckoutSessionResponse } from "@/lib/stripe-client";
 
 export type StripeCheckoutIntent =
   | { kind: "topup"; credits: number }
-  | { kind: "class_plan"; classType: ClassType };
+  | { kind: "class_plan"; classType: ClassType }
+  | { kind: "lesson_confirm"; classId: string };
 
 export type CreditsPaymentDialogProps = {
   open: boolean;
@@ -66,11 +67,17 @@ export function CreditsPaymentDialog({
               credits: stripeIntent.credits,
               ...(returnNext ? { returnNext } : {}),
             }
-          : {
-              kind: "class_plan" as const,
-              classType: stripeIntent.classType,
-              ...(returnNext ? { returnNext } : {}),
-            };
+          : stripeIntent.kind === "class_plan"
+            ? {
+                kind: "class_plan" as const,
+                classType: stripeIntent.classType,
+                ...(returnNext ? { returnNext } : {}),
+              }
+            : {
+                kind: "lesson_confirm" as const,
+                classId: stripeIntent.classId,
+                ...(returnNext ? { returnNext } : {}),
+              };
       const res = await fetch("/api/stripe/checkout-session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

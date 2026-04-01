@@ -2,21 +2,18 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAppOrigin, getStripe, checkoutPaymentMethodTypes } from "@/lib/stripe-server";
 import { safeAppReturnTarget, withStripeCanceledParam } from "@/lib/stripe-nav";
-import { CLASS_LABELS, creditsForClass, SGD_PER_CREDIT } from "@/lib/credits";
+import { CLASS_LABELS, creditsForClass, isClassType, SGD_PER_CREDIT } from "@/lib/credits";
 import type { ClassType } from "@/types";
 
 export const runtime = "nodejs";
 
 const BOOKING_AMOUNT_SGD = 45;
 
-function isClassType(s: unknown): s is ClassType {
-  return s === "no-filming" || s === "half-song" || s === "full-song";
-}
-
 type Body =
   | { kind: "topup"; credits: number; returnNext?: string }
   | { kind: "class_plan"; classType: ClassType; returnNext?: string }
-  | { kind: "booking"; bookingId: string; groupId: string };
+  | { kind: "booking"; bookingId: string; groupId: string }
+  | { kind: "lesson_confirm"; classId: string; returnNext?: string };
 
 export async function POST(req: Request) {
   let body: Body;
@@ -104,6 +101,70 @@ export async function POST(req: Request) {
           fulfillment_kind: "credits_plan",
           profile_id: profileId,
           class_type: body.classType,
+        },
+        success_url: `${origin}/payment/stripe-return?session_id={CHECKOUT_SESSION_ID}&next=${encodeURIComponent(returnTarget)}`,
+        cancel_url: `${origin.replace(/\/$/, "")}${withStripeCanceledParam(returnTarget)}`,
+      });
+      return NextResponse.json({ url: session.url });
+    }
+
+    if (body.kind === "lesson_confirm") {
+      const classId = typeof body.classId === "string" ? body.classId.trim() : "";
+      if (!classId) {
+        return NextResponse.json({ error: "Missing class id" }, { status: 400 });
+      }
+
+      const { data: cls, error: cErr } = await supabase
+        .from("classes")
+        .select("id,matching_state,student_payments,class_type_at_creation,song_title")
+        .eq("id", classId)
+        .maybeSingle();
+
+      if (cErr || !cls) {
+        return NextResponse.json({ error: "Class not found" }, { status: 404 });
+      }
+      if (cls.matching_state !== "instructor_confirmed") {
+        return NextResponse.json({ error: "Class is not awaiting lesson payment" }, { status: 400 });
+      }
+
+      const payments = (cls.student_payments ?? {}) as Record<string, "pending" | "paid">;
+      if (!(profileId in payments) || payments[profileId] !== "pending") {
+        return NextResponse.json({ error: "You are not pending payment for this class" }, { status: 400 });
+      }
+
+      const classType = cls.class_type_at_creation;
+      if (!isClassType(classType)) {
+        return NextResponse.json({ error: "Invalid class format" }, { status: 400 });
+      }
+
+      const credits = creditsForClass(classType);
+      const amountCents = Math.round(credits * SGD_PER_CREDIT * 100);
+      const songTitle = (cls.song_title as string)?.trim() || "Class";
+      const returnTarget = safeAppReturnTarget(body.returnNext ?? `/browse/${classId}`);
+
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        customer_email: user.email ?? undefined,
+        payment_method_types: pmTypes,
+        line_items: [
+          {
+            quantity: 1,
+            price_data: {
+              currency: "sgd",
+              unit_amount: amountCents,
+              product_data: {
+                name: `Lesson confirmation · ${CLASS_LABELS[classType]}`,
+                description: `Korero Studio · "${songTitle}" · ${credits} credits equivalent`,
+              },
+            },
+          },
+        ],
+        metadata: {
+          fulfillment_kind: "lesson_confirm",
+          profile_id: profileId,
+          class_id: classId,
+          credits: String(credits),
+          class_type: classType,
         },
         success_url: `${origin}/payment/stripe-return?session_id={CHECKOUT_SESSION_ID}&next=${encodeURIComponent(returnTarget)}`,
         cancel_url: `${origin.replace(/\/$/, "")}${withStripeCanceledParam(returnTarget)}`,

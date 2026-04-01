@@ -1,5 +1,9 @@
 import type { ClassType } from "@/types";
 
+export function isClassType(s: unknown): s is ClassType {
+  return s === "no-filming" || s === "half-song" || s === "full-song";
+}
+
 /** Credits charged to create/join a song group by class format. */
 export const CREDITS_BY_CLASS: Record<ClassType, number> = {
   "no-filming": 5,

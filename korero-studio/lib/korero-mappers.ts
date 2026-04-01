@@ -83,7 +83,11 @@ export type SongGroupRow = {
   accepted_by_students?: unknown;
   accepted_by_instructor?: boolean | null;
   finalized_slot_blocks?: unknown;
+  selected_lesson_slots?: unknown;
+  student_payments?: unknown;
   final_payment_status?: SongGroup['finalPaymentStatus'] | null;
+  cancelled_at?: string | null;
+  cancellation_reason?: string | null;
 };
 
 export type GroupEnrollmentRow = {
@@ -110,6 +114,7 @@ export function mergeSongGroup(
   enrollments: GroupMemberEnrollment[],
   studioSelection?: GroupStudioSelection,
   instructorAssignment?: GroupInstructorAssignment,
+  extras?: { creatorName?: string },
 ): SongGroup {
   const members = enrollments.map((e) => e.studentId);
   return {
@@ -123,11 +128,12 @@ export function mergeSongGroup(
     imageUrl: row.image_url ?? undefined,
     slotLabels: row.slot_labels ?? undefined,
     creatorId: row.creator_id ?? undefined,
+    creatorName: extras?.creatorName,
     creatorSlotLabel: row.creator_slot_label ?? undefined,
     creditsCharged: row.credits_charged ?? undefined,
     classTypeAtCreation: row.class_type_at_creation ?? undefined,
     itunesTrackId: row.itunes_track_id ?? undefined,
-    awaitingSongValidation: row.awaiting_song_validation,
+    awaitingAdminReview: row.awaiting_song_validation,
     fullNotifiedAt: row.full_notified_at ?? undefined,
     matchingState: row.matching_state ?? undefined,
     goldenAt: row.golden_at ?? undefined,
@@ -137,8 +143,22 @@ export function mergeSongGroup(
     acceptedByInstructor: row.accepted_by_instructor ?? false,
     finalizedSlotBlocks: Array.isArray(row.finalized_slot_blocks)
       ? (row.finalized_slot_blocks as MatchedHourSlot[])
-      : [],
+      : typeof row.finalized_slot_blocks === 'string'
+        ? (() => { try { const p = JSON.parse(row.finalized_slot_blocks); return Array.isArray(p) ? p as MatchedHourSlot[] : []; } catch { return []; } })()
+        : [],
+    selectedLessonSlots: Array.isArray(row.selected_lesson_slots)
+      ? (row.selected_lesson_slots as MatchedHourSlot[])
+      : typeof row.selected_lesson_slots === 'string'
+        ? (() => { try { const p = JSON.parse(row.selected_lesson_slots); return Array.isArray(p) ? p as MatchedHourSlot[] : []; } catch { return []; } })()
+        : [],
+    studentPayments: (row.student_payments && typeof row.student_payments === 'object' && !Array.isArray(row.student_payments))
+      ? (row.student_payments as Record<string, 'pending' | 'paid'>)
+      : typeof row.student_payments === 'string'
+        ? (() => { try { return JSON.parse(row.student_payments) as Record<string, 'pending' | 'paid'>; } catch { return {}; } })()
+        : {},
     finalPaymentStatus: row.final_payment_status ?? 'pending',
+    cancelledAt: row.cancelled_at ?? undefined,
+    cancellationReason: row.cancellation_reason ?? undefined,
     studioSelection,
     instructorAssignment,
     enrollments,
@@ -288,7 +308,7 @@ export function mapCreditTransactionRow(row: CreditTransactionRow): CreditTransa
 
 export type AdminAlertRow = {
   id: string;
-  kind: 'song_validation';
+  kind: 'song_validation' | 'class_request_review';
   message: string;
   class_id: string;
   song_key: string;
@@ -300,7 +320,7 @@ export function mapAdminAlertRow(row: AdminAlertRow): AdminAlert | null {
   if (row.dismissed_at) return null;
   return {
     id: row.id,
-    kind: row.kind,
+    kind: 'class_request_review',
     message: row.message,
     groupId: row.class_id,
     songKey: row.song_key,

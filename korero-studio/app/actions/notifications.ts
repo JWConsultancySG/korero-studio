@@ -2,6 +2,43 @@
 
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { createServiceSupabase } from "@/lib/supabase/service";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { buildLessonPaymentDueMessage } from "@/lib/notification-messages";
+
+/**
+ * After the instructor locks lesson slots, notify every enrolled student (in-app).
+ * Uses service role so inserts are not blocked by RLS.
+ */
+export async function notifyStudentsLessonPaymentDue(payload: {
+  classId: string;
+  songTitle: string;
+  artist: string;
+  studentIds: string[];
+}): Promise<{ ok: true; inserted: number } | { ok: false; reason: string }> {
+  const ids = [...new Set(payload.studentIds)].filter(Boolean);
+  if (ids.length === 0) return { ok: true, inserted: 0 };
+
+  const message = buildLessonPaymentDueMessage(payload.songTitle, payload.artist, payload.classId);
+  const rows = ids.map((student_id) => ({
+    student_id,
+    message,
+    read: false,
+  }));
+
+  try {
+    const admin = createAdminClient();
+    const { error } = await admin.from("student_notifications").insert(rows);
+    if (error) {
+      console.error("[korero] notifyStudentsLessonPaymentDue", error);
+      return { ok: false, reason: error.message };
+    }
+    return { ok: true, inserted: rows.length };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "admin client failed";
+    console.error("[korero] notifyStudentsLessonPaymentDue", e);
+    return { ok: false, reason: msg };
+  }
+}
 
 /** Auto: class reached max members — notify admin WhatsApp Business number. */
 export async function notifyClassThresholdReached(payload: {

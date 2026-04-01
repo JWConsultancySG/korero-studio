@@ -64,11 +64,11 @@ export default function FormationCard({ group, studentId, variant = "joined" }: 
           <div className="flex items-start gap-2">
             <Lightbulb className="w-4 h-4 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
             <div className="space-y-1 min-w-0">
-              <p className="text-xs font-black text-foreground">Best overlap so far (not everyone yet)</p>
+              <p className="text-xs font-black text-foreground">Best common slot so far (not full group yet)</p>
               <p className="text-[11px] text-muted-foreground leading-relaxed">
                 Most members are free around <span className="font-bold text-foreground">{suggestion.label}</span>{" "}
-                ({suggestion.count}/{suggestion.memberTotal} free). The class page only shows times when{" "}
-                <span className="font-semibold text-foreground">everyone</span> overlaps; adding this window in{" "}
+                ({suggestion.count}/{suggestion.memberTotal} free). The class page only shows full-group common slots;
+                adding this window in{" "}
                 <span className="font-semibold text-foreground">My Schedule</span> moves you closer to a full match.
               </p>
             </div>

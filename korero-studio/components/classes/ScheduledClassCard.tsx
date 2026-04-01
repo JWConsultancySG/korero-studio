@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { format, parseISO } from "date-fns";
 import type { SongGroup, ClassSession, Booking } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { CLASS_LABELS } from "@/lib/credits";
-import { Music, Clock, Building2, Mic2 } from "lucide-react";
+import { Music, Clock, Building2, Mic2, Lock } from "lucide-react";
 
 type Props = {
   group: SongGroup;
@@ -22,7 +23,10 @@ export default function ScheduledClassCard({ group, sessions, booking }: Props) 
           <p className="font-black text-foreground truncate">{group.songTitle}</p>
           <p className="text-xs text-muted-foreground font-medium">{group.artist}</p>
         </div>
-        <Badge className="gradient-purple text-primary-foreground text-[10px] font-black">Scheduled</Badge>
+        <Badge className="gradient-purple text-primary-foreground text-[10px] font-black flex items-center gap-1">
+          {group.matchingState === "fixed" && <Lock className="w-2.5 h-2.5" />}
+          {group.matchingState === "fixed" ? "Locked" : "Scheduled"}
+        </Badge>
       </div>
 
       {group.classTypeAtCreation && (
@@ -41,28 +45,36 @@ export default function ScheduledClassCard({ group, sessions, booking }: Props) 
       <div className="space-y-2">
         <p className="text-[11px] font-black uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
           <Building2 className="w-3.5 h-3.5" />
-          Studio & time (assigned by Korero)
+          Studio & time
         </p>
         {groupSessions.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Room and time will appear here once the studio assigns your slot.
+            Room and time will appear here once matching is finalized.
           </p>
         ) : (
           <ul className="space-y-2">
-            {groupSessions.map((s) => (
-              <li
-                key={s.id}
-                className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-accent/40 px-3 py-2.5 text-sm"
-              >
-                <Music className="w-4 h-4 text-primary shrink-0" />
-                <span className="font-black text-foreground">{s.room}</span>
-                <span className="text-muted-foreground">·</span>
-                <span className="flex items-center gap-1 font-bold text-foreground">
-                  <Clock className="w-3.5 h-3.5 text-muted-foreground" />
-                  {s.day} {s.time}
-                </span>
-              </li>
-            ))}
+            {groupSessions.map((s, idx) => {
+              const hasDatetime = s.startAt && s.endAt;
+              const startDate = hasDatetime ? parseISO(s.startAt!) : null;
+              const endDate = hasDatetime ? parseISO(s.endAt!) : null;
+              return (
+                <li
+                  key={s.id}
+                  className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-accent/40 px-3 py-2.5 text-sm"
+                >
+                  <Music className="w-4 h-4 text-primary shrink-0" />
+                  <span className="text-[10px] font-black text-muted-foreground tabular-nums">#{idx + 1}</span>
+                  <span className="font-black text-foreground">{s.room}</span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="flex items-center gap-1 font-bold text-foreground">
+                    <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                    {hasDatetime && startDate && endDate
+                      ? `${format(startDate, "EEE MMM d")} · ${format(startDate, "h:mma")}–${format(endDate, "h:mma")}`
+                      : `${s.day ?? ""} ${s.time ?? ""}`}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

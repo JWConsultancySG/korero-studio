@@ -9,18 +9,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import type { SongGroup, ClassType } from "@/types";
 import { CLASS_LABELS } from "@/lib/credits";
 import { makeSongKey } from "@/lib/song-key";
-import type { ValidateSongPayload } from "@/context/AppContext";
+import type { ReviewClassRequestPayload } from "@/context/AppContext";
 import { Loader2, Plus, X } from "lucide-react";
 
 const ALL_CLASS_TYPES: ClassType[] = ["no-filming", "half-song", "full-song"];
 
 type Props = {
   group: SongGroup;
-  onSubmit: (payload: ValidateSongPayload) => void;
+  onSubmit: (payload: ReviewClassRequestPayload) => void;
   onCancel?: () => void;
 };
 
-export function SongValidationForm({ group, onSubmit, onCancel }: Props) {
+export function ClassRequestReviewForm({ group, onSubmit, onCancel }: Props) {
   const songKey = group.songKey ?? makeSongKey(group.songTitle, group.artist);
   const [formationSize, setFormationSize] = useState(String(group.maxMembers || 4));
   const [roleNames, setRoleNames] = useState<string[]>(
@@ -79,7 +79,7 @@ export function SongValidationForm({ group, onSubmit, onCancel }: Props) {
     }
     if (classOpts.length === 0) return;
     setBusy(true);
-    const payload: ValidateSongPayload = {
+    const payload: ReviewClassRequestPayload = {
       songKey,
       songTitle: group.songTitle,
       artist: group.artist,
@@ -169,7 +169,7 @@ export function SongValidationForm({ group, onSubmit, onCancel }: Props) {
       </div>
 
       <div className="space-y-2">
-        <Label>Class types allowed for this song</Label>
+        <Label>Class types allowed for this class</Label>
         <div className="flex flex-wrap gap-3">
           {ALL_CLASS_TYPES.map((ct) => (
             <label key={ct} className="flex items-center gap-2 text-sm font-bold cursor-pointer">
@@ -201,7 +201,7 @@ export function SongValidationForm({ group, onSubmit, onCancel }: Props) {
       <div className="flex flex-wrap gap-2 pt-2">
         <Button type="submit" disabled={busy || classOpts.length === 0} className="rounded-2xl font-black gradient-purple">
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-          Save &amp; activate
+          Approve &amp; publish
         </Button>
         {onCancel && (
           <Button type="button" variant="outline" className="rounded-2xl font-bold" onClick={onCancel}>

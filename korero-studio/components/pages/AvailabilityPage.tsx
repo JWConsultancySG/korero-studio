@@ -22,6 +22,7 @@ export default function AvailabilityPage() {
     student,
     availability,
     setAvailabilityBatch,
+    groups,
   } = useApp();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -202,7 +203,7 @@ export default function AvailabilityPage() {
             ) : (
               <>
                 Paint when you&apos;re <span className="font-semibold text-foreground">free for rehearsals</span> (not busy
-                elsewhere). Each class you&apos;re in compares everyone&apos;s grid to show &quot;when are we all free?&quot; —
+                elsewhere). Each class you&apos;re in compares everyone&apos;s grid to show common slots —
                 so honest blocks here make that view trustworthy. Changes stay in draft until you press{" "}
                 <span className="font-semibold text-foreground">Save changes</span>. Final studio room &amp; time still come from
                 Korero admin.
@@ -265,6 +266,7 @@ export default function AvailabilityPage() {
           availability={draftAvailability}
           toggleFreeHour={toggleDraftFreeHour}
           today={today}
+          groups={groups}
         />
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 card-premium p-4">

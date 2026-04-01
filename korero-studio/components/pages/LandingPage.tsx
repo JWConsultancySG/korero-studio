@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import { Music, Users, Star, Zap, ChevronDown, Sparkles, Play, Heart, ArrowRight, TrendingUp, LogIn, UserPlus, LogOut } from 'lucide-react';
 import { useRef, useState, useCallback, useEffect } from 'react';
+import { KoreroLogo } from '@/components/KoreroLogo';
 
 const features = [
   { icon: Music, title: 'Pick Your Song', desc: 'Trending K-pop hits updated weekly' },
@@ -137,9 +138,9 @@ export default function LandingPage() {
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.2 }}
-              className="w-16 h-16 md:w-20 md:h-20 rounded-2xl gradient-purple-deep flex items-center justify-center mx-auto lg:mx-0 mb-6 glow-purple-intense"
+              className="w-16 h-16 md:w-20 md:h-20 rounded-2xl overflow-hidden mx-auto lg:mx-0 mb-6 shadow-lg shadow-black/40 ring-1 ring-white/25"
             >
-              <span className="text-2xl md:text-3xl font-black text-primary-foreground tracking-tight">K</span>
+              <KoreroLogo priority imgClassName="w-full h-full object-cover" />
             </motion.div>
 
             <motion.h1

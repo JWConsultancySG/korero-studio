@@ -139,7 +139,7 @@ export default function AdminAvailabilityMatcher() {
           <div className="space-y-1">
             <LabelRow icon={Target} label="Class" />
             <p className="text-xs text-muted-foreground max-w-xl">
-              Compare everyone&apos;s date-time availability snapshots (next 30 days).
+              Compare all members&apos; date-time availability snapshots (next 30 days).
             </p>
           </div>
           <div className="w-full md:w-[min(100%,320px)]">
@@ -386,9 +386,9 @@ function StatsRow({
       tone: "text-primary",
     },
     {
-      label: "Full-consensus cells",
+      label: "Common slots",
       value: String(consensusCells),
-      sub: memberCount > 0 ? `hours where all ${memberCount} align` : "—",
+      sub: memberCount > 0 ? `slots where all ${memberCount} align` : "—",
       icon: Target,
       tone: "text-violet-700 dark:text-violet-300",
     },
@@ -540,7 +540,7 @@ function PerMemberAccordion({
                     variant={hasData ? "secondary" : "outline"}
                     className={cn("shrink-0 font-bold", !hasData && "border-amber-500/40 text-amber-900 dark:text-amber-100")}
                   >
-                    {hasData ? `${blocks} h saved` : "No hours yet"}
+                    {hasData ? `${blocks} hours saved` : "No hours yet"}
                   </Badge>
                 </div>
               </AccordionTrigger>

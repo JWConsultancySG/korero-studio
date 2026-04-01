@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import type { ClassType, SongCatalogEntry } from "@/types";
 import { CLASS_LABELS } from "@/lib/credits";
 import { makeSongKey } from "@/lib/song-key";
-import type { ValidateSongPayload } from "@/context/AppContext";
+import type { ReviewClassRequestPayload } from "@/context/AppContext";
 import { Loader2 } from "lucide-react";
 
 const ALL_CLASS_TYPES: ClassType[] = ["no-filming", "half-song", "full-song"];
@@ -20,7 +20,7 @@ type Props = {
   mode: SongCatalogEditorMode;
   /** When editing, seed fields from this entry. */
   initialEntry?: SongCatalogEntry;
-  onSubmit: (payload: ValidateSongPayload, previousSongKey?: string) => void;
+  onSubmit: (payload: ReviewClassRequestPayload, previousSongKey?: string) => void;
   onCancel?: () => void;
 };
 
@@ -75,7 +75,7 @@ export function SongCatalogEditorForm({ mode, initialEntry, onSubmit, onCancel }
 
     const songKey = makeSongKey(title, art);
     const itunesNum = itunesId.trim() ? parseInt(itunesId.trim(), 10) : undefined;
-    const payload: ValidateSongPayload = {
+    const payload: ReviewClassRequestPayload = {
       songKey,
       songTitle: title,
       artist: art,

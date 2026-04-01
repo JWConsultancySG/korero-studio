@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useApp } from '@/context/AppContext';
 import DateTimeOverlapView from '@/components/groups/DateTimeOverlapView';
-import { Plus, Users, Music, Search, Sparkles, TrendingUp, Zap, Lock, CircleDot, ArrowRight } from 'lucide-react';
+import { Plus, Users, Music, Search, Sparkles, TrendingUp, Zap, Lock, CircleDot, ArrowRight, MapPin } from 'lucide-react';
 
 // iTunes Search has no CORS for browsers and can redirect to musics:// — use same-origin API route.
 const fetchArtwork = async (songTitle: string, artist: string): Promise<string | null> => {
@@ -27,15 +27,45 @@ const fetchArtwork = async (songTitle: string, artist: string): Promise<string |
 };
 
 export default function GroupsPage() {
-  const { groups, student, joinGroup, requestInstructorForGroup, chooseStudioForGroup, studios } = useApp();
+  const {
+    groups,
+    student,
+    joinGroup,
+    requestInstructorForGroup,
+    recomputeGroupMatching,
+    studios,
+  } = useApp();
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [artworkMap, setArtworkMap] = useState<Record<string, string>>({});
   const artworkAttemptedRef = useRef<Set<string>>(new Set());
   const [joinTarget, setJoinTarget] = useState<(typeof groups)[number] | null>(null);
   const [selectedJoinSlot, setSelectedJoinSlot] = useState<string | null>(null);
-  const [selectedStudioId, setSelectedStudioId] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
+  const joinTargetId = joinTarget?.id ?? null;
+  const isInstructor = student?.appRole === 'instructor';
+
+  // Keep modal data in sync with latest group state after refresh/recompute.
+  useEffect(() => {
+    if (!joinTargetId) return;
+    const live = groups.find((g) => g.id === joinTargetId) ?? null;
+    if (!live) {
+      setJoinTarget(null);
+      return;
+    }
+    setJoinTarget((prev) => (prev && prev !== live ? live : prev));
+  }, [groups, joinTargetId]);
+
+  // When the instructor opens the join modal (or studio selection becomes available), recompute once.
+  // Do NOT depend on `groups`: recompute → refresh() → new `groups` reference → effect re-ran forever ("Rendering…").
+  const instructorModalStudioId = joinTargetId
+    ? groups.find((g) => g.id === joinTargetId)?.studioSelection?.studioId
+    : undefined;
+  useEffect(() => {
+    if (!isInstructor || !joinTargetId) return;
+    if (!instructorModalStudioId) return;
+    void recomputeGroupMatching(joinTargetId);
+  }, [isInstructor, joinTargetId, instructorModalStudioId, recomputeGroupMatching]);
 
   // Fetch artwork for groups without images (sequential + small delay to avoid iTunes rate limits)
   useEffect(() => {
@@ -63,8 +93,6 @@ export default function GroupsPage() {
     };
   }, [groups]);
 
-  const isInstructor = student?.appRole === 'instructor';
-
   const handleJoin = async (groupId: string) => {
     if (!student) { router.push('/register'); return; }
     const group = groups.find((g) => g.id === groupId);
@@ -75,7 +103,6 @@ export default function GroupsPage() {
     }
     if (isInstructor) {
       if (!group) return;
-      setSelectedStudioId(group.studioSelection?.studioId ?? studios[0]?.id ?? null);
       setJoinTarget(group);
       return;
     }
@@ -89,7 +116,8 @@ export default function GroupsPage() {
 
   const handleConfirmJoin = async () => {
     if (!joinTarget || !student || joining) return;
-    const modalInstructorAssignment = joinTarget.instructorAssignment;
+    const liveGroup = groups.find((g) => g.id === joinTarget.id) ?? joinTarget;
+    const modalInstructorAssignment = liveGroup.instructorAssignment;
     const modalIsMyInstructorAssignment = Boolean(
       isInstructor && student && modalInstructorAssignment?.instructorId === student.id,
     );
@@ -100,9 +128,6 @@ export default function GroupsPage() {
           setJoinTarget(null);
           router.push(`/browse/${joinTarget.id}`);
           return;
-        }
-        if (selectedStudioId) {
-          await chooseStudioForGroup(joinTarget.id, selectedStudioId);
         }
         await requestInstructorForGroup(joinTarget.id);
       } else {
@@ -116,7 +141,7 @@ export default function GroupsPage() {
   };
 
   const joinableGroups = groups.filter((g) => {
-    if (g.awaitingSongValidation) return false;
+    if (g.awaitingAdminReview) return false;
     if (isInstructor) return g.status === 'forming';
     return g.status === 'forming' && g.interestCount < g.maxMembers;
   });
@@ -532,16 +557,23 @@ export default function GroupsPage() {
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end md:items-center justify-center">
           <div className="w-full md:max-w-3xl bg-background border border-border rounded-t-3xl md:rounded-3xl p-5 md:p-6 max-h-[88vh] overflow-y-auto">
             {(() => {
-              const modalInstructorAssignment = joinTarget.instructorAssignment;
+              const modalGroup = joinTargetId ? groups.find((g) => g.id === joinTargetId) ?? joinTarget : joinTarget;
+              const modalInstructorAssignment = modalGroup.instructorAssignment;
               const modalIsMyInstructorAssignment = Boolean(
                 isInstructor && student && modalInstructorAssignment?.instructorId === student.id,
               );
+              const modalMyInstructorConfirmed =
+                modalIsMyInstructorAssignment && modalInstructorAssignment?.status === "confirmed";
+              const modalMyInstructorPending =
+                modalIsMyInstructorAssignment && modalInstructorAssignment?.status === "pending";
               const modalInstructorTakenByOther = Boolean(
                 isInstructor &&
                 modalInstructorAssignment?.status === 'confirmed' &&
                 modalInstructorAssignment.instructorId !== student?.id,
               );
-              const modalCanSubmitInstructorJoin = !modalIsMyInstructorAssignment && !modalInstructorTakenByOther;
+              const modalStudio = studios.find((s) => s.id === modalGroup.studioSelection?.studioId);
+              const instructorPrimaryDisabled =
+                joining || (isInstructor && modalInstructorTakenByOther);
 
               return (
                 <>
@@ -552,8 +584,8 @@ export default function GroupsPage() {
                 </h3>
                 <p className="text-sm text-muted-foreground mt-1">
                   {isInstructor
-                    ? "Review class overlap and confirm your studio before requesting the instructor slot."
-                    : "View overlap first, then pick your position before joining this class."}
+                    ? "Review common slots and confirm your studio before requesting the instructor slot."
+                    : "Check common slots first, then pick your position before joining this class."}
                 </p>
               </div>
               <Button
@@ -567,13 +599,24 @@ export default function GroupsPage() {
               </Button>
             </div>
 
-            {isInstructor && modalIsMyInstructorAssignment && (
-              <div className="mb-4 rounded-2xl border border-primary/30 bg-primary/10 p-3">
+            {isInstructor && modalMyInstructorConfirmed && (
+              <div className="mb-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-3">
                 <p className="text-sm font-bold text-foreground">
-                  You already requested this instructor slot ({modalInstructorAssignment?.status ?? "pending"}).
+                  You&apos;re the confirmed instructor for this class.
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Next step: admin confirms assignment in Admin panel. You can still review schedule details now.
+                  Next step: open the class page for lesson slots, matching, and scheduling.
+                </p>
+              </div>
+            )}
+
+            {isInstructor && modalMyInstructorPending && (
+              <div className="mb-4 rounded-2xl border border-primary/30 bg-primary/10 p-3">
+                <p className="text-sm font-bold text-foreground">
+                  You&apos;ve requested this instructor slot — status: pending admin confirmation.
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Korero admin will confirm the assignment in the Admin panel. You can still review schedule details here.
                 </p>
               </div>
             )}
@@ -585,58 +628,53 @@ export default function GroupsPage() {
             )}
 
             <div className="rounded-2xl border border-border p-4 mb-5">
-              <p className="text-sm font-black text-foreground">{joinTarget.songTitle}</p>
-              <p className="text-xs text-muted-foreground">{joinTarget.artist}</p>
+              <p className="text-sm font-black text-foreground">{modalGroup.songTitle}</p>
+              <p className="text-xs text-muted-foreground">{modalGroup.artist}</p>
+            </div>
+
+            <div className="rounded-2xl border border-border p-4 mb-5">
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground mb-2 flex items-center gap-1.5">
+                <MapPin className="w-3 h-3 text-primary" />
+                Studio room
+              </p>
+              {modalStudio ? (
+                <div className="space-y-1.5">
+                  <p className="text-sm font-black text-foreground">{modalStudio.name}</p>
+                  {modalStudio.location && (
+                    <p className="text-xs text-muted-foreground">{modalStudio.location}</p>
+                  )}
+                  {modalStudio.address && (
+                    <p className="text-xs text-muted-foreground leading-relaxed">{modalStudio.address}</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Studio room is not selected yet. Korero admin will confirm this soon.
+                </p>
+              )}
             </div>
 
             <div className="mb-5">
               <p className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground mb-1">
-                When is everyone free?
+                Common slots
               </p>
               <p className="text-xs text-muted-foreground leading-relaxed mb-3">
-                Same view as the class page: only times when every current member overlaps in My Schedule (next 30 days). Use it
-                to sanity-check before you join.
+                Available times where studio and all enrolled students align (next 30 days). Use this to sanity-check before you join.
               </p>
-              <DateTimeOverlapView enrollments={joinTarget.enrollments ?? []} />
+              <DateTimeOverlapView
+                enrollments={modalGroup.enrollments ?? []}
+                matchedSlots={modalGroup.finalizedSlotBlocks ?? []}
+              />
             </div>
 
-            {isInstructor ? (
-              <div className="mb-6">
-                <p className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground mb-2">
-                  Confirm studio
-                </p>
-                {studios.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">No studios configured yet. Ask admin to add one.</p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {studios.map((studio) => {
-                      const selected = selectedStudioId === studio.id;
-                      return (
-                        <button
-                          key={studio.id}
-                          type="button"
-                          onClick={() => setSelectedStudioId(studio.id)}
-                          className={`px-3 py-2 rounded-xl text-xs font-bold border transition ${
-                            selected
-                              ? 'bg-primary text-primary-foreground border-primary'
-                              : 'bg-card text-foreground border-border hover:border-primary/40'
-                          }`}
-                        >
-                          {studio.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ) : (
+            {!isInstructor && (
               <div className="mb-6">
                 <p className="text-xs font-black uppercase tracking-[0.12em] text-muted-foreground mb-2">
                   Choose your position
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {(joinTarget.slotLabels?.length ? joinTarget.slotLabels : ['Member']).map((slot) => {
-                    const taken = (joinTarget.enrollments ?? []).some((e) => e.slotLabel === slot);
+                  {(modalGroup.slotLabels?.length ? modalGroup.slotLabels : ['Member']).map((slot) => {
+                    const taken = (modalGroup.enrollments ?? []).some((e) => e.slotLabel === slot);
                     const isSelected = selectedJoinSlot === slot;
                     return (
                       <button
@@ -675,16 +713,15 @@ export default function GroupsPage() {
                 className="flex-1 rounded-2xl gradient-purple text-primary-foreground font-black"
                 onClick={handleConfirmJoin}
                 disabled={
-                  joining ||
-                  (!isInstructor && !selectedJoinSlot) ||
-                  (isInstructor && !modalCanSubmitInstructorJoin) ||
-                  (isInstructor && studios.length > 0 && !selectedStudioId)
+                  (!isInstructor && !selectedJoinSlot) || instructorPrimaryDisabled
                 }
               >
                 {joining
                   ? 'Joining...'
                   : isInstructor
-                  ? modalIsMyInstructorAssignment
+                  ? modalMyInstructorConfirmed
+                    ? 'Open class'
+                    : modalIsMyInstructorAssignment
                     ? 'Already requested'
                     : modalInstructorTakenByOther
                     ? 'Instructor slot filled'
